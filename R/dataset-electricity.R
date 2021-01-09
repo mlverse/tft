@@ -1,18 +1,19 @@
 electricity_dataset <- torch::dataset(
   "electricity_dataset",
-  initialize = function(root) {
+  initialize = function(root, valid_boundary = 1315, test_boundary = 1339) {
     self$root <- root
     self$download() # sets txt_path attribute
-    self$preprocess() # sets the data attribute
+    self$preprocess() # sets data attribute
+    self$split(valid_boundary, test_boundary) # sets the splits attribute
   },
   download = function() {
     success("Download step:")
     self$txt_path <- electricity_download(self$root)
     success("Done: Download step!")
   },
-  preprocess = function(txt_path) {
+  preprocess = function() {
     success("Preprocessing step:")
-    rds_path <- fs::path(fs::path_dir(txt_path), "preproc.rds")
+    rds_path <- fs::path(fs::path_dir(self$txt_path), "preproc.rds")
     if (!fs::file_exists(rds_path)) {
       success("Preprocessing data...")
       data <- electricity_preprocess(self$txt_path)
@@ -23,6 +24,11 @@ electricity_dataset <- torch::dataset(
     }
     self$data <- data
     sucess("Done: Preprocessing step!")
+  },
+  split = function(valid_boundary, test_boundary) {
+    success("Spliting step:")
+    self$splits <- electricity_split(valid_boundary, test_boundary)
+    success("Done: Spliting step!")
   }
 )
 
@@ -130,4 +136,17 @@ electricity_download <- function(root) {
   }
 
   txt_path
+}
+
+electricity_split <- function(data, valid_boundary = 1315, test_boundary = 1339) {
+  # TODO: understand and explain the -7 stuff.
+  list(
+    train = dplyr::filter(data, days_from_start < valid_boundary),
+    valid = dplyr::filter(
+      data,
+      days_from_start >= (valid_boundary - 7),
+      days_from_start < test_boundary
+    ),
+    test  = dplyr::filter(data, days_from_start >= (test_boundary - 7))
+  )
 }
