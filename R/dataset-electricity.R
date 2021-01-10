@@ -1,3 +1,5 @@
+#' @include utils.R
+
 electricity_dataset <- torch::dataset(
   "electricity_dataset",
   initialize = function(root, valid_boundary = 1315, test_boundary = 1339) {
@@ -5,6 +7,8 @@ electricity_dataset <- torch::dataset(
     self$download() # sets txt_path attribute
     self$preprocess() # sets data attribute
     self$split(valid_boundary, test_boundary) # sets the splits attribute
+    self$set_recipes() # sets the recipes attribute
+    self$transform_splits()
   },
   download = function() {
     success("Download step:")
@@ -23,12 +27,28 @@ electricity_dataset <- torch::dataset(
       data <- readRDS(rds_path)
     }
     self$data <- data
-    sucess("Done: Preprocessing step!")
+    success("Done: Preprocessing step!")
   },
   split = function(valid_boundary, test_boundary) {
     success("Spliting step:")
-    self$splits <- electricity_split(valid_boundary, test_boundary)
+    self$splits <- electricity_split(self$data, valid_boundary, test_boundary)
     success("Done: Spliting step!")
+  },
+  set_recipes = function() {
+    success("Creating recipes step:")
+    self$recipes <- electricity_recipe(self$splits$train)
+    success("Done: Creating recipes!")
+  },
+  transform_inputs = function(data) {
+    electricity_transform_input(self$recipes, data)
+  },
+  transform_splits = function() {
+    success("Transforming the splits!")
+    self$splits <- lapply(self$splits, self$transform_inputs)
+    success("Done: Transforming the splits!")
+  },
+  .length = function() {
+    NA
   }
 )
 
@@ -82,9 +102,9 @@ electricity_preprocess <- function(txt_path) {
       day_of_week      = lubridate::wday(date),
       month            = lubridate::month(date),
       hours_from_start = t,
-      cat_id   = id,
-      cat_hour = hour,
-      cat_day_of_week = day_of_week
+      cat_id   = as.factor(id),
+      cat_hour = as.factor(hour),
+      cat_day_of_week = as.factor(day_of_week)
     )
 
   success("Filtering to match other research papers...")
@@ -149,4 +169,76 @@ electricity_split <- function(data, valid_boundary = 1315, test_boundary = 1339)
     ),
     test  = dplyr::filter(data, days_from_start >= (test_boundary - 7))
   )
+}
+
+electricity_recipe <- function(data) {
+
+  base_recipe <- recipes::recipe(
+    pwr_usage ~ .,
+    data = data %>% dplyr::select(-serie)
+  ) %>%
+    recipes::update_role(
+      id,
+      new_role = input_types$id
+    ) %>%
+    recipes::update_role(
+      hour, day_of_week, hours_from_start,
+      new_role = input_types$known_input
+    ) %>%
+    recipes::update_role(
+      t,
+      new_role = input_types$time
+    ) %>%
+    recipes::update_role(
+      cat_id,
+      new_role = input_types$static_input
+    )
+
+  num_recipe <- base_recipe %>%
+    recipes::step_normalize(
+      recipes::all_outcomes()
+    ) %>%
+    recipes::step_normalize(
+      recipes::has_role("known_input"),
+      -recipes::all_nominal()
+    )
+
+  success("Creating numeric recipes")
+  num_recipes <- data %>%
+    dplyr::group_nest(serie) %>%
+    dplyr::mutate(recipe = purrr::map(data, ~recipes::prep(num_recipe, .x))) %>%
+    dplyr::select(-data)
+
+  success("Creating categorical recipe")
+  cat_recipe <- base_recipe %>%
+    recipes::step_unknown(
+      recipes::has_role("static_input"),
+      recipes::has_role("known_input"),
+      -recipes::all_numeric()
+    ) %>%
+    recipes::prep()
+
+  list(
+    num_recipes = num_recipes,
+    cat_recipe = cat_recipe
+  )
+}
+
+electricity_transform_input <- function(recipes, data) {
+
+  nested_data <- data %>%
+    dplyr::group_nest(serie) %>%
+    dplyr::left_join(recipes$num_recipes, by = "serie")
+
+  if (any(sapply(nested_data$recipe, is.na)))
+    rlang::abort(paste0("No numeric scaler found for at least one serie"))
+
+  data <- purrr::map2_dfr(
+    nested_data$data,
+    nested_data$recipe,
+    ~recipes::bake(.y, .x)
+  )
+
+  data <- recipes::bake(recipes$cat_recipe, data)
+  data
 }

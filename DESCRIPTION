@@ -23,3 +23,7 @@ Suggests:
     lubridate,
     fs,
     readr
+Collate: 
+    'utils.R'
+    'dataset-electricity.R'
+    'utils-pipe.R'
