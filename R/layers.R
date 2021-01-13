@@ -35,10 +35,21 @@ time_distributed <- torch::nn_module(
 
 gated_residual_network <- torch::nn_module(
   "gated_residual_network",
-  initialize = function() {
-
+  initialize = function(input_size, hidden_state_size) {
+    self$hidden1 <- torch::nn_linear(2*input_size, hidden_state_size)
+    self$hidden2 <- torch::nn_linear(hidden_state_size, hidden_state_size)
+    self$elu <- torch::nn_elu()
+    self$layer_norm <- torch::nn_layer_norm(hidden_state_size)
+    self$glu <- gated_linear_unit(hidden_state_size)
+    self$skip_connection <- torch::nn_linear(input_size, hidden_state_size)
   },
   forward = function(x, context = torch::torch_zeros_like(x)) {
+    hidden_state <- list(x, context) %>%
+      torch::torch_cat(dim = -1) %>%
+      self$hidden1() %>%
+      self$elu() %>%
+      self$hidden2()
 
+    self$layer_norm(self$skip_connection(x) + self$glu(hidden_state))
   }
 )
