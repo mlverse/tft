@@ -24,6 +24,8 @@ Suggests:
     fs,
     readr,
     testthat (>= 3.0.0)
+Remotes:
+    mlverse/torch
 Collate: 
     'utils.R'
     'dataset-electricity.R'
