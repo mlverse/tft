@@ -36,11 +36,11 @@ test_that("gated residual network", {
   x <- torch::torch_randn(32, 10)
   grn <- gated_residual_network(10, 5)
 
-  expect_tensor_shape(grn(x), c(32, 5))
+  expect_equal(grn(x)$shape, c(32, 5))
 
   x <- torch::torch_randn(32, 100, 10)
   td <- time_distributed(grn, 2)
 
-  expect_tensor_shape(td(x), c(32, 100, 5))
+  expect_equal(td(x)$shape, c(32, 100, 5))
 
 })
