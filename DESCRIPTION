@@ -22,8 +22,11 @@ Suggests:
     tidyr,
     lubridate,
     fs,
-    readr
+    readr,
+    testthat (>= 3.0.0)
 Collate: 
     'utils.R'
     'dataset-electricity.R'
+    'layers.R'
     'utils-pipe.R'
+Config/testthat/edition: 3
