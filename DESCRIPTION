@@ -16,7 +16,8 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.1.1
 Imports: 
     torch,
-    magrittr
+    magrittr,
+    recipes
 Suggests:
     dplyr,
     padr,
@@ -26,7 +27,8 @@ Suggests:
     readr,
     testthat (>= 3.0.0)
 Remotes:
-    mlverse/torch
+    mlverse/torch,
+    tidymodels/recipes
 Collate: 
     'utils.R'
     'dataset-electricity.R'

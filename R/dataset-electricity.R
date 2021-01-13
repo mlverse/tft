@@ -8,7 +8,6 @@ electricity_dataset <- torch::dataset(
     self$preprocess() # sets data attribute
     self$split(valid_boundary, test_boundary) # sets the splits attribute
     self$set_recipes() # sets the recipes attribute
-    self$transform_splits()
   },
   download = function() {
     success("Download step:")
@@ -39,8 +38,8 @@ electricity_dataset <- torch::dataset(
     self$recipes <- electricity_recipe(self$splits$train)
     success("Done: Creating recipes!")
   },
-  transform_inputs = function(data) {
-    electricity_transform_input(self$recipes, data)
+  transform_inputs = function(data, ...) {
+    electricity_transform_input(self$recipes, data, ...)
   },
   transform_splits = function() {
     success("Transforming the splits!")
@@ -71,21 +70,21 @@ electricity_preprocess <- function(txt_path) {
     dplyr::rename(date = X1) %>%
     tidyr::pivot_longer(
       cols = tidyr::starts_with("MT_"),
-      names_to = "serie",
+      names_to = "id",
       values_to = "pwr_usage"
     )
 
   el_hour <- el_lng %>%
     dplyr::filter(pwr_usage > 0) %>%
     padr::thicken("hour") %>%
-    dplyr::group_by(serie, date = date_hour) %>%
+    dplyr::group_by(id, date = date_hour) %>%
     dplyr::summarise(
       pwr_usage = sum(pwr_usage),
       .groups = "drop"
     ) %>%
     padr::pad(
       interval = "hour",
-      group = "serie",
+      group = "id",
       break_above = 100
     ) %>%
     dplyr::mutate(pwr_usage = dplyr::coalesce(pwr_usage, 0))
@@ -94,17 +93,11 @@ electricity_preprocess <- function(txt_path) {
   earliest_time <- min(el_hour$date)
   el_hour <- el_hour %>%
     dplyr::mutate(
-      t                = as.integer(difftime(date, earliest_time, units = "hours")),
+      hours_from_start = as.integer(difftime(date, earliest_time, units = "hours")),
       days_from_start  = as.integer(difftime(date, earliest_time, units = "days")),
-      id               = as.integer(as.factor(serie)),
       hour             = lubridate::hour(date),
-      day              = lubridate::day(date),
       day_of_week      = lubridate::wday(date),
-      month            = lubridate::month(date),
-      hours_from_start = t,
-      cat_id   = as.factor(id),
-      cat_hour = as.factor(hour),
-      cat_day_of_week = as.factor(day_of_week)
+      month            = lubridate::month(date)
     )
 
   success("Filtering to match other research papers...")
@@ -173,47 +166,33 @@ electricity_split <- function(data, valid_boundary = 1315, test_boundary = 1339)
 
 electricity_recipe <- function(data) {
 
-  base_recipe <- recipes::recipe(
-    pwr_usage ~ .,
-    data = data %>% dplyr::select(-serie)
-  ) %>%
-    recipes::update_role(
-      id,
-      new_role = input_types$id
-    ) %>%
-    recipes::update_role(
-      hour, day_of_week, hours_from_start,
-      new_role = input_types$known_input
-    ) %>%
-    recipes::update_role(
-      t,
-      new_role = input_types$time
-    ) %>%
-    recipes::update_role(
-      cat_id,
-      new_role = input_types$static_input
-    )
+  base_recipe <- recipes::recipe(pwr_usage ~ ., data) %>%
+    role_id(id) %>%
+    role_time(hours_from_start) %>%
+    role_known(hour, day_of_week, hours_from_start) %>%
+    role_static(id)
 
   num_recipe <- base_recipe %>%
     recipes::step_normalize(
       recipes::all_outcomes()
     ) %>%
     recipes::step_normalize(
-      recipes::has_role("known_input"),
+      all_known(),
       -recipes::all_nominal()
     )
 
   success("Creating numeric recipes")
   num_recipes <- data %>%
-    dplyr::group_nest(serie) %>%
-    dplyr::mutate(recipe = purrr::map(data, ~recipes::prep(num_recipe, .x))) %>%
+    dplyr::group_nest(id, keep = TRUE) %>%
+    dplyr::mutate(recipe = purrr::map(data, ~recipes::prep(num_recipe, .x, strings_as_factors = FALSE))) %>%
     dplyr::select(-data)
 
   success("Creating categorical recipe")
   cat_recipe <- base_recipe %>%
     recipes::step_unknown(
-      recipes::has_role("static_input"),
-      recipes::has_role("known_input"),
+      all_static(),
+      all_known(),
+      all_observed(),
       -recipes::all_numeric()
     ) %>%
     recipes::prep()
@@ -224,11 +203,11 @@ electricity_recipe <- function(data) {
   )
 }
 
-electricity_transform_input <- function(recipes, data) {
+electricity_transform_input <- function(recipes, data, ...) {
 
   nested_data <- data %>%
-    dplyr::group_nest(serie) %>%
-    dplyr::left_join(recipes$num_recipes, by = "serie")
+    dplyr::group_nest(id) %>%
+    dplyr::left_join(recipes$num_recipes, by = "id")
 
   if (any(sapply(nested_data$recipe, is.na)))
     rlang::abort(paste0("No numeric scaler found for at least one serie"))
@@ -239,6 +218,6 @@ electricity_transform_input <- function(recipes, data) {
     ~recipes::bake(.y, .x)
   )
 
-  data <- recipes::bake(recipes$cat_recipe, data)
+  data <- recipes::bake(recipes$cat_recipe, data, ...)
   data
 }
