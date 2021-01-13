@@ -30,8 +30,11 @@ Remotes:
     mlverse/torch,
     tidymodels/recipes
 Collate: 
+    'batch.R'
     'utils.R'
     'dataset-electricity.R'
+    'embedding.R'
     'layers.R'
+    'roles.R'
     'utils-pipe.R'
 Config/testthat/edition: 3
