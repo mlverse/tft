@@ -120,7 +120,7 @@ electricity_download <- function(root) {
     if (!fs::dir_exists(root))
       fs::dir_create(root)
 
-    download.file(url, destfile = zip_path)
+    utils::download.file(url, destfile = zip_path)
 
     if (tools::md5sum(zip_path) != "0f0fd085f742acd4f36687e7c071e521") {
       rlang::abort(paste(
@@ -136,7 +136,7 @@ electricity_download <- function(root) {
   txt_path <- fs::path(root, "LD2011_2014.txt")
   if (!fs::file_exists(txt_path)) {
     success("Unzipping...\n")
-    unzip(zip_path, exdir = root)
+    utils::unzip(zip_path, exdir = root)
 
     if (tools::md5sum(txt_path) != "e317add771cebd2df4121e50570eaa25") {
       rlang::abort(paste(
