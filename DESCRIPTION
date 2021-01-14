@@ -17,7 +17,10 @@ RoxygenNote: 7.1.1
 Imports: 
     torch,
     magrittr,
-    recipes
+    recipes,
+    cli,
+    purrr,
+    rlang
 Suggests:
     dplyr,
     padr,
@@ -28,7 +31,7 @@ Suggests:
     testthat (>= 3.0.0)
 Remotes:
     mlverse/torch,
-    tidymodels/recipes
+    tidymodels/recipes#632
 Collate: 
     'batch.R'
     'utils.R'
