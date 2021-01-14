@@ -206,7 +206,7 @@ electricity_recipe <- function(data) {
 electricity_transform_input <- function(recipes, data, ...) {
 
   nested_data <- data %>%
-    dplyr::group_nest(id) %>%
+    dplyr::group_nest(id, keep = TRUE) %>%
     dplyr::left_join(recipes$num_recipes, by = "id")
 
   if (any(sapply(nested_data$recipe, is.na)))
