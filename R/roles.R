@@ -46,3 +46,9 @@ role_time <- function(recipe, ...) {
 all_time <- function() {
   recipes::has_role(input_types$time)
 }
+
+select_with_role <- function(df, rec, role) {
+  vinfo <- rec$var_info
+  vars <- vinfo$variable[vinfo$role %in% role]
+  dplyr::select(df, !!!vars)
+}
