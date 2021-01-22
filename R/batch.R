@@ -1,6 +1,4 @@
-batch_data <- function(df, time_steps) {
-
-  time_steps <- 100
+batch_data <- function(df, transform, time_steps = 100) {
 
   positions <- df %>%
     dplyr::group_by(id) %>%
@@ -32,20 +30,75 @@ batch_data <- function(df, time_steps) {
         )
     )
 
-  tensors <- output %>%
-    purrr::map(
+  known <- list(
+    numerics = output %>%
+      purrr::map(
+        ~.x %>%
+          transform(all_known() & recipes::all_numeric()) %>%
+          df_to_tensor()
+      ) %>%
+      torch::torch_stack(),
+    categorical = output %>%
+      purrr::map(
+        ~.x %>%
+          transform(all_known() & recipes::all_nominal()) %>%
+          df_to_tensor()
+      ) %>%
+      torch::torch_stack()
+  )
+
+  observed <- list(
+    numerics = output %>%
+      purrr::map(
+        ~.x %>%
+          transform(all_observed() & recipes::all_numeric()) %>%
+          df_to_tensor()
+      ) %>%
+      torch::torch_stack(),
+    categorical = output %>%
+      purrr::map(
+        ~.x %>%
+          transform(all_observed() & recipes::all_nominal()) %>%
+          df_to_tensor()
+      ) %>%
+      torch::torch_stack()
+  )
+
+  target <- list(
+    numerics = output %>%
+      purrr::map(
+        ~.x %>%
+          transform(recipes::all_outcomes() & recipes::all_numeric()) %>%
+          df_to_tensor()
+      ) %>%
+      torch::torch_stack(),
+    categorical = output %>%
+      purrr::map(
+        ~.x %>%
+          transform(recipes::all_outcomes() & recipes::all_nominal()) %>%
+          df_to_tensor()
+      ) %>%
+      torch::torch_stack()
+  )
+
+  static <- list(
+    numerics = output %>% purrr::map(
       ~.x %>%
-        dplyr::select(
-          hours_from_start,
-          days_from_start,
-          hour,
-          day_of_week,
-          month
-        ) %>%
+        transform(all_static() & recipes::all_nominal()) %>%
         df_to_tensor()
     ) %>%
-    torch::torch_stack()
-
+      torch::torch_stack(),
+    categorical = output %>% purrr::map(
+      ~.x %>%
+        transform(all_static() & recipes::all_nominal()) %>%
+        df_to_tensor()
+    ) %>%
+      torch::torch_stack()
+  )
+  list(known = known,
+       observed = observed,
+       static = static,
+       target = target)
 }
 
 df_to_tensor <- function(df) {
