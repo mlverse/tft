@@ -152,15 +152,15 @@ electricity_download <- function(root) {
 }
 
 electricity_split <- function(data, valid_boundary = 1315, test_boundary = 1339) {
-  # TODO: understand and explain the -7 stuff.
+  # TODO: understand and explain the -7 stuff.-> turninto +7
   list(
     train = dplyr::filter(data, days_from_start < valid_boundary),
     valid = dplyr::filter(
       data,
-      days_from_start >= (valid_boundary - 7),
+      days_from_start >= (valid_boundary + 7),
       days_from_start < test_boundary
     ),
-    test  = dplyr::filter(data, days_from_start >= (test_boundary - 7))
+    test  = dplyr::filter(data, days_from_start >= (test_boundary + 7))
   )
 }
 
@@ -169,8 +169,8 @@ electricity_recipe <- function(data) {
   base_recipe <- recipes::recipe(pwr_usage ~ ., data) %>%
     role_id(id) %>%
     role_time(hours_from_start) %>%
-    role_known(hour, day_of_week, hours_from_start) %>%
-    role_static(id)
+    role_known(hour, day_of_week, hours_from_start) #%>%
+    # role_static(id)
 
   num_recipe <- base_recipe %>%
     recipes::step_normalize(
