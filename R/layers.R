@@ -45,7 +45,7 @@ linear_layer <- torch::nn_module(
     if (use_time_distributed) {
       self$layer <- time_distributed(torch::nn_linear(input_size, size), batch_first=batch_first)
     } else {
-      self$layer = torch::nn_linear(input_size, size)
+      self$layer <- torch::nn_linear(input_size, size)
     }
   },
   forward = function(x) {
@@ -82,9 +82,9 @@ gated_residual_network <- torch::nn_module(
   forward = function(x, context = torch::torch_zeros_like(x)) {
     # Setup skip connection
     if (!is.null(self$output_size)) {
-      skip = x
+      skip <- x
     } else {
-      skip = self$linear_layer(x)
+      skip <- self$linear_layer(x)
     }
     # Apply feedforward network
     hidden <- self$hidden_linear_layer1(x)
@@ -114,10 +114,10 @@ scaled_dot_product_attention <- torch::nn_module(
   forward = function(query, key, value, mask) {
     # applies scaled dot product attention
     # query
-    temper <- torch::torch_sqrt(torch::torch_tensor(tail(dim(key),1), dtype = torch::torch_float, device = self.device) )
+    temper <- torch::torch_sqrt(torch::torch_tensor(tail(dim(key),1), dtype = torch::torch_float, device = self$device) )
     attn <- torch::torch_bmm(query, torch::torch_transpose(key, 2,3) )
     if (!is.null(mask)) {
-      mmask <- -1e-9 * (1 - torch::torch_tensor(mask, dtype = torch::torch_float, device = self.device))
+      mmask <- -1e-9 * (1 - torch::torch_tensor(mask, dtype = torch::torch_float, device = self$device))
       attn <- torch::torch_add(attn, mmask)
     }
     attn <- self$activation(attn)
