@@ -1,0 +1,64 @@
+---
+output: github_document
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+```
+
+# tft
+
+<!-- badges: start -->
+[![R build status](https://github.com/mlverse/tft/workflows/R-CMD-check/badge.svg)](https://github.com/mlverse/tft/actions)
+[![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://www.tidyverse.org/lifecycle/#experimental)
+[![CRAN status](https://www.r-pkg.org/badges/version/tft)](https://CRAN.R-project.org/package=tft)
+[![](https://cranlogs.r-pkg.org/badges/tft)](https://cran.r-project.org/package=tft)
+<!-- badges: end -->
+
+An R implementation of: [tft: Temporal Fusion Transformer](https://arxiv.org/pdf/1912.09363.pdf).
+The code in this repository is an R port of [akeskiner/Temporal_Fusion_Transform](https://github.com/akeskiner/Temporal_Fusion_Transform) PyTorch's implementation using the [torch](https://github.com/mlverse/torch) package.
+
+## Installation
+
+
+The development version can be installed from [GitHub](https://github.com/) with:
+
+```r
+# install.packages("remotes")
+remotes::install_github("mlverse/tft")
+```
+
+## Example
+
+```{r}
+library(tft)
+library(recipes)
+library(yardstick)
+set.seed(1)
+
+data("vic_elec", package = "tsibbledata")
+test_idx <- sample.int(nrow(vic_elec), size = 0.2 * nrow(attrition))
+
+train <- attrition[-test_idx,]
+test <- attrition[test_idx,]
+
+rec <- recipe(Attrition ~ ., data = train) %>% 
+  step_normalize(all_numeric(), -all_outcomes())
+
+fit <- tft_fit(rec, train, epochs = 30)
+
+metrics <- metric_set(accuracy, precision, recall)
+cbind(test, predict(fit, test)) %>% 
+  metrics(Attrition, estimate = .pred_class)
+  
+cbind(test, predict(fit, test, type = "prob")) %>% 
+  roc_auc(Attrition, .pred_No)
+```
+
