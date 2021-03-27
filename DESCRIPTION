@@ -41,4 +41,6 @@ Collate:
     'layers.R'
     'roles.R'
     'utils-pipe.R'
+    'model.R'
+    'tft_network.R'
 Config/testthat/edition: 3

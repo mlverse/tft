@@ -114,7 +114,7 @@ scaled_dot_product_attention <- torch::nn_module(
   forward = function(query, key, value, mask) {
     # applies scaled dot product attention
     # query
-    temper <- torch::torch_sqrt(torch::torch_tensor(tail(dim(key),1), dtype = torch::torch_float, device = self$device) )
+    temper <- torch::torch_sqrt(torch::torch_tensor(tail(key$shape,1), dtype = torch::torch_float, device = self$device) )
     attn <- torch::torch_bmm(query, torch::torch_transpose(key, 2,3) )
     if (!is.null(mask)) {
       mmask <- -1e-9 * (1 - torch::torch_tensor(mask, dtype = torch::torch_float, device = self$device))
@@ -189,7 +189,6 @@ interpretable_multihead_attention <- torch::nn_module(
     return(list(outputs, attn))
     }
 )
-
 
 add_and_norm <- torch::nn_module(
   "add_and_norm",

@@ -39,26 +39,35 @@ remotes::install_github("mlverse/tft")
 
 ```{r}
 library(tft)
+library(rsample)
 library(recipes)
 library(yardstick)
 set.seed(1)
 
 data("vic_elec", package = "tsibbledata")
-test_idx <- sample.int(nrow(vic_elec), size = 0.2 * nrow(attrition))
+vic_elec <- vic_elec %>% 
+  mutate(Location = as.factor("Victoria"))
+vic_elec_split <- initial_time_split(vic_elec, prop=3/4, lag=96)
+  
+vic_elec_train <- training(vic_elec_split)
+vic_elec_test <- testing(vic_elec_split)
 
-train <- attrition[-test_idx,]
-test <- attrition[test_idx,]
-
-rec <- recipe(Attrition ~ ., data = train) %>% 
+rec <- recipe(Demand ~ ., data = vic_elec_train) %>%
+  update_role(Date, new_role="id") %>% 
+  update_role(Time, new_role="time") %>% 
+  update_role(Temperature, new_role="observed_input") %>% 
+  update_role(Holiday, new_role="known_input") %>% 
+  update_role(Location, new_role="static_input") %>% 
   step_normalize(all_numeric(), -all_outcomes())
 
-fit <- tft_fit(rec, train, epochs = 30)
+
+fit <- tft_fit(rec, vic_elec_train, epochs = 30)
 
 metrics <- metric_set(accuracy, precision, recall)
-cbind(test, predict(fit, test)) %>% 
-  metrics(Attrition, estimate = .pred_class)
+cbind(test, predict(fit, vic_elec_test)) %>% 
+  metrics(Demand, estimate = .pred_class)
   
-cbind(test, predict(fit, test, type = "prob")) %>% 
-  roc_auc(Attrition, .pred_No)
+cbind(test, predict(fit, vic_elec_test, type = "prob")) %>% 
+  roc_auc(Demand, .pred_No)
 ```
 
