@@ -300,7 +300,7 @@ transpose_metrics <- function(metrics) {
   out
 }
 
-tft_initialize <- function(x, y, config = tft_config()) {
+tft_initialize <- function(df, transform, config = tft_config()) {
 
   torch::torch_manual_seed(sample.int(1e6, 1))
   has_valid <- config$valid_split > 0
@@ -315,24 +315,15 @@ tft_initialize <- function(x, y, config = tft_config()) {
   }
 
   if (has_valid) {
-    n <- nrow(x)
+    n <- nrow(df)
     valid_idx <- sample.int(n, n*config$valid_split)
 
-    if (is.data.frame(y)) {
-      valid_y <- y[valid_idx,]
-      train_y <- y[-valid_idx,]
-    } else if (is.numeric(y) || is.factor(y)) {
-      valid_y <- y[valid_idx]
-      train_y <- y[-valid_idx]
-    }
-
-    valid_data <- list(x = x[valid_idx, ], y = valid_y)
-    x <- x[-valid_idx, ]
-    y <- train_y
+    valid_data <- df[valid_idx, ]
+    df <- df[-valid_idx, ]
   }
 
   # training data
-  data <- batch_data(x, y)
+  data <- batch_data(df, transform)
 
   # resolve loss
   if (config$loss == "auto") {
@@ -354,15 +345,18 @@ tft_initialize <- function(x, y, config = tft_config()) {
     output_dim = data$output_dim,
     cat_idxs = data$cat_idx,
     cat_dims = data$cat_dims,
-    n_d = config$n_d,
-    n_a = config$n_a,
-    n_steps = config$n_steps,
-    gamma = config$gamma,
-    virtual_batch_size = config$virtual_batch_size,
     cat_emb_dim = config$cat_emb_dim,
-    n_independent = config$n_independent,
-    n_shared = config$n_shared,
-    momentum = config$momentum
+    static_idx = data$static_idx,
+    known_idx = data$known_idx,
+    input_idx = data$input_idx,
+    total_time_steps = config$total_time_steps,
+    num_encoder_steps = config$num_encoder_steps,
+    quantiles = config$quantiles,
+    minibatch_size = config$minibatch_size,
+    hidden_layer_size = config$hidden_layer_size,
+    dropout_rate = config$dropout_rate,
+    stack_size = config$stack_size,
+    num_heads = config$num_heads
   )
 
   # main loop
@@ -384,7 +378,7 @@ tft_initialize <- function(x, y, config = tft_config()) {
   )
 }
 
-tft_train <- function(obj, x, y, config = tft_config(), epoch_shift=0L) {
+tft_train <- function(obj, df, transform, config = tft_config(), epoch_shift=0L) {
   stopifnot("tft_model shall be initialised"= (length(obj$fit$network) > 0))
   torch::torch_manual_seed(sample.int(1e6, 1))
   has_valid <- config$valid_split > 0
@@ -399,24 +393,15 @@ tft_train <- function(obj, x, y, config = tft_config(), epoch_shift=0L) {
   }
 
   if (has_valid) {
-    n <- nrow(x)
+    n <- nrow(df)
     valid_idx <- sample.int(n, n*config$valid_split)
 
-    if (is.data.frame(y)) {
-      valid_y <- y[valid_idx,]
-      train_y <- y[-valid_idx,]
-    } else if (is.numeric(y) || is.factor(y)) {
-      valid_y <- y[valid_idx]
-      train_y <- y[-valid_idx]
-    }
-
-    valid_data <- list(x = x[valid_idx, ], y = valid_y)
-    x <- x[-valid_idx, ]
-    y <- train_y
+    valid_data <- df[valid_idx, ]
+    df <- df[-valid_idx, ]
   }
 
   # training data
-  data <- batch_data(x, y)
+  data <- batch_data(df, transform)
   dl <- torch::dataloader(
     torch::tensor_dataset(x = data$x, y = data$y),
     batch_size = config$batch_size,
@@ -426,7 +411,7 @@ tft_train <- function(obj, x, y, config = tft_config(), epoch_shift=0L) {
 
   # validation data
   if (has_valid) {
-    valid_data <- batch_data(valid_data$x, valid_data$y)
+    valid_data <- batch_data(valid_data, transform)
     valid_dl <- torch::dataloader(
       torch::tensor_dataset(x = valid_data$x, y = valid_data$y),
       batch_size = config$batch_size,
@@ -555,8 +540,8 @@ tft_train <- function(obj, x, y, config = tft_config(), epoch_shift=0L) {
   )
 }
 
-predict_impl <- function(obj, x, batch_size = 1e5) {
-  data <- batch_data(x, y = data.frame(rep(1, nrow(x))))
+predict_impl <- function(obj, df, transform, batch_size = 1e5) {
+  data <- batch_data(df, transform)
 
   network <- obj$fit$network
   network$eval()

@@ -1,7 +1,7 @@
 tft_nn <- torch::nn_module(
   "tft",
-  initialize <- function(total_time_steps = 252 + 5, num_encoder_steps = 252,
-                         input_dim, output_dim, cat_idxs , cat_dims, cat_emb_dim, static_idx, known_idx,
+  initialize = function( input_dim, output_dim, cat_idxs , cat_dims, cat_emb_dim, static_idx, known_idx, input_idx,
+                         total_time_steps = 252 + 5, num_encoder_steps = 252,
                          minibatch_size = 256, quantiles = 0.5,
                          hidden_layer_size = 160, dropout_rate, stack_size = 1, num_heads) {
     self$cat_idxs <- cat_idxs  #  _known_categorical_input_idx
@@ -171,7 +171,7 @@ tft_nn <- torch::nn_module(
       batch_first=self$batch_first)
   },
 
-  get_decoder_mask <- function(self_attn_inputs) {
+  get_decoder_mask = function(self_attn_inputs) {
         # """Returns causal mask to apply for self-attention layer.
         #
         #   Args:
@@ -184,7 +184,7 @@ tft_nn <- torch::nn_module(
   return(mask)
   },
 
-  get_tft_embeddings <- function(all_inputs) {
+  get_tft_embeddings = function(all_inputs) {
 
     time_steps <- self$time_steps
 
@@ -270,7 +270,7 @@ tft_nn <- torch::nn_module(
     return( list(unknown_inputs, known_combined_layer, obs_inputs, static_inputs))
 },
 
-  forward <- function(x) {
+  forward = function(x) {
     # Size definitions.
     time_steps <- self$time_steps
     combined_input_size <- self$input_size
