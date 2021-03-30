@@ -177,15 +177,13 @@ df_to_tensor <- function(df) {
 #'
 #' @export
 tft_config <- function(batch_size = 256,
-                       penalty = 1e-3,
                        clip_value = NULL,
                        loss = "auto",
                        epochs = 5,
                        drop_last = FALSE,
-                       decision_width = NULL,
-                       attention_width = NULL,
-                       num_steps = 3,
-                       feature_reusage = 1.3,
+                       total_time_steps = NULL,
+                       num_encoder_steps = NULL,
+                       quantiles = 0.5,
                        virtual_batch_size = 128,
                        valid_split = 0,
                        learn_rate = 2e-2,
@@ -195,36 +193,24 @@ tft_config <- function(batch_size = 256,
                        step_size = 30,
                        checkpoint_epochs = 10,
                        cat_emb_dim = 1,
-                       num_independent = 2,
-                       num_shared = 2,
-                       momentum = 0.02,
-                       pretraining_ratio = 0.5,
+                       hidden_layer_size = 160,
+                       dropout_rate = 0.3,
+                       stack_size = 3,
+                       num_heads = 1,
                        verbose = FALSE,
-                       device = "auto",
-                       importance_sample_size = NULL) {
+                       device = "auto") {
 
-  if (is.null(decision_width) && is.null(attention_width)) {
-    decision_width <- 8 # default is 8
-  }
-
-  if (is.null(attention_width))
-    attention_width <- decision_width
-
-  if (is.null(decision_width))
-    decision_width <- attention_width
-
+# TODO add assert parameters consistency
   list(
     batch_size = batch_size,
-    lambda_sparse = penalty,
     clip_value = clip_value,
     loss = loss,
     epochs = epochs,
     drop_last = drop_last,
-    n_d = decision_width,
-    n_a = attention_width,
-    n_steps = num_steps,
-    gamma = feature_reusage,
-    virtual_batch_size = virtual_batch_size,
+    total_time_steps = total_time_steps,
+    num_encoder_steps = num_encoder_steps,
+    quantiles = quantiles,
+    minibatch_size = virtual_batch_size,
     valid_split = valid_split,
     verbose = verbose,
     learn_rate = learn_rate,
@@ -233,13 +219,12 @@ tft_config <- function(batch_size = 256,
     lr_decay = lr_decay,
     step_size = step_size,
     cat_emb_dim = cat_emb_dim,
-    n_independent = num_independent,
-    n_shared = num_shared,
-    momentum = momentum,
+    hidden_layer_size = hidden_layer_size,
+    dropout_rate = dropout_rate,
+    stack_size = stack_size,
     checkpoint_epochs = checkpoint_epochs,
-    pretraining_ratio = pretraining_ratio,
-    device = device,
-    importance_sample_size = importance_sample_size
+    num_heads = num_heads,
+    device = device
   )
 }
 
