@@ -38,7 +38,7 @@ time_distributed <- torch::nn_module(
 
 linear_layer <- torch::nn_module(
   "linear_layer",
-  initialize = function(input_size, size,  use_time_distributed=TRUE,  batch_first=FALSE){
+  initialize = function(input_size, size,  use_time_distributed=TRUE,  batch_first=FALSE) {
     self$use_time_distributed <- use_time_distributed
     self$input_size <-input_size
     self$size <- size

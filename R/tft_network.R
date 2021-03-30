@@ -1,7 +1,3 @@
-# """
-# Implementation of Temporal Fusion Transformers: https://arxiv.org/abs/1912.09363
-# """
-
 tft_nn <- torch::nn_module(
   "tft",
   initialize <- function(total_time_steps = 252 + 5, num_encoder_steps = 252,
@@ -174,6 +170,7 @@ tft_nn <- torch::nn_module(
       use_time_distributed=TRUE,
       batch_first=self$batch_first)
   },
+
   get_decoder_mask <- function(self_attn_inputs) {
         # """Returns causal mask to apply for self-attention layer.
         #
@@ -186,6 +183,7 @@ tft_nn <- torch::nn_module(
   mask <- torch::torch_cumsum(torch::torch_eye(len_s, device = self$device)$reshape(c(1, len_s, len_s))$torch_repeat_interleave(bs, 1, 1), 1)
   return(mask)
   },
+
   get_tft_embeddings <- function(all_inputs) {
 
     time_steps <- self$time_steps
@@ -337,16 +335,16 @@ tft_nn <- torch::nn_module(
     # Attention components for explainability
     attention_components <- list(
       # Temporal attention weights
-      'decoder_self_attn'= x_self_att[[2]],
+      decoder_self_attn = x_self_att[[2]],
       # Static variable selection weights
-      'static_flags'= static_weights[.., 1],
+      static_flags = static_weights[.., 1],
       # Variable selection weights of past inputs
-      'historical_flags'= historical_flags[.., 1, ],
+      historical_flags = historical_flags[.., 1, ],
       # Variable selection weights of future inputs
-      'future_flags'= future_flags[.., 1, ]
+      future_flags = future_flags[.., 1, ]
     )
 
     outputs <- self$output_layer(transformer_layer[ , self$num_encoder_steps+1:-1, ])
   return(list(outputs, all_inputs, attention_components))
-},
+ }
 )

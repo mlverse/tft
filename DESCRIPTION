@@ -37,10 +37,8 @@ Collate:
     'batch.R'
     'utils.R'
     'dataset-electricity.R'
-    'embedding.R'
     'layers.R'
     'roles.R'
-    'utils-pipe.R'
-    'model.R'
     'tft_network.R'
+    'utils-pipe.R'
 Config/testthat/edition: 3
