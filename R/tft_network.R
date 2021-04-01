@@ -2,7 +2,7 @@ tft_nn <- torch::nn_module(
   "tft",
   initialize = function( input_dim, output_dim, cat_idxs , cat_dims, cat_emb_dim, static_idx, known_idx, input_idx,
                          total_time_steps = 252 + 5, num_encoder_steps = 252,
-                         minibatch_size = 256, quantiles = 0.5,
+                         minibatch_size = 256, quantiles = list(0.5),
                          hidden_layer_size = 160, dropout_rate, stack_size = 1, num_heads) {
     self$cat_idxs <- cat_idxs  #  _known_categorical_input_idx
     self$cat_dims <- cat_dims # category_counts
@@ -207,7 +207,8 @@ tft_nn <- torch::nn_module(
     # Static inputs # TBRework
     if (self$static_idx) {
       static_inputs <- list()
-      for( i in seg_len(num_regular_variables)) {
+
+      for( i in seq_len(num_regular_variables)) {
 
         if (i %in% self$static_idx) {
           static_inputs <- c(static_inputs, self$static_input_layer(regular_inputs[, 0, i]) )

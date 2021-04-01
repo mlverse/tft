@@ -128,26 +128,21 @@ df_to_tensor <- function(df) {
 #' @param epochs (int) Number of training epochs.
 #' @param drop_last (bool) Whether to drop last batch if not complete during
 #'   training
-#' @param decision_width (int) Width of the decision prediction layer. Bigger values gives
-#'   more capacity to the model with the risk of overfitting. Values typically
-#'   range from 8 to 64.
-#' @param attention_width (int) Width of the attention embedding for each mask. According to
-#'   the paper n_d=n_a is usually a good choice. (default=8)
+#' @param total_time_steps (int) Size of the look-back time window + forecast horizon in steps. .
+#' @param num_encoder_steps (int) Size of the look-back time window in steps.
 #' @param num_steps (int) Number of steps in the architecture
 #'   (usually between 3 and 10)
-#' @param feature_reusage (float) This is the coefficient for feature reusage in the masks.
-#'   A value close to 1 will make mask selection least correlated between layers.
-#'   Values range from 1.0 to 2.0.
-#' @param virtual_batch_size (int) Size of the mini batches used for
-#'   "Ghost Batch Normalization" (default=128)
+#' @param quantiles (list) list of quantiles forcasts. (default = [list(0.5)]).
+#' @param minibatch_size (int) Size of the mini batches used for
+#'   Batch Normalization (default=256)
 #' @param learn_rate initial learning rate for the optimizer.
 #' @param optimizer the optimization method. currently only 'adam' is supported,
 #'   you can also pass any torch optimizer function.
 #' @param valid_split (float) The fraction of the dataset used for validation.
-#' @param num_independent Number of independent Gated Linear Units layers at each step.
-#'   Usual values range from 1 to 5.
-#' @param num_shared Number of shared Gated Linear Units at each step Usual values
-#'   range from 1 to 5
+#' @param hidden_layer_size (int)size of the hidden layer (default=160).
+#' @param dropout_rate dropout rate applied to each nn block (default=0.3)
+#' @param stack_size (int) size of the stack (default=3)
+#' @param num_heads (int) number of attention head (default=1)
 #' @param verbose (bool) wether to print progress and loss values during
 #'   training.
 #' @param lr_scheduler if `NULL`, no learning rate decay is used. if "step"
@@ -157,13 +152,9 @@ df_to_tensor <- function(df) {
 #' @param lr_decay multiplies the initial learning rate by `lr_decay` every
 #'   `step_size` epochs. Unused if `lr_scheduler` is a `torch::lr_scheduler`
 #'   or `NULL`.
-#' @param step_size the learning rate scheduler step size. Unused if
-#'   `lr_scheduler` is a `torch::lr_scheduler` or `NULL`.
 #' @param cat_emb_dim Embedding size for categorial features (default=1)
 #' @param momentum Momentum for batch normalization, typically ranges from 0.01
 #'   to 0.4 (default=0.02)
-#' @param pretraining_ratio Ratio of features to mask for reconstruction during
-#'   pretraining.  Ranges from 0 to 1 (default=0.5)
 #' @param checkpoint_epochs checkpoint model weights and architecture every
 #'   `checkpoint_epochs`. (default is 10). This may cause large memory usage.
 #'   Use `0` to disable checkpoints.
@@ -183,14 +174,13 @@ tft_config <- function(batch_size = 256,
                        drop_last = FALSE,
                        total_time_steps = NULL,
                        num_encoder_steps = NULL,
-                       quantiles = 0.5,
-                       virtual_batch_size = 128,
+                       quantiles = list(0.5),
+                       minibatch_size = 256,
                        valid_split = 0,
                        learn_rate = 2e-2,
                        optimizer = "adam",
                        lr_scheduler = NULL,
                        lr_decay = 0.1,
-                       step_size = 30,
                        checkpoint_epochs = 10,
                        cat_emb_dim = 1,
                        hidden_layer_size = 160,
@@ -201,6 +191,11 @@ tft_config <- function(batch_size = 256,
                        device = "auto") {
 
 # TODO add assert parameters consistency
+# assert forecast horizon shall be 1 or more
+if (total_time_steps - num_encoder_steps < 2) {
+  rlang::abort("The forecast horizon (total_time_steps - num_encoder_steps) shall be at least 1")
+}
+
   list(
     batch_size = batch_size,
     clip_value = clip_value,
