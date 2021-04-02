@@ -1,7 +1,7 @@
 #' conditionning input data into tensors according to tft variable roles
 #'
 #' @param df a data frame
-#' @param transform a recipe afecting tft roles to df
+#' @param transform a recipe affecting tft roles to df
 #' @param time_step time_step value (default 100)
 batch_data <- function(df, transform, time_steps = 100) {
 
@@ -117,14 +117,10 @@ df_to_tensor <- function(df) {
 #'
 #' @param batch_size (int) Number of examples per batch, large batch sizes are
 #'   recommended. (default: 1024)
-#' @param penalty This is the extra sparsity loss coefficient as proposed
-#'   in the original paper. The bigger this coefficient is, the sparser your model
-#'   will be in terms of feature selection. Depending on the difficulty of your
-#'   problem, reducing this value could help.
 #' @param clip_value If a float is given this will clip the gradient at
-#'   clip_value. Pass `NULL` to not clip.
-#' @param loss (character or function) Loss function for training (default to mse
-#'   for regression and cross entropy for classification)
+#'   clip_value. Pass `NULL` (default) to not clip.
+#' @param loss (character or function) Loss function for training within
+#' ["quantile_loss", "pinball_loss", "rmsse_loss", "smape_loss"] (default to quantile_loss)
 #' @param epochs (int) Number of training epochs.
 #' @param drop_last (bool) Whether to drop last batch if not complete during
 #'   training
@@ -133,7 +129,7 @@ df_to_tensor <- function(df) {
 #' @param num_steps (int) Number of steps in the architecture
 #'   (usually between 3 and 10)
 #' @param quantiles (list) list of quantiles forcasts. (default = [list(0.5)]).
-#' @param minibatch_size (int) Size of the mini batches used for
+#' @param virtual_batch_size (int) Size of the mini batches used for
 #'   Batch Normalization (default=256)
 #' @param learn_rate initial learning rate for the optimizer.
 #' @param optimizer the optimization method. currently only 'adam' is supported,
@@ -169,13 +165,13 @@ df_to_tensor <- function(df) {
 #' @export
 tft_config <- function(batch_size = 256,
                        clip_value = NULL,
-                       loss = "auto",
+                       loss = "quantile_loss",
                        epochs = 5,
                        drop_last = FALSE,
                        total_time_steps = NULL,
                        num_encoder_steps = NULL,
                        quantiles = list(0.5),
-                       minibatch_size = 256,
+                       virtual_batch_size = 256,
                        valid_split = 0,
                        learn_rate = 2e-2,
                        optimizer = "adam",
@@ -192,7 +188,13 @@ tft_config <- function(batch_size = 256,
 
 # TODO add assert parameters consistency
 # assert forecast horizon shall be 1 or more
-if (total_time_steps - num_encoder_steps < 2) {
+if (is.null(total_time_steps)) {
+  rlang::abort("total_time_steps is missing in tft_config() and cannot be guessed")
+}
+if (is.null(num_encoder_steps)) {
+  rlang::abort("num_encoder_steps is missing in tft_config() and cannot be guessed")
+}
+if ((total_time_steps - num_encoder_steps) < 2) {
   rlang::abort("The forecast horizon (total_time_steps - num_encoder_steps) shall be at least 1")
 }
 
@@ -306,17 +308,14 @@ tft_initialize <- function(df, transform, config = tft_config()) {
   data <- batch_data(df, transform)
 
   # resolve loss
-  if (config$loss == "auto") {
-    if (data$y$dtype == torch::torch_long())
-      config$loss <- "cross_entropy"
-    else
-      config$loss <- "mse"
-  }
-
-  if (config$loss == "mse")
-    config$loss_fn <- torch::nn_mse_loss()
-  else if (config$loss %in% c("bce", "cross_entropy"))
-    config$loss_fn <- torch::nn_cross_entropy_loss()
+  if (config$loss == "quantile_loss")
+    config$loss_fn <- quantile_loss()
+  else if (config$loss == "pinball_loss")
+    config$loss_fn <- pinball_loss()
+  else if (config$loss == "rmsse_loss")
+    config$loss_fn <- rmsse_loss()
+  else if (config$loss == "smape_loss")
+    config$loss_fn <- smape_loss()
 
 
   # create network

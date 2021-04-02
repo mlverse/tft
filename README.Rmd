@@ -22,13 +22,14 @@ knitr::opts_chunk$set(
 [![](https://cranlogs.r-pkg.org/badges/tft)](https://cran.r-project.org/package=tft)
 <!-- badges: end -->
 
+
 An R implementation of: [tft: Temporal Fusion Transformer](https://arxiv.org/pdf/1912.09363.pdf).
 The code in this repository is an R port of [akeskiner/Temporal_Fusion_Transform](https://github.com/akeskiner/Temporal_Fusion_Transform) PyTorch's implementation using the [torch](https://github.com/mlverse/torch) package.
 
 ## Installation
 
 
-The development version can be installed from [GitHub](https://github.com/) with:
+You can install the development version [GitHub](https://github.com/) with:
 
 ```r
 # install.packages("remotes")
@@ -61,13 +62,12 @@ rec <- recipe(Demand ~ ., data = vic_elec_train) %>%
   step_normalize(all_numeric(), -all_outcomes())
 
 
-fit <- tft_fit(rec, vic_elec_train, epochs = 30)
+fit <- tft_fit(rec, vic_elec_train, epochs = 30, total_time_steps=250, num_encoder_steps=240 )
 
 metrics <- metric_set(accuracy, precision, recall)
-cbind(test, predict(fit, vic_elec_test)) %>% 
+cbind(vic_elec_test, predict(fit, vic_elec_test)) %>% 
   metrics(Demand, estimate = .pred_class)
   
-cbind(test, predict(fit, vic_elec_test, type = "prob")) %>% 
+cbind(vic_elec_test, predict(fit, vic_elec_test, type = "prob")) %>% 
   roc_auc(Demand, .pred_No)
 ```
-
