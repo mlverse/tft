@@ -2,25 +2,36 @@
 #'
 #' @param df a data frame
 #' @param transform a recipe affecting tft roles to df
-#' @param time_step time_step value (default 100)
-batch_data <- function(df, transform, time_steps = 100) {
+#' @param total_time_steps time_step value (default 48)
+batch_data <- function(transform, df, total_time_steps = 12, device) {
 
+  # TODO switch group_by(id) into groupby(term_select(has_role(id)))
+  # TODO use tsibble function to reach the same result
   positions <- df %>%
     dplyr::group_by(id) %>%
-    dplyr::filter(dplyr::n() >= time_steps) %>%
+    # dplyr::group_by(terms_select(summary(transform), term=quos(has_role(match="id")))) %>%
+    dplyr::filter(dplyr::n() >= total_time_steps) %>%
     dplyr::group_split(.keep = TRUE) %>%
     purrr::map_dfr(
       ~tibble::tibble(
         id = dplyr::first(.x$id),
         start_time = seq(
-          from = min(.x$date),
-          # TODO dont hardcode hours here
-          to   = max(.x$date) - lubridate::hours(time_steps),
+          # TODO don't hardcode Time
+          from = min(.x$Time),
+          # TODO dont hardcode steps to be hours here
+          to   = max(.x$Time) - lubridate::hours(total_time_steps),
           by   = "hours"
         ),
-        end_time = start_time + lubridate::hours(time_steps)
+        end_time = start_time + lubridate::hours(total_time_steps)
       )
     )
+  if (length(position)<500) {
+    rlang::warn("choosen total_time_steps do not permit to extract 500 samples, you should review its value")
+  }
+  if (length(position)<2) {
+    rlang::abort("choosen total_time_steps do not permit to extract samples, you should review its value")
+  }
+
 
   positions <- dplyr::sample_n(positions, 500)
 
@@ -30,8 +41,8 @@ batch_data <- function(df, transform, time_steps = 100) {
       ~df %>%
         dplyr::filter(
           id == .x$id,
-          date >= .x$start_time,
-          date < .x$end_time
+          Time >= .x$start_time,
+          Time < .x$end_time
         )
     )
 
@@ -40,14 +51,14 @@ batch_data <- function(df, transform, time_steps = 100) {
       purrr::map(
         ~.x %>%
           transform(all_known() & recipes::all_numeric()) %>%
-          df_to_tensor()
+          df_to_tensor(device = device)
       ) %>%
       torch::torch_stack(),
     categorical = output %>%
       purrr::map(
         ~.x %>%
           transform(all_known() & recipes::all_nominal()) %>%
-          df_to_tensor()
+          df_to_tensor(device = device)
       ) %>%
       torch::torch_stack()
   )
@@ -57,14 +68,14 @@ batch_data <- function(df, transform, time_steps = 100) {
       purrr::map(
         ~.x %>%
           transform(all_observed() & recipes::all_numeric()) %>%
-          df_to_tensor()
+          df_to_tensor(device = device)
       ) %>%
       torch::torch_stack(),
     categorical = output %>%
       purrr::map(
         ~.x %>%
           transform(all_observed() & recipes::all_nominal()) %>%
-          df_to_tensor()
+          df_to_tensor(device = device)
       ) %>%
       torch::torch_stack()
   )
@@ -74,14 +85,14 @@ batch_data <- function(df, transform, time_steps = 100) {
       purrr::map(
         ~.x %>%
           transform(recipes::all_outcomes() & recipes::all_numeric()) %>%
-          df_to_tensor()
+          df_to_tensor(device = device)
       ) %>%
       torch::torch_stack(),
     categorical = output %>%
       purrr::map(
         ~.x %>%
           transform(recipes::all_outcomes() & recipes::all_nominal()) %>%
-          df_to_tensor()
+          df_to_tensor(device = device)
       ) %>%
       torch::torch_stack()
   )
@@ -90,13 +101,13 @@ batch_data <- function(df, transform, time_steps = 100) {
     numerics = output %>% purrr::map(
       ~.x %>%
         transform(all_static() & recipes::all_nominal()) %>%
-        df_to_tensor()
+        df_to_tensor(device = device)
     ) %>%
       torch::torch_stack(),
     categorical = output %>% purrr::map(
       ~.x %>%
         transform(all_static() & recipes::all_nominal()) %>%
-        df_to_tensor()
+        df_to_tensor(device = device)
     ) %>%
       torch::torch_stack()
   )
@@ -106,11 +117,13 @@ batch_data <- function(df, transform, time_steps = 100) {
        target = target)
 }
 
-df_to_tensor <- function(df) {
+df_to_tensor <- function(df, device) {
   df %>%
     dplyr::mutate(dplyr::across(where(is.factor), as.integer)) %>%
+    dplyr::mutate(dplyr::across(where(lubridate::is.Date), as.integer)) %>%
+    dplyr::mutate(dplyr::across(where(lubridate::is.POSIXt	), as.integer)) %>%
     as.matrix() %>%
-    torch::torch_tensor()
+    torch::torch_tensor(device = device)
 }
 
 #' Configuration for Tft models
@@ -285,7 +298,7 @@ transpose_metrics <- function(metrics) {
   out
 }
 
-tft_initialize <- function(df, transform, config = tft_config()) {
+tft_initialize <- function(batch_data, config = tft_config()) {
 
   torch::torch_manual_seed(sample.int(1e6, 1))
   has_valid <- config$valid_split > 0
@@ -306,9 +319,6 @@ tft_initialize <- function(df, transform, config = tft_config()) {
     valid_data <- df[valid_idx, ]
     df <- df[-valid_idx, ]
   }
-
-  # training data
-  data <- batch_data(df, transform)
 
   # create network
   network <- tft_nn(

@@ -2,30 +2,15 @@
 #'
 #' Fits the [Temporal Fusion Transformer for Interpretable Multi-horizon Time Series Forecasting](https://arxiv.org/abs/1908.07442) model
 #'
-#' @param x Depending on the context:
-#'
-#'   * A __data frame__ of predictors.
-#'   * A __matrix__ of predictors.
-#'   * A __recipe__ specifying a set of preprocessing steps
+#' @param x A __recipe__ specifying a set of preprocessing steps
 #'     created from [recipes::recipe()].
 #'
 #'  The predictor data should be standardized (e.g. centered or scaled).
 #'  The model treats categorical predictors internally thus, you don't need to
 #'  make any treatment.
 #'
-#' @param y When `x` is a __data frame__ or __matrix__, `y` is the outcome
-#' specified as:
+#' @param data A __data frame__ containing both the predictors and the outcome.
 #'
-#'   * A __data frame__ with 1 numeric column.
-#'   * A __matrix__ with 1 numeric column.
-#'   * A numeric __vector__.
-#'
-#' @param data When a __recipe__ or __formula__ is used, `data` is specified as:
-#'
-#'   * A __data frame__ containing both the predictors and the outcome.
-#'
-#' @param formula A formula specifying the outcome terms on the left-hand side,
-#'  and the predictor terms on the right-hand side.
 #' @param tft_model A previously fitted TFT model object to continue the fitting on.
 #'  if `NULL` (the default) a brand new model is initialized.
 #' @param from_epoch When a `tft_model` is provided, restore the network weights from a specific epoch.
@@ -78,9 +63,12 @@ tft_fit.default <- function(x, ...) {
 
 #' @export
 #' @rdname tft_fit
-tft_fit.recipe <- function(x, data, tft_model = NULL, ..., from_epoch = NULL) {
-  processed <- hardhat::mold(x, data)
+tft_fit.recipe <- function(x, df, tft_model = NULL, ..., from_epoch = NULL) {
+  #processed <- hardhat::mold(x, df)
   config <- do.call(tft_config, list(...))
+  processed <- batch_data(transform=x, df=df,
+                          total_time_steps = config[["total_time_steps"]],
+                          device = config[["device"]])
   tft_bridge(processed, config = config, tft_model, from_epoch)
 }
 
@@ -97,15 +85,12 @@ new_tft_fit <- function(fit, blueprint) {
 }
 
 
-tft_bridge <- function(processed, config = tft_config(), tft_model, from_epoch, task="supervised") {
-  predictors <- processed$predictors
-  outcomes <- processed$outcomes
-  if (!(is.null(tft_model) || inherits(tft_model, "tft_fit") || inherits(tft_model, "tft_pretrain")))
+tft_bridge <- function(processed, config = tft_config(), tft_model, from_epoch) {
+  if (!(is.null(tft_model) || inherits(tft_model, "tft_fit") ))
     rlang::abort(paste0(tft_model," is not recognised as a proper TFT model"))
-  if (task == "supervised") {
     if (is.null(tft_model)) {
       # new supervised model needs network initialization
-      tft_model_lst <- tft_initialize(predictors, outcomes, config = config)
+      tft_model_lst <- tft_initialize(processed, config = config)
       tft_model <-  new_tft_fit(tft_model_lst, blueprint = processed$blueprint)
       epoch_shift <- 0L
 
@@ -135,15 +120,7 @@ tft_bridge <- function(processed, config = tft_config(), tft_model, from_epoch, 
       epoch_shift <- length(tft_model$fit$metrics)
 
 
-    } else if (inherits(tft_model, "tft_pretrain")) {
-      # pretrain_model after reload
-
-      tft_model_lst <- model_pretrain_to_fit(tft_model, predictors, outcomes, config)
-      tft_model <-  new_tft_fit(tft_model_lst, blueprint = processed$blueprint)
-      epoch_shift <- 0L
-
-
-    }  else if (length(tft_model$fit$checkpoints)) {
+  }  else if (length(tft_model$fit$checkpoints)) {
       # model is loaded from the last available checkpoint
 
       last_checkpoint <- length(tft_model$fit$checkpoints)
@@ -156,12 +133,6 @@ tft_bridge <- function(processed, config = tft_config(), tft_model, from_epoch, 
     fit_lst <- tft_train_supervised(tft_model, predictors, outcomes, config = config, epoch_shift)
     return(new_tft_fit(fit_lst, blueprint = processed$blueprint))
 
-  } else if (task == "unsupervised") {
-
-    pretrain_lst <- tft_train_unsupervised( predictors, config = config)
-    return(new_tft_pretrain(pretrain_lst, blueprint = processed$blueprint))
-
-  }
 }
 
 

@@ -47,14 +47,15 @@ set.seed(1)
 
 data("vic_elec", package = "tsibbledata")
 vic_elec <- vic_elec %>% 
-  mutate(Location = as.factor("Victoria"))
+  mutate(Location = as.factor("Victoria")) %>% 
+  rename(id = Date)
 vic_elec_split <- initial_time_split(vic_elec, prop=3/4, lag=96)
   
 vic_elec_train <- training(vic_elec_split)
 vic_elec_test <- testing(vic_elec_split)
 
 rec <- recipe(Demand ~ ., data = vic_elec_train) %>%
-  update_role(Date, new_role="id") %>% 
+  update_role(id, new_role="id") %>% 
   update_role(Time, new_role="time") %>% 
   update_role(Temperature, new_role="observed_input") %>% 
   update_role(Holiday, new_role="known_input") %>% 
