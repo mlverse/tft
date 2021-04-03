@@ -5,11 +5,28 @@
 #' @param total_time_steps time_step value (default 48)
 batch_data <- function(transform, df, total_time_steps = 12, device) {
 
-  # TODO switch group_by(id) into groupby(term_select(has_role(id)))
-  # TODO use tsibble function to reach the same result
+  var_type_role <- summary(transform)
+  id <- recipes::terms_select(var_type_role, term=quos(recipes::has_role("id")))
+  time <- recipes::terms_select(var_type_role, term=quos(recipes::has_role("time")))
+  all_numeric <- recipes::terms_select(var_type_role, term=quos(recipes::all_numeric()))
+  all_nominal <- recipes::terms_select(var_type_role, term=quos(recipes::all_nominal()))
+  known <- recipes::terms_select(var_type_role, term=quos(recipes::has_role("known_input")))
+  observed <- recipes::terms_select(var_type_role, term=quos(recipes::has_role("observed_input")))
+  static <- recipes::terms_select(var_type_role, term=quos(recipes::has_role("static_input")))
+  known_numeric <- intersect(known, all_numeric)
+  known_categorical <- intersect(known, all_nominal)
+  observed_numeric <- intersect(observed, all_numeric)
+  observed_categorical <- intersect(observed, all_nominal)
+  target_numeric <- intersect(terms_select(var_type_role, term=quos(recipes::all_outcomes())), all_numeric)
+  target_categorical <- intersect(terms_select(var_type_role, term=quos(recipes::all_outcomes())), all_nominal)
+  static_numeric <- intersect(static, all_numeric)
+  static_categorical <- intersect(static, all_nominal)
+
+
+  # TODO use tsibble function and interval attribute to reach the same result
+  # TODO get rid or the remaining hardcoded $id
   positions <- df %>%
-    dplyr::group_by(id) %>%
-    # dplyr::group_by(terms_select(summary(transform), term=quos(has_role(match="id")))) %>%
+    dplyr::group_by(dplyr::across(id)) %>%
     dplyr::filter(dplyr::n() >= total_time_steps) %>%
     dplyr::group_split(.keep = TRUE) %>%
     purrr::map_dfr(
@@ -18,18 +35,18 @@ batch_data <- function(transform, df, total_time_steps = 12, device) {
         start_time = seq(
           # TODO don't hardcode Time
           from = min(.x$Time),
-          # TODO dont hardcode steps to be hours here
+          # TODO don't hardcode steps to be hours here
           to   = max(.x$Time) - lubridate::hours(total_time_steps),
           by   = "hours"
         ),
         end_time = start_time + lubridate::hours(total_time_steps)
       )
     )
-  if (length(position)<500) {
-    rlang::warn("choosen total_time_steps do not permit to extract 500 samples, you should review its value")
+  if (length(positions)<500) {
+    rlang::warn(glue::glue("total_time_steps={total_time_steps} hours does not allow to extract 500 samples, you should lower its value"))
   }
-  if (length(position)<2) {
-    rlang::abort("choosen total_time_steps do not permit to extract samples, you should review its value")
+  if (length(positions)<2) {
+    rlang::abort(glue::glue("total_time_steps={total_time_steps} hours does not allow to extract samples, you should lower its value"))
   }
 
 
@@ -37,6 +54,7 @@ batch_data <- function(transform, df, total_time_steps = 12, device) {
 
   output <- positions %>%
     dplyr::group_split(id, start_time) %>%
+    # TODO don't hardcode Time
     purrr::map(
       ~df %>%
         dplyr::filter(
@@ -48,73 +66,51 @@ batch_data <- function(transform, df, total_time_steps = 12, device) {
 
   known <- list(
     numerics = output %>%
-      purrr::map(
-        ~.x %>%
-          transform(all_known() & recipes::all_numeric()) %>%
-          df_to_tensor(device = device)
-      ) %>%
+      purrr::map(~.x %>% dplyr::select(known_numeric) %>% df_to_tensor(device = device)) %>%
       torch::torch_stack(),
     categorical = output %>%
-      purrr::map(
-        ~.x %>%
-          transform(all_known() & recipes::all_nominal()) %>%
-          df_to_tensor(device = device)
-      ) %>%
+      purrr::map(~.x %>% dplyr::select(known_categorical) %>% df_to_tensor(device = device)) %>%
       torch::torch_stack()
   )
 
   observed <- list(
     numerics = output %>%
-      purrr::map(
-        ~.x %>%
-          transform(all_observed() & recipes::all_numeric()) %>%
-          df_to_tensor(device = device)
-      ) %>%
+      purrr::map(~.x %>% dplyr::select(observed_numeric) %>% df_to_tensor(device = device)) %>%
       torch::torch_stack(),
     categorical = output %>%
-      purrr::map(
-        ~.x %>%
-          transform(all_observed() & recipes::all_nominal()) %>%
-          df_to_tensor(device = device)
-      ) %>%
+      purrr::map(~.x %>% dplyr::select(observed_categorical) %>% df_to_tensor(device = device)) %>%
       torch::torch_stack()
   )
 
   target <- list(
     numerics = output %>%
-      purrr::map(
-        ~.x %>%
-          transform(recipes::all_outcomes() & recipes::all_numeric()) %>%
-          df_to_tensor(device = device)
-      ) %>%
+      purrr::map(~.x %>% dplyr::select(target_numeric) %>% df_to_tensor(device = device)) %>%
       torch::torch_stack(),
     categorical = output %>%
-      purrr::map(
-        ~.x %>%
-          transform(recipes::all_outcomes() & recipes::all_nominal()) %>%
-          df_to_tensor(device = device)
-      ) %>%
+      purrr::map(~.x %>% dplyr::select(target_categorical) %>% df_to_tensor(device = device)) %>%
       torch::torch_stack()
   )
 
   static <- list(
-    numerics = output %>% purrr::map(
-      ~.x %>%
-        transform(all_static() & recipes::all_nominal()) %>%
-        df_to_tensor(device = device)
-    ) %>%
+    numerics = output %>%
+      purrr::map(~.x %>% dplyr::select(static_numeric) %>% df_to_tensor(device = device)) %>%
       torch::torch_stack(),
-    categorical = output %>% purrr::map(
-      ~.x %>%
-        transform(all_static() & recipes::all_nominal()) %>%
-        df_to_tensor(device = device)
-    ) %>%
+    categorical = output %>%
+      purrr::map(~.x %>% dplyr::select(static_categorical) %>% df_to_tensor(device = device)) %>%
       torch::torch_stack()
   )
   list(known = known,
        observed = observed,
        static = static,
-       target = target)
+       target = target
+       # input_dim = ,
+       # cat_idxs = ,
+       # cat_dims = ,
+       # known_idx = ,
+       # observed_idx = ,
+       # static_idx = ,
+       # output_dim = ,
+  )
 }
 
 df_to_tensor <- function(df, device) {
