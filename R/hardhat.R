@@ -241,36 +241,6 @@ model_to_raw <- function(model) {
   r
 }
 
-model_pretrain_to_fit <- function(obj, x, y, config = tft_config()) {
-
-  tft_model_lst <- tft_initialize(x, y, config)
-
-
-  # do not restore previous metrics as loss function return non comparable
-  # values, nor checkpoints
-  m <- reload_model(obj$serialized_net)
-
-  if (m$input_dim != tft_model_lst$network$input_dim)
-    rlang::abort("Model dimensions don't match.")
-
-  # perform update of selected weights into new tft_model
-  m_stat_dict <- m$state_dict()
-  tft_state_dict <- tft_model_lst$network$state_dict()
-  for (param in names(m_stat_dict)) {
-    if (grepl("^encoder", param)) {
-      # Convert encoder's layers name to match
-      new_param <- paste0("tft.", param)
-    } else {
-      new_param <- param
-    }
-    if (!is.null(tft_state_dict[new_param])) {
-      tft_state_dict[[new_param]] <- m_stat_dict[[param]]
-    }
-  }
-  tft_model_lst$network$load_state_dict(tft_state_dict)
-  tft_model_lst
-}
-
 
 check_net_is_empty_ptr <- function(object) {
   is_null_external_pointer(object$fit$network$.check$ptr)
@@ -301,5 +271,4 @@ print.tft_fit <- function(x, ...) {
   }
   invisible(x)
 }
-#' @export
-print.tft_pretrain <- print.tft_fit
+

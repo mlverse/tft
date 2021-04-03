@@ -120,7 +120,7 @@ df_to_tensor <- function(df) {
 #' @param clip_value If a float is given this will clip the gradient at
 #'   clip_value. Pass `NULL` (default) to not clip.
 #' @param loss (character or function) Loss function for training within
-#' ["quantile_loss", "pinball_loss", "rmsse_loss", "smape_loss"] (default to quantile_loss)
+#' ["quantile_loss", "pinball_loss", "rmsse_loss", "smape_loss"] (default to ["quantile_loss"])
 #' @param epochs (int) Number of training epochs.
 #' @param drop_last (bool) Whether to drop last batch if not complete during
 #'   training
@@ -141,13 +141,15 @@ df_to_tensor <- function(df) {
 #' @param num_heads (int) number of attention head (default=1)
 #' @param verbose (bool) wether to print progress and loss values during
 #'   training.
-#' @param lr_scheduler if `NULL`, no learning rate decay is used. if "step"
+#' @param lr_scheduler if `NULL`, (default) no learning rate decay is used. if ["step"]
 #'   decays the learning rate by `lr_decay` every `step_size` epochs. It can
 #'   also be a [torch::lr_scheduler] function that only takes the optimizer
 #'   as parameter. The `step` method is called once per epoch.
 #' @param lr_decay multiplies the initial learning rate by `lr_decay` every
 #'   `step_size` epochs. Unused if `lr_scheduler` is a `torch::lr_scheduler`
 #'   or `NULL`.
+#' @param step_size number of epoch before modifying learning rate by `lr_decay`.
+#'   Unused if `lr_scheduler` is a `torch::lr_scheduler` or `NULL`.
 #' @param cat_emb_dim Embedding size for categorial features (default=1)
 #' @param momentum Momentum for batch normalization, typically ranges from 0.01
 #'   to 0.4 (default=0.02)
@@ -177,6 +179,7 @@ tft_config <- function(batch_size = 256,
                        optimizer = "adam",
                        lr_scheduler = NULL,
                        lr_decay = 0.1,
+                       step_size = 30,
                        checkpoint_epochs = 10,
                        cat_emb_dim = 1,
                        hidden_layer_size = 160,
@@ -307,17 +310,6 @@ tft_initialize <- function(df, transform, config = tft_config()) {
   # training data
   data <- batch_data(df, transform)
 
-  # resolve loss
-  if (config$loss == "quantile_loss")
-    config$loss_fn <- quantile_loss()
-  else if (config$loss == "pinball_loss")
-    config$loss_fn <- pinball_loss()
-  else if (config$loss == "rmsse_loss")
-    config$loss_fn <- rmsse_loss()
-  else if (config$loss == "smape_loss")
-    config$loss_fn <- smape_loss()
-
-
   # create network
   network <- tft_nn(
     input_dim = data$input_dim,
@@ -379,7 +371,7 @@ tft_train <- function(obj, df, transform, config = tft_config(), epoch_shift=0L)
     df <- df[-valid_idx, ]
   }
 
-  # training data
+  # training data (could have changed)
   data <- batch_data(df, transform)
   dl <- torch::dataloader(
     torch::tensor_dataset(x = data$x, y = data$y),
@@ -388,7 +380,7 @@ tft_train <- function(obj, df, transform, config = tft_config(), epoch_shift=0L)
     shuffle = TRUE
   )
 
-  # validation data
+  # validation data (could have changed)
   if (has_valid) {
     valid_data <- batch_data(valid_data, transform)
     valid_dl <- torch::dataloader(
@@ -399,19 +391,16 @@ tft_train <- function(obj, df, transform, config = tft_config(), epoch_shift=0L)
     )
   }
 
-  if (config$loss == "auto") {
-    if (data$y$dtype == torch::torch_long())
-      config$loss <- "cross_entropy"
-    else
-      config$loss <- "mse"
-  }
+  # resolve loss (could have changed)
+  if (config$loss == "quantile_loss")
+    config$loss_fn <- quantile_loss()
+  else if (config$loss == "pinball_loss")
+    config$loss_fn <- pinball_loss()
+  else if (config$loss == "rmsse_loss")
+    config$loss_fn <- rmsse_loss()
+  else if (config$loss == "smape_loss")
+    config$loss_fn <- smape_loss()
 
-  # resolve loss
-  if (config$loss == "mse") {
-    config$loss_fn <- torch::nn_mse_loss()
-  }  else if (config$loss %in% c("bce", "cross_entropy")) {
-    config$loss_fn <- torch::nn_cross_entropy_loss()
-  }
   # restore network from model and send it to device
   network <- obj$fit$network
 
