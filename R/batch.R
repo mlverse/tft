@@ -42,10 +42,10 @@ batch_data <- function(transform, df, total_time_steps = 12, device) {
         end_time = start_time + lubridate::hours(total_time_steps)
       )
     )
-  if (length(positions)<500) {
+  if (nrow(positions)<500) {
     rlang::warn(glue::glue("total_time_steps={total_time_steps} hours does not allow to extract 500 samples, you should lower its value"))
   }
-  if (length(positions)<2) {
+  if (nrow(positions)<2) {
     rlang::abort(glue::glue("total_time_steps={total_time_steps} hours does not allow to extract samples, you should lower its value"))
   }
 
@@ -66,37 +66,37 @@ batch_data <- function(transform, df, total_time_steps = 12, device) {
 
   known <- list(
     numerics = output %>%
-      purrr::map(~.x %>% dplyr::select(known_numeric) %>% df_to_tensor(device = device)) %>%
+      purrr::map(~.x %>% dplyr::select(dplyr::all_of(known_numeric)) %>% df_to_tensor(device = device)) %>%
       torch::torch_stack(),
     categorical = output %>%
-      purrr::map(~.x %>% dplyr::select(known_categorical) %>% df_to_tensor(device = device)) %>%
+      purrr::map(~.x %>% dplyr::select(dplyr::all_of(known_categorical)) %>% df_to_tensor(device = device)) %>%
       torch::torch_stack()
   )
 
   observed <- list(
     numerics = output %>%
-      purrr::map(~.x %>% dplyr::select(observed_numeric) %>% df_to_tensor(device = device)) %>%
+      purrr::map(~.x %>% dplyr::select(dplyr::all_of(observed_numeric)) %>% df_to_tensor(device = device)) %>%
       torch::torch_stack(),
     categorical = output %>%
-      purrr::map(~.x %>% dplyr::select(observed_categorical) %>% df_to_tensor(device = device)) %>%
+      purrr::map(~.x %>% dplyr::select(dplyr::all_of(observed_categorical)) %>% df_to_tensor(device = device)) %>%
       torch::torch_stack()
   )
 
   target <- list(
     numerics = output %>%
-      purrr::map(~.x %>% dplyr::select(target_numeric) %>% df_to_tensor(device = device)) %>%
+      purrr::map(~.x %>% dplyr::select(dplyr::all_of(target_numeric)) %>% df_to_tensor(device = device)) %>%
       torch::torch_stack(),
     categorical = output %>%
-      purrr::map(~.x %>% dplyr::select(target_categorical) %>% df_to_tensor(device = device)) %>%
+      purrr::map(~.x %>% dplyr::select(dplyr::all_of(target_categorical)) %>% df_to_tensor(device = device)) %>%
       torch::torch_stack()
   )
 
   static <- list(
     numerics = output %>%
-      purrr::map(~.x %>% dplyr::select(static_numeric) %>% df_to_tensor(device = device)) %>%
+      purrr::map(~.x %>% dplyr::select(dplyr::all_of(static_numeric)) %>% df_to_tensor(device = device)) %>%
       torch::torch_stack(),
     categorical = output %>%
-      purrr::map(~.x %>% dplyr::select(static_categorical) %>% df_to_tensor(device = device)) %>%
+      purrr::map(~.x %>% dplyr::select(dplyr::all_of(static_categorical)) %>% df_to_tensor(device = device)) %>%
       torch::torch_stack()
   )
   list(known = known,
@@ -117,9 +117,9 @@ df_to_tensor <- function(df, device) {
   df %>%
     dplyr::mutate(dplyr::across(where(is.factor), as.integer)) %>%
     dplyr::mutate(dplyr::across(where(lubridate::is.Date), as.integer)) %>%
-    dplyr::mutate(dplyr::across(where(lubridate::is.POSIXt	), as.integer)) %>%
+    dplyr::mutate(dplyr::across(where(lubridate::is.POSIXt), as.integer)) %>%
     as.matrix() %>%
-    torch::torch_tensor(device = device)
+    torch::torch_tensor(device = device,dtype = torch::torch_float())
 }
 
 #' Configuration for Tft models
