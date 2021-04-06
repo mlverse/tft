@@ -47,20 +47,7 @@ tft_nn <- torch::nn_module(
             cat_dims[[.x]],
             self$cat_emb_dims[[.x]]
           )) %>% torch::nn_module_list()
-    # # Sort dims by cat_idx
-    # sorted_idx <- order(cat_idxs)
-    # cat_dims <- cat_dims[sorted_idx]
-    # self$cat_emb_dims <- self$cat_emb_dims[sorted_idx]
-    #
-    # for (i in seq_along(cat_idxs)){
-    #   self$embeddings$append(
-    #     torch::nn_embedding(
-    #       cat_dims[i],
-    #       self$cat_emb_dims[i]
-    #     )
-    #   )
-    # }
-    #
+
     ### Static inputs
     self$static_input_layer <- torch::nn_linear(self$hidden_layer_size, self$hidden_layer_size)
     ### Time_varying inputs

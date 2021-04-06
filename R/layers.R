@@ -1,18 +1,34 @@
 gated_linear_unit <- torch::nn_module(
   "gated_linear_unit",
   # TODO add the use_time_distributed option
-  initialize = function(input_size) {
-    self$fc1 <- torch::nn_linear(input_size, input_size)
-    self$fc2 <- torch::nn_linear(input_size, input_size)
+  initialize = function(input_size, hidden_layer_size,
+                        dropout_rate=NULL,
+                        use_time_distributed=TRUE,
+                        batch_first=FALSE) {
+    self$hidden_layer_size <- hidden_layer_size
+    self$dropout_rate <- dropout_rate
+    self$use_time_distributed <- use_time_distributed
+
+    if (!is.null(dropout_rate)) {
+      self.dropout <- torch::nn_dropout(self$dropout_rate)
+
+    }
+
+    self$activation_layer <- linear_layer(input_size, hidden_layer_size, use_time_distributed, batch_first)
+    self$gated_layer <- linear_layer(input_size, hidden_layer_size, use_time_distributed, batch_first)
     self$sigmoid <- torch::nn_sigmoid()
   },
+
   forward = function(x) {
-    sig <- x %>%
-      self$fc1() %>%
+    if (!is.null(dropout_rate)) {
+      x <- self$dropout(self.dropout_rate)
+
+    }
+    gated <- x %>%
+      self$gated_layer() %>%
       self$sigmoid()
-    x %>%
-      self$fc2() %>%
-      torch::torch_mul(sig, .)
+
+    return(list(x %>% self$activation_layer() %>% torch::torch_mul(., gated), gated))
   }
 )
 
@@ -21,18 +37,29 @@ time_distributed <- torch::nn_module(
   "time_distributed",
   ## Takes any module and stacks the time dimension with the batch dimension of inputs before apply the module
   ## From: https://discuss.pytorch.org/t/any-pytorch-function-can-work-as-keras-timedistributed/1346/4
-  initialize = function(module, dim = 2) {
+  # currently without batch_first
+  initialize = function(module, batch_first=FALSE) {
     self$module <- module
-    self$dim <- dim
+    self$batch_first <- batch_first
   },
   forward = function(x) {
 
     if (x$ndim <= 2)
       return(self$module(x))
 
-    torch::torch_unbind(x, self$dim) %>%
-      lapply(self$module) %>%
-      torch::torch_stack(self$dim)
+    # Squash samples and timesteps into a single axis
+    x_reshape <- x$contiguous()$view(c(-1, x$size(-1)))  # (samples * timesteps, input_size)
+
+    y <- self$module(x_reshape)
+
+    # We have to reshape Y
+    if (self$batch_first){
+      y = y$contiguous()$view(c(x$size(1), -1, y$size(-1)))  # (samples, timesteps, output_size)
+    } else{
+      y = y$view(c(-1, x$size(2), y$size(-1)))  # (timesteps, samples, output_size)
+    }
+
+    return(y)
   }
 )
 
@@ -57,7 +84,7 @@ gated_residual_network <- torch::nn_module(
   "gated_residual_network",
   initialize = function(input_size, hidden_layer_size, output_size=NULL,  dropout_rate=NULL,
                         use_time_distributed=TRUE, return_gate=FALSE, batch_first=FALSE ) {
-    if (!is.null(output_size)) {
+    if (is.null(output_size)) {
       output <- hidden_layer_size
     } else {
       output <- output_size
@@ -75,7 +102,7 @@ gated_residual_network <- torch::nn_module(
     self$hidden_linear_layer2 <- linear_layer(hidden_layer_size, hidden_layer_size, use_time_distributed, batch_first)
 
     self$elu <- torch::nn_elu()
-    self$glu <- gated_linear_unit(hidden_state_size, output, dropout_rate, use_time_distributed, batch_first)
+    self$glu <- gated_linear_unit(hidden_layer_size, output, dropout_rate, use_time_distributed, batch_first)
     self$add_and_norm <- add_and_norm(hidden_layer_size = output)
     self$skip_connection <- torch::nn_linear(input_size, hidden_layer_size)
   },
@@ -210,11 +237,15 @@ static_combine_and_mask <- torch::nn_module(
     self$dropout_rate <- dropout_rate
     self$additional_context <- additional_context
 
-    if (!is.null(self$additional_context)) {
-      self$flattened_grn <- gated_residual_network(self$num_static*self$hidden_layer_size, self$hidden_layer_size, self$num_static, self$dropout_rate, use_time_distributed=FALSE, return_gate=FALSE, batch_first=batch_first)
-    } else {
-      self$flattened_grn <- gated_residual_network(self$num_static*self$hidden_layer_size, self$hidden_layer_size, self$num_static, self$dropout_rate, use_time_distributed=FALSE, return_gate=FALSE, batch_first=batch_first)
-    }
+    # if (!is.null(self$additional_context)) {
+    #   self$flattened_grn <- gated_residual_network(self$num_static*self$hidden_layer_size, self$hidden_layer_size,
+    #                                                self$num_static, self$dropout_rate, use_time_distributed=FALSE,
+    #                                                return_gate=FALSE, batch_first=batch_first)
+    # } else {
+      self$flattened_grn <- gated_residual_network(self$num_static*self$hidden_layer_size, self$hidden_layer_size,
+                                                   self$num_static, self$dropout_rate, use_time_distributed=FALSE,
+                                                   return_gate=FALSE, batch_first=batch_first)
+    # }
 
     self$single_variable_grns <- torch::nn_module_list()
     for (i in seq_len(self$num_static)) {
@@ -228,8 +259,8 @@ static_combine_and_mask <- torch::nn_module(
   },
   forward = function( embedding, additional_context=NULL) {
     # Add temporal features
-    num_static <- dim(embedding)[2]
-    flattened_embedding <- torch::torch_flatten(embedding, start_dim=1)
+    num_static <- embedding$shape[2]
+    flattened_embedding <- torch::torch_flatten(embedding, start_dim=2)
     if (!is.null(additional_context)) {
       sparse_weights <- self$flattened_grn(flattened_embedding, additional_context)
     } else {
@@ -238,20 +269,12 @@ static_combine_and_mask <- torch::nn_module(
 
     sparse_weights <- self$softmax(sparse_weights)$unsqueeze(3)
 
-    # TODO make it R friendly
-    trans_emb_list <- list()
-    for (i in seq_len(self$num_static)){
-      ##select slice of embedding belonging to a single input
-      trans_emb_list <- c(trans_emb_list,
-                          self$single_variable_grns[i](torch::torch_flatten(embedding[, i, ], start_dim=2))
-      )
-    }
-
-    transformed_embedding <- torch::torch_stack(trans_emb_list, dim=0)
+    transformed_embedding <-  purrr::map(seq_len(self$num_static),~self$single_variable_grns[.x](torch::torch_flatten(embedding[, .x, ], start_dim=2))) %>%
+                                           torch::torch_stack(trans_emb_list, dim=2)
 
     combined <- transformed_embedding*sparse_weights
 
-    static_vec <- combined$sum(dim=0)
+    static_vec <- combined$sum(dim=2)
 
     return(list(static_vec, sparse_weights))
   }
