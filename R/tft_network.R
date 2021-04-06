@@ -6,7 +6,8 @@ tft_nn <- torch::nn_module(
                          hidden_layer_size = 160, dropout_rate, stack_size = 1, num_heads) {
     self$cat_idxs <- cat_idxs  #  _known_categorical_input_idx
     self$cat_dims <- cat_dims # category_counts
-    self$cat_emb_dim <- cat_emb_dim # num_categorical_variables
+    # broadcast cat_emb_dim if needed
+    self$cat_emb_dims <- ifelse(length(cat_emb_dim)==length(cat_dims),cat_emb_dim, rep(cat_emb_dim[[1]],length(cat_dims))) # num_categorical_variables
     self$static_idx <- static_idx  # _static_input_loc
     self$known_idx <- known_idx  # _known_regular_input_idx
     self$input_idx <- input_idx  # _input_obs_loc
@@ -14,7 +15,7 @@ tft_nn <- torch::nn_module(
 
     # a check par, just to easily find out when we need to
     # reload the model
-    self$.check <- torch::nn_parameter(torch::torch_tensor(1, requires_grad <- TRUE))
+    self$.check <- torch::nn_parameter(torch::torch_tensor(1, requires_grad = TRUE))
 
     self$time_steps <- total_time_steps
     self$num_encoder_steps <- num_encoder_steps
@@ -42,21 +43,24 @@ tft_nn <- torch::nn_module(
 #   ]
 #
     ### Categorical embeddings. May be improved via tabnet::embedding_generator
-    self$embeddings <- torch::nn_module_list()
-    # Sort dims by cat_idx
-    sorted_idx <- order(cat_idxs)
-    cat_dims <- cat_dims[sorted_idx]
-    self$cat_emb_dims <- self$cat_emb_dims[sorted_idx]
-
-    for (i in seq_along(cat_idxs)){
-      self$embeddings$append(
-        torch::nn_embedding(
-          cat_dims[i],
-          self$cat_emb_dims[i]
-        )
-      )
-    }
-
+    self$embeddings <- purrr::map(seq_along(cat_idxs), ~torch::nn_embedding(
+            cat_dims[[.x]],
+            self$cat_emb_dims[[.x]]
+          )) %>% torch::nn_module_list()
+    # # Sort dims by cat_idx
+    # sorted_idx <- order(cat_idxs)
+    # cat_dims <- cat_dims[sorted_idx]
+    # self$cat_emb_dims <- self$cat_emb_dims[sorted_idx]
+    #
+    # for (i in seq_along(cat_idxs)){
+    #   self$embeddings$append(
+    #     torch::nn_embedding(
+    #       cat_dims[i],
+    #       self$cat_emb_dims[i]
+    #     )
+    #   )
+    # }
+    #
     ### Static inputs
     self$static_input_layer <- torch::nn_linear(self$hidden_layer_size, self$hidden_layer_size)
     ### Time_varying inputs

@@ -66,7 +66,7 @@ tft_fit.default <- function(x, ...) {
 tft_fit.recipe <- function(x, df, tft_model = NULL, ..., from_epoch = NULL) {
   #processed <- hardhat::mold(x, df)
   config <- do.call(tft_config, list(...))
-  processed <- batch_data(transform=x, df=df,
+  processed <- batch_data(recipe=x, df=df,
                           total_time_steps = config[["total_time_steps"]],
                           device = config[["device"]])
   tft_bridge(processed, config = config, tft_model, from_epoch)

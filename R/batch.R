@@ -1,11 +1,17 @@
 #' conditionning input data into tensors according to tft variable roles
 #'
 #' @param df a data frame
-#' @param transform a recipe affecting tft roles to df
+#' @param recipe a recipe affecting tft roles to df
 #' @param total_time_steps time_step value (default 48)
-batch_data <- function(transform, df, total_time_steps = 12, device) {
+batch_data <- function(recipe, df, total_time_steps = 12, device) {
+  if (device == "auto") {
+    if (torch::cuda_is_available())
+      device <- "cuda"
+    else
+      device <- "cpu"
+  }
 
-  var_type_role <- summary(transform)
+  var_type_role <- summary(recipe)
   id <- recipes::terms_select(var_type_role, term=quos(recipes::has_role("id")))
   time <- recipes::terms_select(var_type_role, term=quos(recipes::has_role("time")))
   all_numeric <- recipes::terms_select(var_type_role, term=quos(recipes::all_numeric()))
@@ -27,7 +33,7 @@ batch_data <- function(transform, df, total_time_steps = 12, device) {
   # TODO get rid or the remaining hardcoded $id
   positions <- df %>%
     dplyr::group_by(dplyr::across(id)) %>%
-    dplyr::filter(dplyr::n() >= total_time_steps) %>%
+    dplyr::filter(dplyr::n() >= (total_time_steps*2+1)) %>%
     dplyr::group_split(.keep = TRUE) %>%
     purrr::map_dfr(
       ~tibble::tibble(
@@ -49,8 +55,8 @@ batch_data <- function(transform, df, total_time_steps = 12, device) {
     rlang::abort(glue::glue("total_time_steps={total_time_steps} hours does not allow to extract samples, you should lower its value"))
   }
 
-
-  positions <- dplyr::sample_n(positions, 500)
+  # positions <- positions %>% dplyr::sample_n(500)
+  positions <- positions %>% dplyr::sample_n(50)
 
   output <- positions %>%
     dplyr::group_split(id, start_time) %>%
@@ -63,17 +69,19 @@ batch_data <- function(transform, df, total_time_steps = 12, device) {
           Time < .x$end_time
         )
     )
+# TODO BUG 10 groups do not size total_time_steps*2 and should be removed or torch_stack will fail
+  output <-output[output %>% purrr::map_lgl(~nrow(.x)==24)]
 
-  known <- list(
+  known_t <- list(
     numerics = output %>%
-      purrr::map(~.x %>% dplyr::select(dplyr::all_of(known_numeric)) %>% df_to_tensor(device = device)) %>%
-      torch::torch_stack(),
+        purrr::map(~.x %>% dplyr::select(dplyr::all_of(known_numeric)) %>% df_to_tensor(device = device)) %>%
+        torch::torch_stack(),
     categorical = output %>%
-      purrr::map(~.x %>% dplyr::select(dplyr::all_of(known_categorical)) %>% df_to_tensor(device = device)) %>%
-      torch::torch_stack()
+        purrr::map(~.x %>% dplyr::select(dplyr::all_of(known_categorical)) %>% df_to_tensor(device = device)) %>%
+        torch::torch_stack()
   )
 
-  observed <- list(
+  observed_t <- list(
     numerics = output %>%
       purrr::map(~.x %>% dplyr::select(dplyr::all_of(observed_numeric)) %>% df_to_tensor(device = device)) %>%
       torch::torch_stack(),
@@ -82,7 +90,7 @@ batch_data <- function(transform, df, total_time_steps = 12, device) {
       torch::torch_stack()
   )
 
-  target <- list(
+  target_t <- list(
     numerics = output %>%
       purrr::map(~.x %>% dplyr::select(dplyr::all_of(target_numeric)) %>% df_to_tensor(device = device)) %>%
       torch::torch_stack(),
@@ -91,7 +99,7 @@ batch_data <- function(transform, df, total_time_steps = 12, device) {
       torch::torch_stack()
   )
 
-  static <- list(
+  static_t <- list(
     numerics = output %>%
       purrr::map(~.x %>% dplyr::select(dplyr::all_of(static_numeric)) %>% df_to_tensor(device = device)) %>%
       torch::torch_stack(),
@@ -99,17 +107,18 @@ batch_data <- function(transform, df, total_time_steps = 12, device) {
       purrr::map(~.x %>% dplyr::select(dplyr::all_of(static_categorical)) %>% df_to_tensor(device = device)) %>%
       torch::torch_stack()
   )
-  list(known = known,
-       observed = observed,
-       static = static,
-       target = target
-       # input_dim = ,
-       # cat_idxs = ,
-       # cat_dims = ,
-       # known_idx = ,
-       # observed_idx = ,
-       # static_idx = ,
-       # output_dim = ,
+  cat_idxs = which(names(df) %in% c(known_categorical, observed_categorical, target_categorical, static_categorical))
+  list(known = known_t,
+       observed = observed_t,
+       static = static_t,
+       target = target_t,
+       input_dim = sum(length(c(time, id, known, observed, static))),
+       cat_idxs = cat_idxs ,
+       cat_dims = purrr::map(cat_idxs, ~length(unique(df[[.x]]))),
+       known_idx = which(names(df) %in% c(known_numeric, known_categorical)),
+       observed_idx = which(names(df) %in%  c(observed_numeric, observed_categorical)),
+       static_idx = which(names(df) %in% c(static_numeric, static_categorical)),
+       output_dim = length(target_categorical) + length(target_numeric)
   )
 }
 
@@ -159,7 +168,9 @@ df_to_tensor <- function(df, device) {
 #'   or `NULL`.
 #' @param step_size number of epoch before modifying learning rate by `lr_decay`.
 #'   Unused if `lr_scheduler` is a `torch::lr_scheduler` or `NULL`.
-#' @param cat_emb_dim Embedding size for categorial features (default=1)
+#' @param cat_emb_dim (int or list) Embedding size for categorial features,
+#'   broadcasted to each categorical feature, or per categorical feature
+#'   when a list of the same size as the categorical features  (default=1)
 #' @param momentum Momentum for batch normalization, typically ranges from 0.01
 #'   to 0.4 (default=0.02)
 #' @param checkpoint_epochs checkpoint model weights and architecture every
@@ -308,13 +319,14 @@ tft_initialize <- function(batch_data, config = tft_config()) {
     device <- config$device
   }
 
-  if (has_valid) {
-    n <- nrow(df)
-    valid_idx <- sample.int(n, n*config$valid_split)
-
-    valid_data <- df[valid_idx, ]
-    df <- df[-valid_idx, ]
-  }
+  # TODO processed data shall be splitted upfront if needed
+  # if (has_valid) {
+  #   n <- nrow(df)
+  #   valid_idx <- sample.int(n, n*config$valid_split)
+  #
+  #   valid_data <- df[valid_idx, ]
+  #   df <- df[-valid_idx, ]
+  # }
 
   # create network
   network <- tft_nn(

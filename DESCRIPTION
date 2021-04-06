@@ -1,5 +1,5 @@
 Package: tft
-Title: What the Package Does (One Line, Title Case)
+Title: R implementation of Temporal Fusion Transformer
 Version: 0.0.0.9000
 Authors@R: c(
     person(given = "Daniel",
