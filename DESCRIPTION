@@ -6,9 +6,14 @@ Authors@R: c(
            family = "Falbel",
            role = c("aut", "cre"),
            email = "daniel@rstudio.com"),
-    person(family = "RStudio", role = c("cph"))
+    person(family = "RStudio", role = c("cph")),
+    person(given = "Christophe", 
+           family = "Regouby",
+           email = "christophe.regouby@free.fr", role = c("aut"))
            )
-Description: What the package does (one paragraph).
+Description: Implements of Temporal Fusion Transformer by Bryan Lim et al (2019) <arXiv:1912.09363> 
+    and provides a consistent interface for fitting and creating predictions. It's
+    also fully compatible with the 'tidymodels' ecosystem.
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
