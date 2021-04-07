@@ -66,7 +66,7 @@ rec <- recipe(Demand ~ ., data = vic_elec_train) %>%
   step_normalize(all_numeric(), -all_outcomes())
 
 
-fit <- tft_fit(rec, vic_elec_train, epochs = 30, total_time_steps=250, num_encoder_steps=240 )
+fit <- tft_fit(rec, vic_elec_train, epochs = 30, total_time_steps=12, num_encoder_steps=10 )
 
 metrics <- metric_set(accuracy, precision, recall)
 cbind(vic_elec_test, predict(fit, vic_elec_test)) %>% 

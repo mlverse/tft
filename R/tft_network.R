@@ -7,7 +7,9 @@ tft_nn <- torch::nn_module(
     self$cat_idxs <- cat_idxs  #  _known_categorical_input_idx
     self$cat_dims <- cat_dims # category_counts
     # broadcast cat_emb_dim if needed
-    self$cat_emb_dims <- ifelse(length(cat_emb_dim)==length(cat_dims),cat_emb_dim, rep(cat_emb_dim[[1]],length(cat_dims))) # num_categorical_variables
+    self$cat_emb_dims <- ifelse(length(cat_emb_dim)==length(cat_dims),
+                                cat_emb_dim,
+                                rep(cat_emb_dim[[1]],length(cat_dims))) # num_categorical_variables
     self$static_idx <- static_idx  # _static_input_loc
     self$known_idx <- known_idx  # _known_regular_input_idx
     self$input_idx <- input_idx  # _input_obs_loc
@@ -43,10 +45,12 @@ tft_nn <- torch::nn_module(
 #   ]
 #
     ### Categorical embeddings. May be improved via tabnet::embedding_generator
-    self$embeddings <- purrr::map(seq_along(cat_idxs), ~torch::nn_embedding(
-            cat_dims[[.x]],
-            self$cat_emb_dims[[.x]]
-          )) %>% torch::nn_module_list()
+    self$embeddings <- purrr::map(
+      seq_along(cat_idxs), ~torch::nn_embedding(
+        self$cat_dims[[.x]],
+        self$cat_emb_dims[[.x]])
+      ) %>%
+      torch::nn_module_list()
 
     ### Static inputs
     self$static_input_layer <- torch::nn_linear(self$hidden_layer_size, self$hidden_layer_size)

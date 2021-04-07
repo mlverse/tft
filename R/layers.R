@@ -9,8 +9,8 @@ gated_linear_unit <- torch::nn_module(
     self$dropout_rate <- dropout_rate
     self$use_time_distributed <- use_time_distributed
 
-    if (!is.null(dropout_rate)) {
-      self.dropout <- torch::nn_dropout(self$dropout_rate)
+    if (!is.null(self$dropout_rate)) {
+      self$dropout <- torch::nn_dropout(self$dropout_rate)
 
     }
 
@@ -20,8 +20,8 @@ gated_linear_unit <- torch::nn_module(
   },
 
   forward = function(x) {
-    if (!is.null(dropout_rate)) {
-      x <- self$dropout(self.dropout_rate)
+    if (!is.null(self$dropout_rate)) {
+      x <- self$dropout(self$dropout_rate)
 
     }
     gated <- x %>%
@@ -48,15 +48,16 @@ time_distributed <- torch::nn_module(
       return(self$module(x))
 
     # Squash samples and timesteps into a single axis
-    x_reshape <- x$contiguous()$view(c(-1, x$size(-1)))  # (samples * timesteps, input_size)
+    # TODO BUG
+    x_reshape <- x$contiguous()$view(c(-1, x$size(x$ndim)))  # (samples * timesteps, input_size)
 
     y <- self$module(x_reshape)
 
     # We have to reshape Y
     if (self$batch_first){
-      y = y$contiguous()$view(c(x$size(1), -1, y$size(-1)))  # (samples, timesteps, output_size)
+      y <- y$contiguous()$view(c(x$size(1), -1, y$size(y$ndim)))  # (samples, timesteps, output_size)
     } else{
-      y = y$view(c(-1, x$size(2), y$size(-1)))  # (timesteps, samples, output_size)
+      y <- y$view(c(-1, x$size(2), y$size(y$ndim)))  # (timesteps, samples, output_size)
     }
 
     return(y)
@@ -115,7 +116,7 @@ gated_residual_network <- torch::nn_module(
     }
     # Apply feedforward network
     hidden <- self$hidden_linear_layer1(x)
-    if (!is.null(context)) {
+    if (!torch::torch_equal(context, torch::torch_zeros_like(x))) {
       hidden <- hidden + self$hidden_context_layer(context)
 
     }

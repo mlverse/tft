@@ -14,8 +14,10 @@ batch_data <- function(recipe, df, total_time_steps = 12, device) {
   var_type_role <- summary(recipe)
   id <- recipes::terms_select(var_type_role, term=quos(recipes::has_role("id")))
   time <- recipes::terms_select(var_type_role, term=quos(recipes::has_role("time")))
-  all_numeric <- recipes::terms_select(var_type_role, term=quos(recipes::all_numeric()))
-  all_nominal <- recipes::terms_select(var_type_role, term=quos(recipes::all_nominal()))
+  all_numeric <- c(recipes::terms_select(var_type_role, term=quos(recipes::all_numeric())),
+                   var_type_role[var_type_role$type == "date", "variable"] %>% unlist )
+  all_nominal <- c(recipes::terms_select(var_type_role, term=quos(recipes::all_nominal())),
+                   var_type_role[var_type_role$type %in% c("logical", "other"), "variable"] %>% unlist)
   known <- recipes::terms_select(var_type_role, term=quos(recipes::has_role("known_input")))
   observed <- recipes::terms_select(var_type_role, term=quos(recipes::has_role("observed_input")))
   static <- recipes::terms_select(var_type_role, term=quos(recipes::has_role("static_input")))
@@ -70,7 +72,7 @@ batch_data <- function(recipe, df, total_time_steps = 12, device) {
         )
     )
 # TODO BUG 10 groups do not size total_time_steps*2 and should be removed or torch_stack will fail
-  output <-output[output %>% purrr::map_lgl(~nrow(.x)==24)]
+  output <-output[output %>% purrr::map_lgl(~nrow(.x)==(total_time_steps*2))]
 
   known_t <- list(
     numerics = output %>%
