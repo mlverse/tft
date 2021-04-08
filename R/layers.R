@@ -21,7 +21,7 @@ gated_linear_unit <- torch::nn_module(
 
   forward = function(x) {
     if (!is.null(self$dropout_rate)) {
-      x <- self$dropout(self$dropout_rate)
+      x <- self$dropout(x)
 
     }
     gated <- x %>%
