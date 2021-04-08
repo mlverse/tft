@@ -96,7 +96,7 @@ gated_residual_network <- torch::nn_module(
     self$hidden_layer_size <- hidden_layer_size
     self$return_gate <- return_gate
 
-    self$linear_layer <- linear_layer(input_size, output, use_time_distributed, batch_first)
+    self$linear_layer_ <- linear_layer(input_size, output, use_time_distributed, batch_first)
 
     self$hidden_linear_layer1 <- linear_layer(input_size, hidden_layer_size, use_time_distributed, batch_first)
     self$hidden_context_layer <- linear_layer(hidden_layer_size, hidden_layer_size, use_time_distributed, batch_first)
@@ -109,18 +109,18 @@ gated_residual_network <- torch::nn_module(
   },
   forward = function(x, context = torch::torch_zeros_like(x)) {
     # Setup skip connection
-    if (!is.null(self$output_size)) {
-      skip <- x
-    } else {
-      skip <- self$linear_layer(x)
-    }
+    # if (is.null(self$output_size)) {
+    #   skip <- x
+    # } else {
+    skip <- self$linear_layer_(x)
+    # }
     # Apply feedforward network
     hidden <- self$hidden_linear_layer1(x)
     if (!torch::torch_equal(context, torch::torch_zeros_like(x))) {
       hidden <- hidden + self$hidden_context_layer(context)
 
     }
-    hidden <- self$elu1(hidden)
+    hidden <- self$elu(hidden)
     hidden <- self$hidden_linear_layer2(hidden)
 
     gating_layer_gate <- self$glu(hidden)
@@ -225,7 +225,7 @@ add_and_norm <- torch::nn_module(
   },
   forward = function(x1, x2) {
     x <- torch::torch_add(x1, x2)
-    return(self$normalize)
+    return(self$normalize(x))
   }
 )
 
