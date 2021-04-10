@@ -194,9 +194,9 @@ interpretable_multihead_attention <- torch::nn_module(
     heads <- list()
     attns <- list()
     for (head in seq_len(n_head)) {
-      qs <- self$qs_layers[head](query)
-      ks <- self$ks_layers[head](key)
-      vs <- self$vs_layers[head](value)
+      qs <- self$qs_layers[[head]](query)
+      ks <- self$ks_layers[[head]](key)
+      vs <- self$vs_layers[[head]](value)
       attn_lst <- self$attention(qs, ks, vs, mask)
 
       head_dropout <- self$dropout(attn_lst[[1]])
@@ -215,8 +215,9 @@ interpretable_multihead_attention <- torch::nn_module(
     } else {
       outputs <- head
     }
-    outputs <- self$w_o(outputs)
-    outputs <- self$dropout(outputs)
+    outputs <- outputs %>%
+      self$w_o() %>%
+      self$dropout()
 
     return(list(outputs, attn))
     }

@@ -104,4 +104,38 @@ test_that("scaled_dot_product_attention works, w or wo mask", {
 
 })
 
+test_that("interpretable_multihead_attention works", {
+
+  multihead_attn <- interpretable_multihead_attention(n_head=2, d_model=12, dropout_rate=0)$to(device=device)
+  # nn shape test
+  expect_length(multihead_attn$modules, 12)
+  expect_length(multihead_attn$attention$modules, 3)
+  expect_length(multihead_attn$attention$modules[[1]], 1)
+  expect_length(multihead_attn$attention$modules[[2]], 1)
+
+  #without mask
+  mask <- NULL
+  # device <- torch::torch_device(if (torch::cuda_is_available()) "cuda" else "cpu")
+  query <- key <- value <- torch::torch_randn(5, 4, 12, device=device)
+  x <- torch::torch_randn(5, 4, 10, device=device)
+
+  outputs_attn_lst <- multihead_attn(query, key, value, mask)
+  outputs <- outputs_attn_lst[[1]]
+  attn <- outputs_attn_lst[[2]]
+
+  expect_equal(outputs$shape, c(5, 4, 12))
+  expect_equal(attn$shape, c(2, 5, 4, 4))
+
+  # with mask
+  mask <- array(as.numeric(rnorm(5*4*4)< 1), dim=c(5,4,4))
+
+  outputs_attn_lst <- multihead_attn(query, key, value, mask)
+  outputs <- outputs_attn_lst[[1]]
+  attn <- outputs_attn_lst[[2]]
+
+  expect_equal(outputs$shape, c(5, 4, 12))
+  expect_equal(attn$shape, c(2, 5, 4, 4))
+
+})
+
 
