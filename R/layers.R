@@ -137,15 +137,14 @@ scaled_dot_product_attention <- torch::nn_module(
   initialize = function(attn_dropout=0) {
     self$dropout <- torch::nn_dropout(attn_dropout)
     self$activation <- torch::nn_softmax(dim=-1)
-    self$device <- torch::torch_device(if (torch::cuda_is_available()) "cuda" else "cpu")
   },
   forward = function(query, key, value, mask) {
-    # applies scaled dot product attention
+    # applies scaled dot product attention (unused)
     # query
-    temper <- torch::torch_sqrt(torch::torch_tensor(tail(key$shape,1), dtype = torch::torch_float, device = self$device) )
-    attn <- torch::torch_bmm(query, torch::torch_transpose(key, 2,3) )
+    # temper <- torch::torch_sqrt(torch::torch_tensor(key$shape[key$ndim], dtype = torch::torch_float, device = self$device) )
+    attn <- torch::torch_bmm(query, key$permute(c(1, 3, 2)) )
     if (!is.null(mask)) {
-      mmask <- -1e-9 * (1 - torch::torch_tensor(mask, dtype = torch::torch_float, device = self$device))
+      mmask <- -1e-9 * (1 - torch::torch_tensor(mask, dtype = torch::torch_float(), device = query$device))
       attn <- torch::torch_add(attn, mmask)
     }
     attn <- self$activation(attn)
@@ -181,12 +180,17 @@ interpretable_multihead_attention <- torch::nn_module(
     self$w_o <- torch::nn_linear(self$d_k, d_model, bias=FALSE)
   },
   forward = function( query, key, value, mask) {
+    # Applies interpretable multihead attention.
+    #
+    # Using T to denote the number of time steps fed into the transformer.
     # query :Query tensor of dim (?, T, d_model)
     # key: Key of dim (?, T, d_model)
     # value: Values of dim (?, T, d_model)
     # mask: Masking if required with dim (?, T, T)
+    # returns a list( layer_outputs, attention_weights)
 
-    head <- self$n_head
+    # TODO get rid of ugly for / if logic
+    n_head <- self$n_head
     heads <- list()
     attns <- list()
     for (head in seq_len(n_head)) {
@@ -196,8 +200,8 @@ interpretable_multihead_attention <- torch::nn_module(
       attn_lst <- self$attention(qs, ks, vs, mask)
 
       head_dropout <- self$dropout(attn_lst[[1]])
-      heads$append(head_dropout)
-      attns$append(attn_lst[[2]])
+      heads <- c(heads, head_dropout)
+      attns <- c(attns, attn_lst[[2]])
     }
     if (n_head>1) {
       head <- torch::torch_stack(heads)
