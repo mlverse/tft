@@ -306,26 +306,25 @@ lstm_combine_and_mask <- torch::nn_module(
                                                               use_time_distributed=use_time_distributed,
                                                               return_gate=FALSE, batch_first=batch_first))
     }
-
     self$softmax <- torch::nn_softmax(dim=3)
-
   },
   forward = function( embedding, additional_context=NULL) {
     # Add temporal features
-    dim_embedding <- dim(embedding)
+    dim_embedding <- embedding$shape
     time_steps <- dim_embedding[2]
     embedding_dim <- dim_embedding[3]
     num_inputs <- dim_embedding[4]
 
     flattened_embedding <- torch::torch_reshape(embedding, list(-1, time_steps, embedding_dim * num_inputs))
-    expanded_static_context <- additional_context$unsqueeze(2)
 
     if (!is.null(additional_context)) {
+      expanded_static_context <- additional_context$unsqueeze(2)
       sparse_weights_staticgate <- self$flattened_grn(flattened_embedding, expanded_static_context)
       sparse_weights <- sparse_weights_staticgate[[1]]
       static_gate <- sparse_weights_staticgate[[2]]
     } else {
-      sparse_weights <- self$flattened_grn(flattened_embedding)
+      sparse_weights <- self$flattened_grn(flattened_embedding)[[1]]
+      static_gate <- NULL
     }
 
     sparse_weights <- self$softmax(sparse_weights)$unsqueeze(3)
@@ -335,15 +334,15 @@ lstm_combine_and_mask <- torch::nn_module(
     for (i in seq_len(self$num_inputs)){
       ##select slice of embedding belonging to a single input
       trans_emb_list <- c(trans_emb_list,
-                          self$single_variable_grns[i](embedding[, i])
+                          self$single_variable_grns[[i]](embedding[.., i])
       )
     }
 
-    transformed_embedding <- torch::torch_stack(trans_emb_list, dim=0)
+    transformed_embedding <- torch::torch_stack(trans_emb_list, dim=-1)
 
     combined <- transformed_embedding*sparse_weights
 
-    temporal_ctx <- combined$sum(dim=0)
+    temporal_ctx <- combined$sum(dim=-1)
 
     return(list(temporal_ctx, sparse_weights, static_gate))
   }

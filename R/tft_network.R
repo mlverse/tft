@@ -206,16 +206,16 @@ tft_nn <- torch::nn_module(
       for( i in seq_len(num_regular_variables)) {
 
         if (i %in% self$static_idx) {
-          static_inputs <- c(static_inputs, self$static_input_layer(regular_inputs[, 0, i]) )
+          static_inputs <- c(static_inputs, self$static_input_layer(regular_inputs[, 1, i]) )
         }
       }
       for( i in seq_len(num_categorical_variables)){
 
         if (i + num_regular_variables %in% self$static_idx) {
-          static_inputs <- c(static_inputs, self$static_input_layer(embedded_inputs[i][, 0, ]) )
+          static_inputs <- c(static_inputs, embedded_inputs[i][, 1, ] )
         }
       }
-      static_inputs <- torch::torch_stack(static_inputs, dim=1)
+      static_inputs <- torch::torch_stack(static_inputs, dim=2)
 
     } else {
       static_inputs <- NULL
@@ -227,23 +227,23 @@ tft_nn <- torch::nn_module(
     for (i in self$input_idx) {
       obs_input_lst <- c(obs_input_lst, self$time_varying_embedding_layer(regular_inputs[.., i]$float()))
     }
-    obs_inputs <- torch::torch_stack(obs_input_lst, dim=0)
+    obs_inputs <- torch::torch_stack(obs_input_lst, dim=-1)
 
 
      # Observed (a priori unknown) inputs
     wired_embeddings <-  list()
     for (i in setdiff(seq_len(num_categorical_variables), c(self$cat_idxs, self$input_idx))) {
-        e <- self$embeddings[i](categorical_inputs[.., i])
+        e <- self$embeddings[i](categorical_inputs[,, i])
         wired_embeddings <- c(wired_embeddings,e)
 
     }
     unknown_inputs <-  list()
     for (i in setdiff(seq_len(tail(regular_inputs$shape,1)), c(self$known_idx,  self$input_idx))) {
-        e <- self$time_varying_embedding_layer(regular_inputs[.., i:i + 1])
+        e <- self$time_varying_embedding_layer(regular_inputs[.., i])
         unknown_inputs <- c(unknown_inputs,e)
     }
     if (length(unknown_inputs) + length(wired_embeddings)) {
-      unknown_inputs <- torch::torch_stack(c(unknown_inputs,wired_embeddings), dim=0)
+      unknown_inputs <- torch::torch_stack(c(unknown_inputs,wired_embeddings), dim=-1)
 
     } else {
       unknown_inputs <- NULL
@@ -252,7 +252,7 @@ tft_nn <- torch::nn_module(
     # A priori known inputs
     known_regular_inputs <- list()
     for (i in setdiff(self$known_idx, self$static_idx)) {
-      e <- self$time_varying_embedding_layer(regular_inputs[.., i:i + 1]$float())
+      e <- self$time_varying_embedding_layer(regular_inputs[.., i]$float())
       known_regular_inputs <- c(known_regular_inputs, e)
     }
 

@@ -185,5 +185,36 @@ test_that("static_combine_and_mask works", {
 
 })
 
+test_that("lstm_combine_and_mask works", {
+
+  lstm_cbn_n_mask <- lstm_combine_and_mask(10, num_inputs=5, hidden_layer_size=7, dropout_rate=0)$to(device=device)
+  embedding <- torch::torch_ones(c(4, 24, 7, 5), device=device)
+  #without additional_context
+  additional_context <- NULL
+
+
+  lstm_output_lst <- lstm_cbn_n_mask(embedding, additional_context)
+  temporal_ctx <- lstm_output_lst[[1]]
+  sparse_weights <- lstm_output_lst[[2]]
+  static_gate <- lstm_output_lst[[3]]
+
+  expect_equal(temporal_ctx$shape, c(4,24,7))
+  expect_equal(sparse_weights$shape, c(4,24,1, 5))
+  expect_equal(static_gate, NULL)
+
+  # with additional_context (like flatten_embeddings = [?, num_static*hidden_layer])
+  additional_context <- array(as.numeric(rnorm(4*7*5)< 1), dim=c(4,35)) %>% torch::torch_tensor(device = device)
+
+  lstm_output_lst <- lstm_cbn_n_mask(embedding, additional_context)
+  temporal_ctx <- lstm_output_lst[[1]]
+  sparse_weights <- lstm_output_lst[[2]]
+  static_gate <- lstm_output_lst[[3]]
+
+  expect_equal(temporal_ctx$shape, c(4,24,7))
+  expect_equal(sparse_weights$shape, c(4,24,1, 5))
+  expect_equal(static_gate$shape, c(4,24, 5))
+
+})
+
 
 
