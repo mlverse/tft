@@ -10,7 +10,6 @@ test_that("gated linear units works, w & wo dropout_rate", {
   glu <- gated_linear_unit(10, 10, dropout_rate=0.1)$to(device=device)
 
   expect_equal( glu(x)[[1]]$shape, c(100, 10)  )
-
 })
 
 test_that("time distributed layer works", {
@@ -55,6 +54,29 @@ test_that("gated residual network, w and wo output_size, w or wo dropout_rate, w
   expect_equal(grn(x)[[2]]$shape, c(32, 3))
 
 
+})
+
+test_that("gated residual network works in all initial conditions w context", {
+
+  x <- torch::torch_randn(32, 10, device=device)
+  context <- torch::torch_ones_like(x)$to(device=device)
+  grn <- gated_residual_network(10, 5)$to(device=device)
+
+  expect_equal(grn(x, context)$shape, c(32, 5))
+
+  grn <- gated_residual_network(10, 5, 3)$to(device=device)
+
+  expect_equal(grn(x, context)$shape, c(32, 3))
+
+  grn <- gated_residual_network(10, 5, 3, dropout_rate=0.2)$to(device=device)
+
+  expect_equal(grn(x, context)$shape, c(32, 3))
+
+  grn <- gated_residual_network(10, 5, 3, return_gate=TRUE)$to(device=device)
+
+  expect_equal(grn(x, context)[[1]]$shape, c(32, 3))
+  expect_equal(grn(x, context)[[2]]$shape, c(32, 3))
+
 
 })
 
@@ -82,7 +104,6 @@ test_that("scaled_dot_product_attention works, w or wo mask", {
 
   #without mask
   mask <- NULL
-  # device <- torch::torch_device(if (torch::cuda_is_available()) "cuda" else "cpu")
   x <- torch::torch_randn(2, 4, 10, device=device)
 
   output_attn_lst <- sdp_attention(query(x), key(x), value(x), mask)
@@ -115,7 +136,6 @@ test_that("interpretable_multihead_attention works", {
 
   #without mask
   mask <- NULL
-  # device <- torch::torch_device(if (torch::cuda_is_available()) "cuda" else "cpu")
   query <- key <- value <- torch::torch_randn(5, 4, 12, device=device)
   x <- torch::torch_randn(5, 4, 10, device=device)
 
@@ -137,5 +157,33 @@ test_that("interpretable_multihead_attention works", {
   expect_equal(attn$shape, c(2, 5, 4, 4))
 
 })
+
+test_that("static_combine_and_mask works", {
+
+  static_cbn_n_mask <- static_combine_and_mask(10, num_static=5, hidden_layer_size=7, dropout_rate=0)$to(device=device)
+  embedding <- torch::torch_ones(c(4, 5, 7), device=device)
+  #without additional_context
+  additional_context <- NULL
+
+
+  static_vec_sparse_weights <- static_cbn_n_mask(embedding, additional_context)
+  static_vec <- static_vec_sparse_weights[[1]]
+  sparse_weights <- static_vec_sparse_weights[[2]]
+
+  expect_equal(static_vec$shape, c(4,7))
+  expect_equal(sparse_weights$shape, c(4,5,1))
+
+  # with additional_context (like flatten_embeddings = [?, num_static*hidden_layer])
+  additional_context <- array(as.numeric(rnorm(4*5*7)< 1), dim=c(4,35)) %>% torch::torch_tensor(device = device)
+
+  static_vec_sparse_weights <- static_cbn_n_mask(embedding, additional_context)
+  static_vec <- static_vec_sparse_weights[[1]]
+  sparse_weights <- static_vec_sparse_weights[[2]]
+
+  expect_equal(static_vec$shape, c(4,7))
+  expect_equal(sparse_weights$shape, c(4,5,1))
+
+})
+
 
 

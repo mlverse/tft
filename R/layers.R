@@ -96,10 +96,10 @@ gated_residual_network <- torch::nn_module(
     self$hidden_layer_size <- hidden_layer_size
     self$return_gate <- return_gate
 
-    self$linear_layer_ <- linear_layer(input_size, output, use_time_distributed, batch_first)
+    self$skip_linear_layer <- linear_layer(input_size, output, use_time_distributed, batch_first)
 
     self$hidden_linear_layer1 <- linear_layer(input_size, hidden_layer_size, use_time_distributed, batch_first)
-    self$hidden_context_layer <- linear_layer(hidden_layer_size, hidden_layer_size, use_time_distributed, batch_first)
+    self$hidden_context_layer <- linear_layer(input_size, hidden_layer_size, use_time_distributed, batch_first)
     self$hidden_linear_layer2 <- linear_layer(hidden_layer_size, hidden_layer_size, use_time_distributed, batch_first)
 
     self$elu <- torch::nn_elu()
@@ -112,7 +112,7 @@ gated_residual_network <- torch::nn_module(
     # if (is.null(self$output_size)) {
     #   skip <- x
     # } else {
-    skip <- self$linear_layer_(x)
+    skip <- self$skip_linear_layer(x)
     # }
     # Apply feedforward network
     hidden <- self$hidden_linear_layer1(x)
@@ -257,7 +257,8 @@ static_combine_and_mask <- torch::nn_module(
     for (i in seq_len(self$num_static)) {
       self$single_variable_grns$append(gated_residual_network(self$hidden_layer_size, self$hidden_layer_size,
                                                               NULL, self$dropout_rate,
-                                                              use_time_distributed=FALSE, return_gate=FALSE, batch_first=batch_first))
+                                                              use_time_distributed=FALSE, return_gate=FALSE,
+                                                              batch_first=batch_first))
     }
 
     self$softmax <- torch::nn_softmax(dim=2)
@@ -265,7 +266,6 @@ static_combine_and_mask <- torch::nn_module(
   },
   forward = function( embedding, additional_context=NULL) {
     # Add temporal features
-    num_static <- embedding$shape[2]
     flattened_embedding <- torch::torch_flatten(embedding, start_dim=2)
     if (!is.null(additional_context)) {
       sparse_weights <- self$flattened_grn(flattened_embedding, additional_context)
@@ -275,8 +275,9 @@ static_combine_and_mask <- torch::nn_module(
 
     sparse_weights <- self$softmax(sparse_weights)$unsqueeze(3)
 
-    transformed_embedding <-  purrr::map(seq_len(self$num_static),~self$single_variable_grns[.x](torch::torch_flatten(embedding[, .x, ], start_dim=2))) %>%
-                                           torch::torch_stack(trans_emb_list, dim=2)
+    transformed_embedding <- purrr::map(seq_len(self$num_static),
+                                         ~self$single_variable_grns[[.x]](torch::torch_flatten(embedding[, .x, ], start_dim=2))) %>%
+                                           torch::torch_stack(dim=2)
 
     combined <- transformed_embedding*sparse_weights
 
