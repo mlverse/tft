@@ -17,7 +17,7 @@ test_that("batch_data works with roles in vic_elec dataset", {
 
   x <- batch_data(recipe=rec, df=vic_elec, total_time_steps=10, device="cpu")
 
-  expect_length(x, 12)
+  expect_length(x, 13)
   # test tensor shape (20 time_steps while total_time_steps is hardcoded in hours)
   expect_equal(x$known$numerics$size()[2:3], c( 20, 0))
   expect_equal(x$known$categorical$size()[2:3], c( 20, 1))

@@ -121,6 +121,7 @@ batch_data <- function(recipe, df, total_time_steps = 12, device) {
        known_idx = which(names(df) %in% c(known_numeric, known_categorical)),
        observed_idx = which(names(df) %in%  c(observed_numeric, observed_categorical)),
        static_idx = which(names(df) %in% c(static_numeric, static_categorical)),
+       input_idx =  c(observed_idx, static_idx),
        output_dim = length(target_categorical) + length(target_numeric),
        blueprint = processed_roles$blueprint
   )
@@ -253,7 +254,10 @@ if ((total_time_steps - num_encoder_steps) < 2) {
 }
 
 batch_to_device <- function(batch, device) {
-  batch <- list(x = batch$x, y  = batch$y)
+  batch <- list(known_numerics = batch$known_numerics, known_categorical = batch$known_categorical,
+                observed_numerics = batch$observed_numerics, observed_categorical = batch$observed_categorical,
+                static_numerics = batch$static_numerics, static_categorical = batch$static_categorical,
+                target_numerics = batch$target_numerics, target_categorical = batch$target_categorical)
   lapply(batch, function(x) {
     x$to(device = device)
   })
@@ -261,7 +265,9 @@ batch_to_device <- function(batch, device) {
 
 train_batch <- function(network, optimizer, batch, config) {
   # forward pass
-  output <- network(batch$x)
+  output <- network(batch$known_numerics, batch$known_categorical,
+                    batch$observed_numerics, batch$observed_categorical,
+                    batch$static_numerics, batch$static_categorical)
   loss <- config$loss_fn(output[[1]], batch$y)
 
   # Add the overall sparsity loss
@@ -371,7 +377,7 @@ tft_initialize <- function(data, config = tft_config()) {
   )
 }
 
-tft_train <- function(obj, df, transform, config = tft_config(), epoch_shift=0L) {
+tft_train <- function(obj, data, config = tft_config(), epoch_shift=0L) {
   stopifnot("tft_model shall be initialised"= (length(obj$fit$network) > 0))
   torch::torch_manual_seed(sample.int(1e6, 1))
   has_valid <- config$valid_split > 0
@@ -386,32 +392,30 @@ tft_train <- function(obj, df, transform, config = tft_config(), epoch_shift=0L)
   }
 
   if (has_valid) {
-    n <- nrow(df)
-    valid_idx <- sample.int(n, n*config$valid_split)
-
-    valid_data <- df[valid_idx, ]
-    df <- df[-valid_idx, ]
+    rlang::abort("'valid_split=TRUE' is not implemented yet")
   }
 
-  # training data (could have changed)
-  data <- batch_data(df, transform)
+  # training data (can't have changed yet)
   dl <- torch::dataloader(
-    torch::tensor_dataset(x = data$x, y = data$y),
+    torch::tensor_dataset(known_numerics = data$known$numerics, known_categorical = data$known$categorical,
+                          observed_numerics = data$observed$numerics, observed_categorical = data$observed$categorical,
+                          static_numerics = data$static$numerics, static_categorical = data$static$categorical,
+                          target_numerics = data$target$numerics, target_categorical = data$target$categorical),
     batch_size = config$batch_size,
     drop_last = config$drop_last,
     shuffle = TRUE
   )
 
-  # validation data (could have changed)
-  if (has_valid) {
-    valid_data <- batch_data(valid_data, transform)
-    valid_dl <- torch::dataloader(
-      torch::tensor_dataset(x = valid_data$x, y = valid_data$y),
-      batch_size = config$batch_size,
-      drop_last = FALSE,
-      shuffle = FALSE
-    )
-  }
+  # validation data (can't have changed yet)
+  # if (has_valid) {
+  #   valid_data <- batch_data(valid_data, transform)
+  #   valid_dl <- torch::dataloader(
+  #     torch::tensor_dataset(x = valid_data$x, y = valid_data$y),
+  #     batch_size = config$batch_size,
+  #     drop_last = FALSE,
+  #     shuffle = FALSE
+  #   )
+  # }
 
   # resolve loss (could have changed)
   if (config$loss == "quantile_loss")

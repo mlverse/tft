@@ -64,7 +64,7 @@ tft_fit.default <- function(x, ...) {
 #' @export
 #' @rdname tft_fit
 tft_fit.recipe <- function(x, df, tft_model = NULL, ..., from_epoch = NULL) {
-  #processed <- hardhat::mold(x, df)
+  #processed <- hardhat::mold(x, df) # is part of batch_data
   config <- do.call(tft_config, list(...))
   processed <- batch_data(recipe=x, df=df,
                           total_time_steps = config[["total_time_steps"]],
@@ -97,40 +97,40 @@ tft_bridge <- function(processed, config = tft_config(), tft_model, from_epoch) 
     } else if (!is.null(from_epoch)) {
       # model must be loaded from checkpoint
 
-      if (from_epoch > (length(tft_model$fit$checkpoints) * tft_model$fit$config$checkpoint_epoch))
-        rlang::abort(paste0("The model was trained for less than ", from_epoch, " epochs"))
-
-      # find closest checkpoint for that epoch
-      closest_checkpoint <- from_epoch %/% tft_model$fit$config$checkpoint_epoch
-
-      tft_model$fit$network <- reload_model(tft_model$fit$checkpoints[[closest_checkpoint]])
-      epoch_shift <- closest_checkpoint * tft_model$fit$config$checkpoint_epoch
+      # if (from_epoch > (length(tft_model$fit$checkpoints) * tft_model$fit$config$checkpoint_epoch))
+      #   rlang::abort(paste0("The model was trained for less than ", from_epoch, " epochs"))
+      #
+      # # find closest checkpoint for that epoch
+      # closest_checkpoint <- from_epoch %/% tft_model$fit$config$checkpoint_epoch
+      #
+      # tft_model$fit$network <- reload_model(tft_model$fit$checkpoints[[closest_checkpoint]])
+      # epoch_shift <- closest_checkpoint * tft_model$fit$config$checkpoint_epoch
 
     } else if (!check_net_is_empty_ptr(tft_model) && inherits(tft_model, "tft_fit")) {
 
-      if (!identical(processed$blueprint, tft_model$blueprint))
-        rlang::abort("Model dimensions don't match.")
-
-      # model is available from tft_model$serialized_net
-      m <- reload_model(tft_model$serialized_net)
-
-      # this modifies 'tft_model' in-place so subsequent predicts won't
-      # need to reload.
-      tft_model$fit$network$load_state_dict(m$state_dict())
-      epoch_shift <- length(tft_model$fit$metrics)
+      # if (!identical(processed$blueprint, tft_model$blueprint))
+      #   rlang::abort("Model dimensions don't match.")
+      #
+      # # model is available from tft_model$serialized_net
+      # m <- reload_model(tft_model$serialized_net)
+      #
+      # # this modifies 'tft_model' in-place so subsequent predicts won't
+      # # need to reload.
+      # tft_model$fit$network$load_state_dict(m$state_dict())
+      # epoch_shift <- length(tft_model$fit$metrics)
 
 
   }  else if (length(tft_model$fit$checkpoints)) {
       # model is loaded from the last available checkpoint
 
-      last_checkpoint <- length(tft_model$fit$checkpoints)
-
-      tft_model$fit$network <- reload_model(tft_model$fit$checkpoints[[last_checkpoint]])
-      epoch_shift <- last_checkpoint * tft_model$fit$config$checkpoint_epoch
+      # last_checkpoint <- length(tft_model$fit$checkpoints)
+      #
+      # tft_model$fit$network <- reload_model(tft_model$fit$checkpoints[[last_checkpoint]])
+      # epoch_shift <- last_checkpoint * tft_model$fit$config$checkpoint_epoch
 
     } else rlang::abort(paste0("No model serialized weight can be found in ", tft_model, ", check the model history"))
 
-    fit_lst <- tft_train_supervised(tft_model, predictors, outcomes, config = config, epoch_shift)
+    fit_lst <- tft_train(tft_model, processed, config = config, epoch_shift)
     return(new_tft_fit(fit_lst, blueprint = processed$blueprint))
 
 }
