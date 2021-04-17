@@ -1,8 +1,9 @@
 test_that("batch_data works with roles in vic_elec dataset", {
   library(recipes)
+  library(tsibbledata)
   skip_on_os("mac")
 
-  data("vic_elec", package = "tsibbledata")
+  data("vic_elec")
   vic_elec <- vic_elec %>%
     dplyr::mutate(Location = as.factor("Victoria")) %>%
     dplyr::rename(id = Date)
