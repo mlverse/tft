@@ -7,9 +7,11 @@ tft_nn <- torch::nn_module(
     self$cat_idxs <- cat_idxs  #  _known_categorical_input_idx
     self$cat_dims <- cat_dims # category_counts
     # broadcast cat_emb_dim if needed
-    self$cat_emb_dims <- ifelse(length(cat_emb_dim)==length(cat_dims),
-                                cat_emb_dim,
-                                rep(cat_emb_dim[[1]],length(cat_dims))) # num_categorical_variables
+    if (length(cat_emb_dim)==length(cat_dims)) {
+        self$cat_emb_dims <- cat_emb_dim
+    } else {
+        self$cat_emb_dims <- rep(cat_emb_dim[[1]],length(cat_dims)) # num_categorical_variables
+    }
     self$static_idx <- static_idx  # _static_input_loc
     self$known_idx <- known_idx  # _known_regular_input_idx
     self$input_idx <- input_idx  # _input_obs_loc

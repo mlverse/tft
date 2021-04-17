@@ -31,6 +31,7 @@ batch_data <- function(recipe, df, total_time_steps = 12, device) {
   static_categorical <- intersect(static, all_nominal)
 
 
+  processed_roles <- hardhat::mold(recipe, df)
   # TODO use tsibble function and interval attribute to reach the same result
   # TODO get rid or the remaining hardcoded $id
   positions <- df %>%
@@ -120,7 +121,8 @@ batch_data <- function(recipe, df, total_time_steps = 12, device) {
        known_idx = which(names(df) %in% c(known_numeric, known_categorical)),
        observed_idx = which(names(df) %in%  c(observed_numeric, observed_categorical)),
        static_idx = which(names(df) %in% c(static_numeric, static_categorical)),
-       output_dim = length(target_categorical) + length(target_numeric)
+       output_dim = length(target_categorical) + length(target_numeric),
+       blueprint = processed_roles$blueprint
   )
 }
 
@@ -307,7 +309,7 @@ transpose_metrics <- function(metrics) {
   out
 }
 
-tft_initialize <- function(batch_data, config = tft_config()) {
+tft_initialize <- function(data, config = tft_config()) {
 
   torch::torch_manual_seed(sample.int(1e6, 1))
   has_valid <- config$valid_split > 0
@@ -356,7 +358,7 @@ tft_initialize <- function(batch_data, config = tft_config()) {
 
 
   importances <- tibble::tibble(
-    variables = colnames(x),
+    variables = names(data)[1:3],
     importance = NA
   )
 
