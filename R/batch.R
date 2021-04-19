@@ -122,10 +122,10 @@ batch_data <- function(recipe, df, total_time_steps = 12, device) {
        static = static_t,
        target = target_t,
        input_dim = sum(length(c(time, id, known, observed, static))),
-       cat_idxs,
-       known_idx,
-       observed_idx,
-       static_idx,
+       cat_idxs = cat_idxs,
+       known_idx = known_idx,
+       observed_idx = observed_idx,
+       static_idx = static_idx,
        input_idx =  c(observed_idx, static_idx, known_idx),
        cat_dims = purrr::map(cat_idxs, ~length(unique(df[[.x]]))),
        output_dim = length(target_categorical) + length(target_numeric),
@@ -148,15 +148,16 @@ df_to_tensor <- function(df, device) {
 #'   recommended. (default: 1024)
 #' @param clip_value If a float is given this will clip the gradient at
 #'   clip_value. Pass `NULL` (default) to not clip.
-#' @param loss (character or function) Loss function for training within
-#'   ["quantile_loss", "pinball_loss", "rmsse_loss", "smape_loss"]
-#'   (default to ["quantile_loss"])
 #' @param epochs (int) Number of training epochs.
 #' @param drop_last (bool) Whether to drop last batch if not complete during
 #'   training
 #' @param total_time_steps (int) Size of the look-back time window + forecast horizon in steps. .
 #' @param num_encoder_steps (int) Size of the look-back time window in steps.
-#' @param quantiles (list) list of quantiles forcasts. (default = [list(0.5)]).
+#' @param loss (character or function) Loss function for training within
+#'   ["quantile_loss", "pinball_loss", "rmsse_loss", "smape_loss"]
+#'   (default to ["quantile_loss"])
+#' @param quantiles (list) list of quantiles forcasts to be used in quantile loss. (default = [list(0.5)]).
+#' @param training_tau (float) training_tau value to be used in pinball loss. (default = 0.3).
 #' @param virtual_batch_size (int) Size of the mini batches used for
 #'   Batch Normalization (default=256)
 #' @param learn_rate initial learning rate for the optimizer.
@@ -198,6 +199,7 @@ tft_config <- function(batch_size = 256,
                        total_time_steps = NULL,
                        num_encoder_steps = NULL,
                        quantiles = list(0.5),
+                       training_tau = 0.3,
                        virtual_batch_size = 256,
                        valid_split = 0,
                        learn_rate = 2e-2,
@@ -235,6 +237,7 @@ if ((total_time_steps - num_encoder_steps) < 2) {
     total_time_steps = total_time_steps,
     num_encoder_steps = num_encoder_steps,
     quantiles = quantiles,
+    training_tau = training_tau,
     minibatch_size = virtual_batch_size,
     valid_split = valid_split,
     verbose = verbose,
@@ -267,7 +270,8 @@ train_batch <- function(network, optimizer, batch, config) {
   # forward pass
   output <- network(batch$known_numerics, batch$known_categorical,
                     batch$observed_numerics, batch$observed_categorical,
-                    batch$static_numerics, batch$static_categorical)
+                    batch$static_numerics, batch$static_categorical,
+                    batch$target_numerics, batch$target_categorical)
   loss <- config$loss_fn(output[[1]], batch$y)
 
   # Add the overall sparsity loss
@@ -418,14 +422,15 @@ tft_train <- function(obj, data, config = tft_config(), epoch_shift=0L) {
   # }
 
   # resolve loss (could have changed)
-  if (config$loss == "quantile_loss")
-    config$loss_fn <- quantile_loss()
-  else if (config$loss == "pinball_loss")
-    config$loss_fn <- pinball_loss()
-  else if (config$loss == "rmsse_loss")
+  if (config$loss == "quantile_loss") {
+    config$loss_fn <- tft:::quantile_loss(config$quantiles)
+  } else if (config$loss == "pinball_loss") {
+    config$loss_fn <- tft:::pinball_loss(config$training_tau)
+  } else if (config$loss == "rmsse_loss") {
     config$loss_fn <- rmsse_loss()
-  else if (config$loss == "smape_loss")
+  } else if (config$loss == "smape_loss") {
     config$loss_fn <- smape_loss()
+  }
 
   # restore network from model and send it to device
   network <- obj$fit$network

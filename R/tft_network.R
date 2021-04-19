@@ -186,20 +186,27 @@ tft_nn <- torch::nn_module(
                                 statc_numerics, statc_categorical,
                                 target_numerics, target_categorical) {
 
-    time_steps <- self$time_steps
-
+    #time_steps <- self$time_steps
+    kwn_cat <- known_categorical$shape[3]
+    obs_cat <- obsvd_categorical$shape[3]
+    stc_cat <- statc_categorical$shape[3]
     embedded_inputs <- list(
-      map(seq_len(known_categorical$shape[3]), ~self$embeddings[[.x]](known_categorical[,,.x]$long())),
-      map(seq_len(obsvd_categorical$shape[3]), ~self$embeddings[[.x]](obsvd_categorical[,,.x]$long())),
-      map(seq_len(statc_categorical$shape[3]), ~self$embeddings[[.x]](statc_categorical[,,.x]$long())),
+      if (kwn_cat)
+        purrr::map(seq_len(kwn_cat), ~self$embeddings[[.x]](known_categorical[,,.x]$long())),
+      if (obs_cat)
+        purrr::map(seq_len(obs_cat), ~self$embeddings[[.x + kwn_cat]](obsvd_categorical[,,.x]$long())),
+      if (stc_cat)
+        purrr::map(seq_len(stc_cat), ~self$embeddings[[.x + kwn_cat + obs_cat]](statc_categorical[,,.x]$long()))
     )
 
 
     # Static inputs , we keep only the first time-step (by nature)
     if (self$static_idx) {
       static_inputs <- list(
-        map(seq_len(statc_numerics$shape[3]), ~self$static_input_layer(statc_numerics[,1,.x]$long())),
-        map(seq_len(statc_categorical$shape[3]), ~self$embeddings[[.x]](statc_categorical[,1,.x]$long()))
+        if (statc_numerics$shape[3])
+          purrr::map(seq_len(statc_numerics$shape[3]), ~self$static_input_layer(statc_numerics[,1,.x]$long())),
+        if (statc_categorical$shape[3])
+          purrr::map(seq_len(statc_categorical$shape[3]), ~self$embeddings[[.x]](statc_categorical[,1,.x]$long()))
       ) %>%
         torch::torch_stack(dim=-1)
 
@@ -210,24 +217,33 @@ tft_nn <- torch::nn_module(
 
     # Targets
     obs_input <- seq_len(self$input_idx) %>%
-      map(~self$time_varying_embedding_layer(regular_inputs[.., .x]$float())) %>%
+      purrr::map(~self$time_varying_embedding_layer(regular_inputs[.., .x]$float())) %>%
       torch::torch_stack(dim=-1)
 
 
     # Target (Observed & a priori unknown) inputs
     # TODO maybe not prone to zero entries
     unknown_inputs <-  list(
-      map(seq_len(target_numerics$shape[3]), ~self$time_varying_embedding_layer(target_numerics[..,.x])$float()),
-      map(seq_len(target_categorical$shape[3]), ~self$embeddings[[.x]](target_categorical[..,.x]$long()))
+      if (target_numerics$shape[3])
+        purrr::map(seq_len(target_numerics$shape[3]), ~self$time_varying_embedding_layer(target_numerics[..,.x])$float()),
+      if (target_categorical$shape[3])
+        purrr::map(seq_len(target_categorical$shape[3]), ~self$embeddings[[.x]](target_categorical[..,.x]$long()))
     ) %>%
       torch::torch_stack(dim=-1)
 
     # A priori known inputs
-    known_regular_inputs <- list(
-      map(seq_len(obsvd_numerics$shape[3]), ~self$time_varying_embedding_layer(obsvd_numerics[..,.x]$float())),
-      map(seq_len(obsvd_categorical$shape[3]), ~self$embeddings[[.x]](obsvd_categorical[,,.x]$long())),
+    if (self$known_idx) {
+      known_regular_inputs <- list(
+        if (obsvd_numerics$shape[3])
+          purrr::map(seq_len(obsvd_numerics$shape[3]), ~self$time_varying_embedding_layer(obsvd_numerics[..,.x]$float())),
+        if (obsvd_categorical$shape[3])
+          purrr::map(seq_len(obsvd_categorical$shape[3]), ~self$embeddings[[.x]](obsvd_categorical[,,.x]$long())),
     ) %>%
       torch::torch_stack(dim=-1)
+    } else {
+      known_regular_inputs <- NULL
+
+    }
 
     return( list(unknown_inputs, known_combined_layer, obs_inputs, static_inputs))
 },
@@ -241,7 +257,7 @@ tft_nn <- torch::nn_module(
     combined_input_size <- self$input_size
     encoder_steps <- self$num_encoder_steps
 
-    input_lst <- self$get_tft_embeddings(known_numerics, known_categorica,
+    input_lst <- self$get_tft_embeddings(known_numerics, known_categorical,
                                          observed_numerics, observed_categorical,
                                          static_numerics, static_categorical,
                                          target_numerics, target_categorical)

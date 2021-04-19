@@ -56,7 +56,8 @@ test_that("tft_initialize works with roles in vic_elec dataset", {
   # test tensor shape (20 time_steps while total_time_steps is hardcoded in hours)
   expect_length(tft_model_lst$metrics, 0)
   expect_length(tft_model_lst$checkpoints, 0)
-  expect_length(tft_model_lst$config, 23)
+  expect_length(tft_model_lst$config, 24)
+  expect_length(tft_model_lst$config$loss_fn, "quantile_loss")
   expect_s3_class(tft_model_lst$network, c("tft","nn_module" ))
   expect_s3_class(tft_model_lst$network$output_layer, c("linear_layer","nn_module" ))
   expect_s3_class(tft_model_lst$network$static_context_variable_selection_grn, c("gated_residual_network","nn_module" ))
@@ -65,6 +66,33 @@ test_that("tft_initialize works with roles in vic_elec dataset", {
   expect_s3_class(tft_model_lst$network$static_context_state_c_grn, c("gated_residual_network","nn_module" ))
   expect_s3_class(tft_model_lst$network$static_enrichment_grn, c("gated_residual_network","nn_module" ))
   expect_s3_class(tft_model_lst$network$decoder_grn, c("gated_residual_network","nn_module" ))
+})
+
+
+test_that("tft_initialize works with pinball_loss", {
+  library(recipes)
+  library(tsibbledata)
+  skip_on_os("mac")
+
+  data("vic_elec")
+  vic_elec <- vic_elec %>%
+    dplyr::mutate(Location = as.factor("Victoria")) %>%
+    dplyr::rename(id = Date)
+  rec <- recipe(Demand ~ ., data = vic_elec) %>%
+    update_role(id, new_role="id") %>%
+    update_role(Time, new_role="time") %>%
+    update_role(Temperature, new_role="observed_input") %>%
+    update_role(Holiday, new_role="known_input") %>%
+    update_role(Location, new_role="static_input") %>%
+    step_normalize(all_numeric(), -all_outcomes())
+
+  processed <- batch_data(recipe=rec, df=vic_elec, total_time_steps=10, device="cpu", loss="pinball_loss")
+  config <- tft_config( epochs = 30, total_time_steps=12, num_encoder_steps=10)
+
+  tft_model_lst <- tft_initialize(processed, config)
+  expect_length(tft_model_lst, 5)
+  # test tensor shape (20 time_steps while total_time_steps is hardcoded in hours)
+  expect_length(tft_model_lst$config$loss_fn, "pinball_loss")
 })
 
 
