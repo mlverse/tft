@@ -121,7 +121,7 @@ batch_data <- function(recipe, df, total_time_steps = 12, device) {
        known_idx = which(names(df) %in% c(known_numeric, known_categorical)),
        observed_idx = which(names(df) %in%  c(observed_numeric, observed_categorical)),
        static_idx = which(names(df) %in% c(static_numeric, static_categorical)),
-       input_idx =  c(observed_idx, static_idx),
+       input_idx =  c(observed_idx, static_idx, known_idx),
        output_dim = length(target_categorical) + length(target_numeric),
        blueprint = processed_roles$blueprint
   )

@@ -12,9 +12,9 @@ tft_nn <- torch::nn_module(
     } else {
         self$cat_emb_dims <- rep(cat_emb_dim[[1]],length(cat_dims)) # num_categorical_variables
     }
-    self$static_idx <- static_idx  # _static_input_loc
-    self$known_idx <- known_idx  # _known_regular_input_idx
-    self$input_idx <- input_idx  # _input_obs_loc
+    self$static_idx <- static_idx  # _static_input_loc # the grouping variable like shop_id
+    self$known_idx <- known_idx  # _known_regular_input_idx # like day_of_week from date
+    self$input_idx <- input_idx  # _input_obs_loc # time-dependant covariate like oil_price
 
 
     # a check par, just to easily find out when we need to
@@ -183,23 +183,11 @@ tft_nn <- torch::nn_module(
 
   get_tft_embeddings = function(known_numerics, known_categorical,
                                 obsvd_numerics, obsvd_categorical,
-                                statc_numerics, statc_categorical) {
+                                statc_numerics, statc_categorical,
+                                target_numerics, target_categorical) {
 
     time_steps <- self$time_steps
 
-    ### Categorical variables
-    # num_categorical_variables <- length(self$cat_dims)
-    # num_regular_variables <- self$input_size - num_categorical_variables
-    # embedding_sizes <- [
-    #   self$hidden_layer_size for i, size in enumerate(self$cat_dims)
-    # ]
-    # regular_inputs <- all_inputs[,, 1:num_categorical_variables] # TBC
-    # categorical_inputs <- all_inputs[,, num_categorical_variables+1:self$input_size] # TBC
-
-    # for (i in seq_len(num_categorical_variables)){
-    #   embedded_inputs <- c(embedded_inputs, self$embeddings[[i]](categorical_inputs[,, i]$long()))
-    #
-    # }
     embedded_inputs <- list(
       map(seq_len(known_categorical$shape[3]), ~self$embeddings[[.x]](known_categorical[,,.x]$long())),
       map(seq_len(obsvd_categorical$shape[3]), ~self$embeddings[[.x]](obsvd_categorical[,,.x]$long())),
@@ -211,22 +199,9 @@ tft_nn <- torch::nn_module(
     if (self$static_idx) {
       static_inputs <- list(
         map(seq_len(statc_numerics$shape[3]), ~self$static_input_layer(statc_numerics[,1,.x]$long())),
-        map(seq_len(statc_categorical$shape[3]), ~self$embeddings[[.x]](statc_categorical[,1,.x]$long())),
-      )
-
-      # for( i in seq_len(num_regular_variables)) {
-      #
-      #   if (i %in% self$static_idx) {
-      #     static_inputs <- c(static_inputs, self$static_input_layer(regular_inputs[, 1, i]) )
-      #   }
-      # }
-      # for( i in seq_len(num_categorical_variables)){
-      #
-      #   if (i + num_regular_variables %in% self$static_idx) {
-      #     static_inputs <- c(static_inputs, embedded_inputs[i][, 1, ] )
-      #   }
-      # }
-      static_inputs <- torch::torch_stack(static_inputs, dim=-1)
+        map(seq_len(statc_categorical$shape[3]), ~self$embeddings[[.x]](statc_categorical[,1,.x]$long()))
+      ) %>%
+        torch::torch_stack(dim=-1)
 
     } else {
       static_inputs <- NULL
@@ -234,55 +209,33 @@ tft_nn <- torch::nn_module(
     }
 
     # Targets
-    obs_input_lst <- list()
-    for (i in self$input_idx) {
-      obs_input_lst <- c(obs_input_lst, self$time_varying_embedding_layer(regular_inputs[.., i]$float()))
-    }
-    obs_inputs <- torch::torch_stack(obs_input_lst, dim=-1)
+    obs_input <- seq_len(self$input_idx) %>%
+      map(~self$time_varying_embedding_layer(regular_inputs[.., .x]$float())) %>%
+      torch::torch_stack(dim=-1)
 
 
-     # Observed (a priori unknown) inputs
-    wired_embeddings <-  list()
-    for (i in setdiff(seq_len(num_categorical_variables), c(self$cat_idxs, self$input_idx))) {
-        e <- self$embeddings[i](categorical_inputs[,, i])
-        wired_embeddings <- c(wired_embeddings,e)
+    # Target (Observed & a priori unknown) inputs
+    # TODO maybe not prone to zero entries
+    unknown_inputs <-  list(
+      map(seq_len(target_numerics$shape[3]), ~self$time_varying_embedding_layer(target_numerics[..,.x])$float()),
+      map(seq_len(target_categorical$shape[3]), ~self$embeddings[[.x]](target_categorical[..,.x]$long()))
+    ) %>%
+      torch::torch_stack(dim=-1)
 
-    }
-    unknown_inputs <-  list()
-    for (i in setdiff(seq_len(regular_inputs$shape[3]), c(self$known_idx,  self$input_idx))) {
-        e <- self$time_varying_embedding_layer(regular_inputs[.., i])
-        unknown_inputs <- c(unknown_inputs,e)
-    }
-    if (length(unknown_inputs) + length(wired_embeddings)) {
-      unknown_inputs <- torch::torch_stack(c(unknown_inputs,wired_embeddings), dim=-1)
-
-    } else {
-      unknown_inputs <- NULL
-
-    }
     # A priori known inputs
     known_regular_inputs <- list(
       map(seq_len(obsvd_numerics$shape[3]), ~self$time_varying_embedding_layer(obsvd_numerics[..,.x]$float())),
       map(seq_len(obsvd_categorical$shape[3]), ~self$embeddings[[.x]](obsvd_categorical[,,.x]$long())),
-    )
-    # for (i in setdiff(self$known_idx, self$static_idx)) {
-    #   e <- self$time_varying_embedding_layer(regular_inputs[.., i]$float())
-    #   known_regular_inputs <- c(known_regular_inputs, e)
-    # }
-    #
-    # known_categorical_inputs <- list()
-    # for (i in setdiff(self$cat_idxs,  c(self$static_idx - num_regular_variables))) {
-    #   known_categorical_inputs <- c(known_categorical_inputs, embedded_inputs[i])
-    # }
-
-    known_combined_layer <- torch::torch_stack(known_regular_inputs, dim=-1)
+    ) %>%
+      torch::torch_stack(dim=-1)
 
     return( list(unknown_inputs, known_combined_layer, obs_inputs, static_inputs))
 },
 
   forward = function(known_numerics, known_categorical,
                      observed_numerics, observed_categorical,
-                     static_numerics, static_categorical) {
+                     static_numerics, static_categorical,
+                     target_numerics, target_categorical) {
     # Size definitions.
     time_steps <- self$time_steps
     combined_input_size <- self$input_size
@@ -290,11 +243,13 @@ tft_nn <- torch::nn_module(
 
     input_lst <- self$get_tft_embeddings(known_numerics, known_categorica,
                                          observed_numerics, observed_categorical,
-                                         static_numerics, static_categorical)
+                                         static_numerics, static_categorical,
+                                         target_numerics, target_categorical)
     unknown_inputs <- input_lst[[1]]
     known_combined_layer <- input_lst[[2]]
     obs_inputs <- input_lst[[3]]
     static_inputs <- input_lst[[4]]
+
     # Isolate known and observed historical inputs.
     if (!is.null(unknown_inputs)) {
       historical_inputs <- torch.cat(list(unknown_inputs[ , 1:encoder_steps, ],
