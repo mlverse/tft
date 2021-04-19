@@ -38,7 +38,8 @@ recommended. (default: 1024)}
 clip_value. Pass \code{NULL} (default) to not clip.}
 
 \item{loss}{(character or function) Loss function for training within
-\link{"quantile_loss", "pinball_loss", "rmsse_loss", "smape_loss"} (default to \link{"quantile_loss"})}
+\link{"quantile_loss", "pinball_loss", "rmsse_loss", "smape_loss"}
+(default to \link{"quantile_loss"})}
 
 \item{epochs}{(int) Number of training epochs.}
 
@@ -92,18 +93,8 @@ when a list of the same size as the categorical features  (default=1)}
 \item{verbose}{(bool) wether to print progress and loss values during
 training.}
 
-\item{device}{the device to use for training. "cpu" or "cuda". The default ("auto")
-uses  to "cuda" if it's available, otherwise uses "cpu".}
-
-\item{num_steps}{(int) Number of steps in the architecture
-(usually between 3 and 10)}
-
-\item{momentum}{Momentum for batch normalization, typically ranges from 0.01
-to 0.4 (default=0.02)}
-
-\item{importance_sample_size}{sample of the dataset to compute importance metrics.
-If the dataset is larger than 1e5 obs we will use a sample of size 1e5 and
-display a warning.}
+\item{device}{the device to use for training. \link{"cpu"} or \link{"cuda"}. The default (\link{"auto"})
+uses \link{"cuda"} if it's available, otherwise uses \link{"cpu"}.}
 }
 \value{
 A named list with all hyperparameters of the TabNet implementation.

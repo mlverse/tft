@@ -9,7 +9,7 @@
 #'  The model treats categorical predictors internally thus, you don't need to
 #'  make any treatment.
 #'
-#' @param data A __data frame__ containing both the predictors and the outcome.
+#' @param df A __data frame__ containing both the predictors and the outcome.
 #'
 #' @param tft_model A previously fitted TFT model object to continue the fitting on.
 #'  if `NULL` (the default) a brand new model is initialized.

@@ -27,7 +27,8 @@ Imports:
     purrr,
     rlang,
     tibble,
-    tsibble
+    tsibble,
+    hardhat
 Suggests:
     dplyr,
     padr,

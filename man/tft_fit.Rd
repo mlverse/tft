@@ -23,13 +23,13 @@ make any treatment.}
 \item{...}{Model hyperparameters. See \code{\link[=tft_config]{tft_config()}} for a list of
 all possible hyperparameters.}
 
+\item{df}{A \strong{data frame} containing both the predictors and the outcome.}
+
 \item{tft_model}{A previously fitted TFT model object to continue the fitting on.
 if \code{NULL} (the default) a brand new model is initialized.}
 
 \item{from_epoch}{When a \code{tft_model} is provided, restore the network weights from a specific epoch.
 Default is last available checkpoint for restored model, or last epoch for in-memory model.}
-
-\item{data}{A \strong{data frame} containing both the predictors and the outcome.}
 }
 \value{
 A TFT model object. It can be used for serialization, predictions, or further fitting.

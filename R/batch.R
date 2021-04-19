@@ -3,6 +3,8 @@
 #' @param df a data frame
 #' @param recipe a recipe affecting tft roles to df
 #' @param total_time_steps time_step value (default 48)
+#' @device the device to use for training. ["cpu"] or ["cuda"]. The default (["auto"])
+#'   uses ["cuda"] if it's available, otherwise uses ["cpu"].
 batch_data <- function(recipe, df, total_time_steps = 12, device) {
   if (device == "auto") {
     if (torch::cuda_is_available())
@@ -111,17 +113,21 @@ batch_data <- function(recipe, df, total_time_steps = 12, device) {
       torch::torch_stack()
   )
   cat_idxs = which(names(df) %in% c(known_categorical, observed_categorical, target_categorical, static_categorical))
+  known_idx = which(names(df) %in% c(known_numeric, known_categorical))
+  observed_idx = which(names(df) %in%  c(observed_numeric, observed_categorical))
+  static_idx = which(names(df) %in% c(static_numeric, static_categorical))
+  input_idx =  c(observed_idx, static_idx, known_idx)
   list(known = known_t,
        observed = observed_t,
        static = static_t,
        target = target_t,
        input_dim = sum(length(c(time, id, known, observed, static))),
-       cat_idxs = cat_idxs ,
-       cat_dims = purrr::map(cat_idxs, ~length(unique(df[[.x]]))),
-       known_idx = which(names(df) %in% c(known_numeric, known_categorical)),
-       observed_idx = which(names(df) %in%  c(observed_numeric, observed_categorical)),
-       static_idx = which(names(df) %in% c(static_numeric, static_categorical)),
+       cat_idxs,
+       known_idx,
+       observed_idx,
+       static_idx,
        input_idx =  c(observed_idx, static_idx, known_idx),
+       cat_dims = purrr::map(cat_idxs, ~length(unique(df[[.x]]))),
        output_dim = length(target_categorical) + length(target_numeric),
        blueprint = processed_roles$blueprint
   )
@@ -143,14 +149,13 @@ df_to_tensor <- function(df, device) {
 #' @param clip_value If a float is given this will clip the gradient at
 #'   clip_value. Pass `NULL` (default) to not clip.
 #' @param loss (character or function) Loss function for training within
-#' ["quantile_loss", "pinball_loss", "rmsse_loss", "smape_loss"] (default to ["quantile_loss"])
+#'   ["quantile_loss", "pinball_loss", "rmsse_loss", "smape_loss"]
+#'   (default to ["quantile_loss"])
 #' @param epochs (int) Number of training epochs.
 #' @param drop_last (bool) Whether to drop last batch if not complete during
 #'   training
 #' @param total_time_steps (int) Size of the look-back time window + forecast horizon in steps. .
 #' @param num_encoder_steps (int) Size of the look-back time window in steps.
-#' @param num_steps (int) Number of steps in the architecture
-#'   (usually between 3 and 10)
 #' @param quantiles (list) list of quantiles forcasts. (default = [list(0.5)]).
 #' @param virtual_batch_size (int) Size of the mini batches used for
 #'   Batch Normalization (default=256)
@@ -176,16 +181,11 @@ df_to_tensor <- function(df, device) {
 #' @param cat_emb_dim (int or list) Embedding size for categorial features,
 #'   broadcasted to each categorical feature, or per categorical feature
 #'   when a list of the same size as the categorical features  (default=1)
-#' @param momentum Momentum for batch normalization, typically ranges from 0.01
-#'   to 0.4 (default=0.02)
 #' @param checkpoint_epochs checkpoint model weights and architecture every
 #'   `checkpoint_epochs`. (default is 10). This may cause large memory usage.
 #'   Use `0` to disable checkpoints.
-#' @param device the device to use for training. "cpu" or "cuda". The default ("auto")
-#'   uses  to "cuda" if it's available, otherwise uses "cpu".
-#' @param importance_sample_size sample of the dataset to compute importance metrics.
-#'   If the dataset is larger than 1e5 obs we will use a sample of size 1e5 and
-#'   display a warning.
+#' @param device the device to use for training. ["cpu"] or ["cuda"]. The default (["auto"])
+#'   uses ["cuda"] if it's available, otherwise uses ["cpu"].
 #'
 #' @return A named list with all hyperparameters of the TabNet implementation.
 #'
