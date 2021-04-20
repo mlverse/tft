@@ -190,6 +190,7 @@ tft_nn <- torch::nn_module(
     kwn_cat <- known_categorical$shape[3]
     obs_cat <- obsvd_categorical$shape[3]
     stc_cat <- statc_categorical$shape[3]
+    tgt_cat <- target_categorical$shape[3]
     embedded_inputs <- list(
       if (kwn_cat)
         purrr::map(seq_len(kwn_cat), ~self$embeddings[[.x]](known_categorical[,,.x]$long())),
@@ -205,8 +206,8 @@ tft_nn <- torch::nn_module(
       static_inputs <- list(
         if (statc_numerics$shape[3])
           purrr::map(seq_len(statc_numerics$shape[3]), ~self$static_input_layer(statc_numerics[,1,.x]$long())),
-        if (statc_categorical$shape[3])
-          purrr::map(seq_len(statc_categorical$shape[3]), ~self$embeddings[[.x]](statc_categorical[,1,.x]$long()))
+        if (stc_cat)
+          purrr::map(seq_len(stc_cat), ~self$embeddings[[.x + kwn_cat + obs_cat]](statc_categorical[,1,.x]$long()))
       ) %>%
         torch::torch_stack(dim=-1)
 
@@ -226,8 +227,8 @@ tft_nn <- torch::nn_module(
     unknown_inputs <-  list(
       if (target_numerics$shape[3])
         purrr::map(seq_len(target_numerics$shape[3]), ~self$time_varying_embedding_layer(target_numerics[..,.x])$float()),
-      if (target_categorical$shape[3])
-        purrr::map(seq_len(target_categorical$shape[3]), ~self$embeddings[[.x]](target_categorical[..,.x]$long()))
+      if (tgt_cat)
+        purrr::map(seq_len(tgt_cat), ~self$embeddings[[.x + kwn_cat + obs_cat + stc_cat]](target_categorical[..,.x]$long()))
     ) %>%
       torch::torch_stack(dim=-1)
 
@@ -236,8 +237,8 @@ tft_nn <- torch::nn_module(
       known_regular_inputs <- list(
         if (obsvd_numerics$shape[3])
           purrr::map(seq_len(obsvd_numerics$shape[3]), ~self$time_varying_embedding_layer(obsvd_numerics[..,.x]$float())),
-        if (obsvd_categorical$shape[3])
-          purrr::map(seq_len(obsvd_categorical$shape[3]), ~self$embeddings[[.x]](obsvd_categorical[,,.x]$long())),
+        if (obs_cat)
+          purrr::map(seq_len(obs_cat), ~self$embeddings[[.x + kwn_cat]](obsvd_categorical[,,.x]$long()))
     ) %>%
       torch::torch_stack(dim=-1)
     } else {
