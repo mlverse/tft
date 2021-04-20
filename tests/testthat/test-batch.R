@@ -57,7 +57,7 @@ test_that("tft_initialize works with roles in vic_elec dataset", {
   expect_length(tft_model_lst$metrics, 0)
   expect_length(tft_model_lst$checkpoints, 0)
   expect_length(tft_model_lst$config, 24)
-  expect_length(tft_model_lst$config$loss_fn, "quantile_loss")
+  expect_match(tft_model_lst$config$loss_fn, "quantile_loss")
   expect_s3_class(tft_model_lst$network, c("tft","nn_module" ))
   expect_s3_class(tft_model_lst$network$output_layer, c("linear_layer","nn_module" ))
   expect_s3_class(tft_model_lst$network$static_context_variable_selection_grn, c("gated_residual_network","nn_module" ))
@@ -92,7 +92,7 @@ test_that("tft_initialize works with pinball_loss", {
   tft_model_lst <- tft_initialize(processed, config)
   expect_length(tft_model_lst, 5)
   # test tensor shape (20 time_steps while total_time_steps is hardcoded in hours)
-  expect_length(tft_model_lst$config$loss_fn, "pinball_loss")
+  expect_match(tft_model_lst$config$loss_fn, "pinball_loss")
 })
 
 
