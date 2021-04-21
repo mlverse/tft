@@ -13,6 +13,7 @@ tft_config(
   total_time_steps = NULL,
   num_encoder_steps = NULL,
   quantiles = list(0.5),
+  training_tau = 0.3,
   virtual_batch_size = 256,
   valid_split = 0,
   learn_rate = 0.02,
@@ -50,7 +51,9 @@ training}
 
 \item{num_encoder_steps}{(int) Size of the look-back time window in steps.}
 
-\item{quantiles}{(list) list of quantiles forcasts. (default = \link{list(0.5)}).}
+\item{quantiles}{(list) list of quantiles forcasts to be used in quantile loss. (default = \link{list(0.5)}).}
+
+\item{training_tau}{(float) training_tau value to be used in pinball loss. (default = 0.3).}
 
 \item{virtual_batch_size}{(int) Size of the mini batches used for
 Batch Normalization (default=256)}

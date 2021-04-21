@@ -112,7 +112,10 @@ batch_data <- function(recipe, df, total_time_steps = 12, device) {
       purrr::map(~.x %>% dplyr::select(dplyr::all_of(static_categorical)) %>% df_to_tensor(device = device)) %>%
       torch::torch_stack()
   )
-  cat_idxs = which(names(df) %in% c(known_categorical, observed_categorical, static_categorical, target_categorical))
+  cat_idxs = c(which(names(df) %in% known_categorical),
+               which(names(df) %in% observed_categorical),
+               which(names(df) %in% static_categorical),
+               which(names(df) %in% target_categorical))
   known_idx = which(names(df) %in% c(known_numeric, known_categorical))
   observed_idx = which(names(df) %in%  c(observed_numeric, observed_categorical))
   static_idx = which(names(df) %in% c(static_numeric, static_categorical))

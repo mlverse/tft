@@ -46,7 +46,7 @@ tft_nn <- torch::nn_module(
 #     self$hidden_layer_size for i, size in enumerate(self$cat_dims)
 #   ]
 #
-    ### Categorical embeddings. May be improved via tabnet::embedding_generator
+    ### To Be Splitted Categorical embeddings. May be improved via tabnet::embedding_generator
     self$embeddings <- purrr::map(
       seq_along(cat_idxs), ~torch::nn_embedding(
         self$cat_dims[[.x]],
@@ -193,11 +193,11 @@ tft_nn <- torch::nn_module(
     tgt_cat <- target_categorical$shape[3]
     embedded_inputs <- list(
       if (kwn_cat)
-        purrr::map(seq_len(kwn_cat), ~self$embeddings[[.x]](known_categorical[,,.x]$long())),
+        purrr::map(seq_len(kwn_cat), ~self$embeddings[[.x]](known_categorical[,,.x:.x]$to(dtype=torch::torch_long()))),
       if (obs_cat)
-        purrr::map(seq_len(obs_cat), ~self$embeddings[[.x + kwn_cat]](obsvd_categorical[,,.x]$long())),
+        purrr::map(seq_len(obs_cat), ~self$embeddings[[.x + kwn_cat]](obsvd_categorical[,,.x:.x]$to(dtype=torch::torch_long()))),
       if (stc_cat)
-        purrr::map(seq_len(stc_cat), ~self$embeddings[[.x + kwn_cat + obs_cat]](statc_categorical[,,.x]$long()))
+        purrr::map(seq_len(stc_cat), ~self$embeddings[[.x + kwn_cat + obs_cat]](statc_categorical[,,.x:.x]$to(dtype=torch::torch_long())))
     )
 
 
@@ -205,9 +205,9 @@ tft_nn <- torch::nn_module(
     if (self$static_idx) {
       static_inputs <- list(
         if (statc_numerics$shape[3])
-          purrr::map(seq_len(statc_numerics$shape[3]), ~self$static_input_layer(statc_numerics[,1,.x]$long())),
+          purrr::map(seq_len(statc_numerics$shape[3]), ~self$static_input_layer(statc_numerics[,1,.x:.x]$to(dtype=torch::torch_long()))),
         if (stc_cat)
-          purrr::map(seq_len(stc_cat), ~self$embeddings[[.x + kwn_cat + obs_cat]](statc_categorical[,1,.x]$long()))
+          purrr::map(seq_len(stc_cat), ~self$embeddings[[.x + kwn_cat + obs_cat]](statc_categorical[,1,.x:.x]$to(dtype=torch::torch_long())))
       ) %>%
         torch::torch_stack(dim=-1)
 
@@ -218,7 +218,7 @@ tft_nn <- torch::nn_module(
 
     # Targets
     obs_input <- seq_len(self$input_idx) %>%
-      purrr::map(~self$time_varying_embedding_layer(regular_inputs[.., .x]$float())) %>%
+      purrr::map(~self$time_varying_embedding_layer(regular_inputs[.., .x:.x]$to(dtype=torch::torch_float()))) %>%
       torch::torch_stack(dim=-1)
 
 
@@ -226,9 +226,9 @@ tft_nn <- torch::nn_module(
     # TODO maybe not prone to zero entries
     unknown_inputs <-  list(
       if (target_numerics$shape[3])
-        purrr::map(seq_len(target_numerics$shape[3]), ~self$time_varying_embedding_layer(target_numerics[..,.x])$float()),
+        purrr::map(seq_len(target_numerics$shape[3]), ~self$time_varying_embedding_layer(target_numerics[..,.x:.x])$to(dtype=torch::torch_float())),
       if (tgt_cat)
-        purrr::map(seq_len(tgt_cat), ~self$embeddings[[.x + kwn_cat + obs_cat + stc_cat]](target_categorical[..,.x]$long()))
+        purrr::map(seq_len(tgt_cat), ~self$embeddings[[.x + kwn_cat + obs_cat + stc_cat]](target_categorical[..,.x:.x]$to(dtype=torch::torch_long())))
     ) %>%
       torch::torch_stack(dim=-1)
 
@@ -236,9 +236,9 @@ tft_nn <- torch::nn_module(
     if (self$known_idx) {
       known_regular_inputs <- list(
         if (obsvd_numerics$shape[3])
-          purrr::map(seq_len(obsvd_numerics$shape[3]), ~self$time_varying_embedding_layer(obsvd_numerics[..,.x]$float())),
+          purrr::map(seq_len(obsvd_numerics$shape[3]), ~self$time_varying_embedding_layer(obsvd_numerics[..,.x:.x]$to(dtype=torch::torch_float()))),
         if (obs_cat)
-          purrr::map(seq_len(obs_cat), ~self$embeddings[[.x + kwn_cat]](obsvd_categorical[,,.x]$long()))
+          purrr::map(seq_len(obs_cat), ~self$embeddings[[.x + kwn_cat]](obsvd_categorical[,,.x:.x]$to(dtype=torch::torch_long())))
     ) %>%
       torch::torch_stack(dim=-1)
     } else {
