@@ -57,7 +57,7 @@ test_that("tft_initialize works with roles in vic_elec dataset", {
   expect_length(tft_model_lst$metrics, 0)
   expect_length(tft_model_lst$checkpoints, 0)
   expect_length(tft_model_lst$config, 24)
-  expect_match(tft_model_lst$config$loss_fn, "quantile_loss")
+  expect_match(tft_model_lst$config$loss, "quantile_loss")
   expect_s3_class(tft_model_lst$network, c("tft","nn_module" ))
   expect_s3_class(tft_model_lst$network$output_layer, c("linear_layer","nn_module" ))
   expect_s3_class(tft_model_lst$network$static_context_variable_selection_grn, c("gated_residual_network","nn_module" ))
@@ -86,13 +86,44 @@ test_that("tft_initialize works with pinball_loss", {
     update_role(Location, new_role="static_input") %>%
     step_normalize(all_numeric(), -all_outcomes())
 
-  processed <- batch_data(recipe=rec, df=vic_elec, total_time_steps=10, device="cpu", loss="pinball_loss")
-  config <- tft_config( epochs = 30, total_time_steps=12, num_encoder_steps=10)
+  processed <- tft:::batch_data(recipe=rec, df=vic_elec, total_time_steps=10, device="cpu")
+  config <- tft_config( epochs = 30, total_time_steps=12, num_encoder_steps=10, loss="pinball_loss")
 
-  tft_model_lst <- tft_initialize(processed, config)
+  tft_model_lst <- tft:::tft_initialize(processed, config)
   expect_length(tft_model_lst, 5)
   # test tensor shape (20 time_steps while total_time_steps is hardcoded in hours)
-  expect_match(tft_model_lst$config$loss_fn, "pinball_loss")
+  expect_match(tft_model_lst$config$loss, "pinball_loss")
+})
+
+
+test_that("tft_train works with pure embeddings", {
+  library(recipes)
+  library(tsibbledata)
+  skip_on_os("mac")
+
+  data("vic_elec")
+  vic_elec <- vic_elec %>%
+    dplyr::mutate(Location = as.factor("Victoria"),
+                  Demand = as.factor(ceiling(Demand)),
+                  Temperature = as.factor(ceiling(Temperature))) %>%
+    dplyr::rename(id = Date)
+  rec <- recipe(Demand ~ ., data = vic_elec) %>%
+    update_role(id, new_role="id") %>%
+    update_role(Time, new_role="time") %>%
+    update_role(Temperature, new_role="observed_input") %>%
+    update_role(Holiday, new_role="known_input") %>%
+    update_role(Location, new_role="static_input") %>%
+    step_normalize(all_numeric(), -all_outcomes())
+
+  processed <- tft:::batch_data(recipe=rec, df=vic_elec, total_time_steps=10, device="auto")
+  config <- tft:::tft_config( epochs = 30, total_time_steps=12, num_encoder_steps=10)
+
+  tft_model_lst <- tft:::tft_initialize(processed, config)
+  tft_model <-  tft:::new_tft_fit(tft_model_lst, blueprint = processed$blueprint)
+  epoch_shift <- 0L
+  expect_error(fit_lst <- tft:::tft_train(obj=tft_model, data=processed, config = config, epoch_shift),
+               regexp=NA)
+
 })
 
 

@@ -47,9 +47,11 @@ clip_value. Pass \code{NULL} (default) to not clip.}
 \item{drop_last}{(bool) Whether to drop last batch if not complete during
 training}
 
-\item{total_time_steps}{(int) Size of the look-back time window + forecast horizon in steps. .}
+\item{total_time_steps}{(int) Size of the look-back time window + forecast horizon in steps.
+This is the width of Temporal fusion decoder N.}
 
-\item{num_encoder_steps}{(int) Size of the look-back time window in steps.}
+\item{num_encoder_steps}{(int) Size of the look-back time window in steps. This is the size
+of LSTM encoder.}
 
 \item{quantiles}{(list) list of quantiles forcasts to be used in quantile loss. (default = \link{list(0.5)}).}
 
@@ -85,13 +87,14 @@ Use \code{0} to disable checkpoints.}
 broadcasted to each categorical feature, or per categorical feature
 when a list of the same size as the categorical features  (default=1)}
 
-\item{hidden_layer_size}{(int)size of the hidden layer (default=160).}
+\item{hidden_layer_size}{(int)size of the Internal state layer (default=160).}
 
 \item{dropout_rate}{dropout rate applied to each nn block (default=0.3)}
 
-\item{stack_size}{(int) size of the stack (default=3)}
+\item{stack_size}{(int) Number of self-attention layers to apply (default=3). Use 1 for
+basic TFT.}
 
-\item{num_heads}{(int) number of attention head (default=1)}
+\item{num_heads}{(int) number of interpretable multi-attention head (default=1)}
 
 \item{verbose}{(bool) wether to print progress and loss values during
 training.}

@@ -276,7 +276,7 @@ static_combine_and_mask <- torch::nn_module(
     sparse_weights <- self$softmax(sparse_weights)$unsqueeze(3)
 
     transformed_embedding <- purrr::map(seq_len(self$num_static),
-                                         ~self$single_variable_grns[[.x]](torch::torch_flatten(embedding[, .x, ], start_dim=2))) %>%
+                                         ~self$single_variable_grns[[.x]](torch::torch_flatten(embedding[, .x, ,drop = FALSE], start_dim=2))) %>%
                                            torch::torch_stack(dim=2)
 
     combined <- transformed_embedding*sparse_weights

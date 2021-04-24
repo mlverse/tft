@@ -3,7 +3,7 @@
 #' @param df a data frame
 #' @param recipe a recipe affecting tft roles to df
 #' @param total_time_steps time_step value (default 48)
-#' @device the device to use for training. ["cpu"] or ["cuda"]. The default (["auto"])
+#' @param device the device to use for training. ["cpu"] or ["cuda"]. The default (["auto"])
 #'   uses ["cuda"] if it's available, otherwise uses ["cpu"].
 batch_data <- function(recipe, df, total_time_steps = 12, device) {
   if (device == "auto") {
@@ -17,9 +17,11 @@ batch_data <- function(recipe, df, total_time_steps = 12, device) {
   id <- recipes::terms_select(var_type_role, term=quos(recipes::has_role("id")))
   time <- recipes::terms_select(var_type_role, term=quos(recipes::has_role("time")))
   all_numeric <- c(recipes::terms_select(var_type_role, term=quos(recipes::all_numeric())),
-                   var_type_role[var_type_role$type == "date", "variable"] %>% unlist )
+                   var_type_role[var_type_role$type == "date", "variable"] %>% unlist ) %>%
+    as.character()
   all_nominal <- c(recipes::terms_select(var_type_role, term=quos(recipes::all_nominal())),
-                   var_type_role[var_type_role$type %in% c("logical", "other"), "variable"] %>% unlist)
+                   var_type_role[var_type_role$type %in% c("logical", "other"), "variable"] %>% unlist) %>%
+    as.character()
   known <- recipes::terms_select(var_type_role, term=quos(recipes::has_role("known_input")))
   observed <- recipes::terms_select(var_type_role, term=quos(recipes::has_role("observed_input")))
   static <- recipes::terms_select(var_type_role, term=quos(recipes::has_role("static_input")))
@@ -60,6 +62,11 @@ batch_data <- function(recipe, df, total_time_steps = 12, device) {
     rlang::abort(glue::glue("total_time_steps={total_time_steps} hours does not allow to extract samples, you should lower its value"))
   }
 
+  # the as.numeric(as.factor) trick is to prevent logicals to become tensors in [0,1]
+  df <-  df %>%
+    dplyr::mutate(dplyr::across(all_nominal, ~as.numeric(as.factor(.x))))
+
+  # TODO remove this time saving workaround
   # positions <- positions %>% dplyr::sample_n(500)
   positions <- positions %>% dplyr::sample_n(50)
 
@@ -147,6 +154,20 @@ df_to_tensor <- function(df, device) {
 
 #' Configuration for Tft models
 #'
+#' @param total_time_steps (int) Size of the look-back time window + forecast horizon in steps.
+#'   This is the width of Temporal fusion decoder N.
+#' @param num_encoder_steps (int) Size of the look-back time window in steps. This is the size
+#'   of LSTM encoder.
+#' @param hidden_layer_size (int)size of the Internal state layer (default=160).
+#' @param dropout_rate dropout rate applied to each nn block (default=0.3)
+#' @param stack_size (int) Number of self-attention layers to apply (default=3). Use 1 for
+#'   basic TFT.
+#' @param num_heads (int) number of interpretable multi-attention head (default=1)
+#' @param loss (character or function) Loss function for training within
+#'   ["quantile_loss", "pinball_loss", "rmsse_loss", "smape_loss"]
+#'   (default to ["quantile_loss"])
+#' @param quantiles (list) list of quantiles forcasts to be used in quantile loss. (default = [list(0.5)]).
+#' @param training_tau (float) training_tau value to be used in pinball loss. (default = 0.3).
 #' @param batch_size (int) Number of examples per batch, large batch sizes are
 #'   recommended. (default: 1024)
 #' @param clip_value If a float is given this will clip the gradient at
@@ -154,23 +175,12 @@ df_to_tensor <- function(df, device) {
 #' @param epochs (int) Number of training epochs.
 #' @param drop_last (bool) Whether to drop last batch if not complete during
 #'   training
-#' @param total_time_steps (int) Size of the look-back time window + forecast horizon in steps. .
-#' @param num_encoder_steps (int) Size of the look-back time window in steps.
-#' @param loss (character or function) Loss function for training within
-#'   ["quantile_loss", "pinball_loss", "rmsse_loss", "smape_loss"]
-#'   (default to ["quantile_loss"])
-#' @param quantiles (list) list of quantiles forcasts to be used in quantile loss. (default = [list(0.5)]).
-#' @param training_tau (float) training_tau value to be used in pinball loss. (default = 0.3).
 #' @param virtual_batch_size (int) Size of the mini batches used for
 #'   Batch Normalization (default=256)
 #' @param learn_rate initial learning rate for the optimizer.
 #' @param optimizer the optimization method. currently only 'adam' is supported,
 #'   you can also pass any torch optimizer function.
 #' @param valid_split (float) The fraction of the dataset used for validation.
-#' @param hidden_layer_size (int)size of the hidden layer (default=160).
-#' @param dropout_rate dropout rate applied to each nn block (default=0.3)
-#' @param stack_size (int) size of the stack (default=3)
-#' @param num_heads (int) number of attention head (default=1)
 #' @param verbose (bool) wether to print progress and loss values during
 #'   training.
 #' @param lr_scheduler if `NULL`, (default) no learning rate decay is used. if ["step"]
@@ -351,7 +361,6 @@ tft_initialize <- function(data, config = tft_config()) {
     output_dim = data$output_dim,
     cat_idxs = data$cat_idx,
     cat_dims = data$cat_dims,
-    cat_emb_dim = config$cat_emb_dim,
     static_idx = data$static_idx,
     known_idx = data$known_idx,
     input_idx = data$input_idx,

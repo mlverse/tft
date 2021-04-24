@@ -35,28 +35,35 @@ test_that("time distributed layer works", {
 
 test_that("gated residual network, w and wo output_size, w or wo dropout_rate, w or wo return_gate", {
 
+  hidden_layer_size <- 16
+  num_static <- 3
+  # 2-dim x
   x <- torch::torch_randn(32, 10, device=device)
   grn <- gated_residual_network(10, 5)$to(device=device)
 
   expect_equal(grn(x)$shape, c(32, 5))
 
-  grn <- gated_residual_network(10, 5, 3)$to(device=device)
+  # 3-dim x
+  x <- torch::torch_randn(12, 1, hidden_layer_size*num_static, device=device) # [12, 48]
+  grn <- gated_residual_network(hidden_layer_size*num_static,
+                                hidden_layer_size,
+                                num_static)$to(device=device) # [48, 16, 3]
 
-  expect_equal(grn(x)$shape, c(32, 3))
+  expect_equal(grn(x)$shape, c(12, 1, num_static)) # [12, 1, 3]
 
-  grn <- gated_residual_network(10, 5, 3, dropout_rate=0.2)$to(device=device)
+  grn <- gated_residual_network(48, 16, 3, dropout_rate=0.2)$to(device=device)
 
-  expect_equal(grn(x)$shape, c(32, 3))
+  expect_equal(grn(x)$shape, c(12, 1, 3))
 
-  grn <- gated_residual_network(10, 5, 3, return_gate=TRUE)$to(device=device)
+  grn <- gated_residual_network(48, 16, 3, return_gate=TRUE)$to(device=device)
 
-  expect_equal(grn(x)[[1]]$shape, c(32, 3))
-  expect_equal(grn(x)[[2]]$shape, c(32, 3))
+  expect_equal(grn(x)[[1]]$shape, c(12, 1, 3))
+  expect_equal(grn(x)[[2]]$shape, c(12, 1, 3))
 
 
 })
 
-test_that("gated residual network works in all initial conditions w context", {
+test_that("gated residual network works in all initial conditions w additional_context", {
 
   x <- torch::torch_randn(32, 10, device=device)
   context <- torch::torch_ones_like(x)$to(device=device)
@@ -159,9 +166,11 @@ test_that("interpretable_multihead_attention works", {
 })
 
 test_that("static_combine_and_mask works", {
-
-  static_cbn_n_mask <- static_combine_and_mask(10, num_static=5, hidden_layer_size=7, dropout_rate=0)$to(device=device)
-  embedding <- torch::torch_ones(c(4, 5, 7), device=device)
+  hidden_layer_size <- 16
+  num_static <- 3
+  num_inputs <- 1
+  embedding <- torch::torch_ones(c(4, num_static, hidden_layer_size, num_inputs), device=device) # [4, 3, 16, 1]
+  static_cbn_n_mask <- static_combine_and_mask(10, num_static, hidden_layer_size, dropout_rate=0)$to(device=device)
   #without additional_context
   additional_context <- NULL
 
@@ -170,18 +179,19 @@ test_that("static_combine_and_mask works", {
   static_vec <- static_vec_sparse_weights[[1]]
   sparse_weights <- static_vec_sparse_weights[[2]]
 
-  expect_equal(static_vec$shape, c(4,7))
-  expect_equal(sparse_weights$shape, c(4,5,1))
+  expect_equal(static_vec$shape, c(4,hidden_layer_size))
+  expect_equal(sparse_weights$shape, c(4,num_static,1))
 
   # with additional_context (like flatten_embeddings = [?, num_static*hidden_layer])
-  additional_context <- array(as.numeric(rnorm(4*5*7)< 1), dim=c(4,35)) %>% torch::torch_tensor(device = device)
+  additional_context <- array(as.numeric(rnorm(4*num_static*hidden_layer_size)< 1), dim=c(4,num_static*hidden_layer_size)) %>%
+    torch::torch_tensor(device = device)
 
   static_vec_sparse_weights <- static_cbn_n_mask(embedding, additional_context)
   static_vec <- static_vec_sparse_weights[[1]]
   sparse_weights <- static_vec_sparse_weights[[2]]
 
-  expect_equal(static_vec$shape, c(4,7))
-  expect_equal(sparse_weights$shape, c(4,5,1))
+  expect_equal(static_vec$shape, c(4,hidden_layer_size))
+  expect_equal(sparse_weights$shape, c(4,num_static,1))
 
 })
 

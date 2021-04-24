@@ -12,6 +12,9 @@ batch_data(recipe, df, total_time_steps = 12, device)
 \item{df}{a data frame}
 
 \item{total_time_steps}{time_step value (default 48)}
+
+\item{device}{the device to use for training. \link{"cpu"} or \link{"cuda"}. The default (\link{"auto"})
+uses \link{"cuda"} if it's available, otherwise uses \link{"cpu"}.}
 }
 \description{
 conditionning input data into tensors according to tft variable roles
