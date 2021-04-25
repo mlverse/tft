@@ -41,8 +41,14 @@
 #'
 #' @examples
 #' if (torch::torch_is_installed()) {
-#' data("ames", package = "modeldata")
-#' fit <- tft_fit(Sale_Price ~ ., data = ames, epochs = 1)
+#' data("vic_elec", package = "tsibbledata")
+#' library(recipes)
+#' rec <- recipe(Demand ~ ., data = vic_elec) %>%
+#'   update_role(Date, new_role="id") %>%
+#'   update_role(Time, new_role="time") %>%
+#'   update_role(Temperature, new_role="observed_input") %>%
+#'   update_role(Holiday, new_role="known_input")
+#' fit <- tft_fit(rec, data = vic_elec, epochs = 1)
 #' }
 #'
 #' @return A TFT model object. It can be used for serialization, predictions, or further fitting.
