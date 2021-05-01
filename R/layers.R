@@ -236,6 +236,7 @@ add_and_norm <- torch::nn_module(
 
 static_combine_and_mask <- torch::nn_module(
   "static_combine_and_mask",
+  # Applies variable selection network to static inputs.
   initialize = function(input_size, num_static, hidden_layer_size, dropout_rate, additional_context=NULL, use_time_distributed=FALSE, batch_first=TRUE){
     self$hidden_layer_size <- hidden_layer_size
     self$input_size <- input_size
@@ -243,21 +244,15 @@ static_combine_and_mask <- torch::nn_module(
     self$dropout_rate <- dropout_rate
     self$additional_context <- additional_context
 
-    # if (!is.null(self$additional_context)) {
-    #   self$flattened_grn <- gated_residual_network(self$num_static*self$hidden_layer_size, self$hidden_layer_size,
-    #                                                self$num_static, self$dropout_rate, use_time_distributed=FALSE,
-    #                                                return_gate=FALSE, batch_first=batch_first)
-    # } else {
-      self$flattened_grn <- gated_residual_network(self$num_static*self$hidden_layer_size, self$hidden_layer_size,
-                                                   self$num_static, self$dropout_rate, use_time_distributed=FALSE,
+    self$flattened_grn <- gated_residual_network(self$num_static*self$hidden_layer_size, self$hidden_layer_size,
+                                                   self$num_static, self$dropout_rate, use_time_distributed=use_time_distributed,
                                                    return_gate=FALSE, batch_first=batch_first)
-    # }
 
     self$single_variable_grns <- torch::nn_module_list()
     for (i in seq_len(self$num_static)) {
       self$single_variable_grns$append(gated_residual_network(self$hidden_layer_size, self$hidden_layer_size,
-                                                              NULL, self$dropout_rate,
-                                                              use_time_distributed=FALSE, return_gate=FALSE,
+                                                              NULL, self$dropout_rate, use_time_distributed=use_time_distributed,
+                                                              return_gate=FALSE,
                                                               batch_first=batch_first))
     }
 
@@ -329,16 +324,9 @@ lstm_combine_and_mask <- torch::nn_module(
 
     sparse_weights <- self$softmax(sparse_weights)$unsqueeze(3)
 
-    # TODO make it R friendly
-    trans_emb_list <- list()
-    for (i in seq_len(self$num_inputs)){
-      ##select slice of embedding belonging to a single input
-      trans_emb_list <- c(trans_emb_list,
-                          self$single_variable_grns[[i]](embedding[.., i])
-      )
-    }
-
-    transformed_embedding <- torch::torch_stack(trans_emb_list, dim=-1)
+    transformed_embedding <- seq_len(self$num_inputs) %>%
+      purrr::map(~self$single_variable_grns[[.x]](embedding[.., .x])) %>%
+      torch::torch_stack( dim=-1)
 
     combined <- transformed_embedding*sparse_weights
 

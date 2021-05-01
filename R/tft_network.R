@@ -26,8 +26,8 @@ tft_nn <- torch::nn_module(
     self$num_heads <- num_heads
     self$batch_first <- TRUE
     self$num_static <- length(self$static_idx)
-    self$num_inputs <- length(self$known_idx) +length(self$observed_idx) + self$output_dim
-    self$num_inputs_decoder <- length(self$known_idx) +length(self$observed_idx)
+    self$num_inputs <- length(known_idx) +length(observed_idx) + self$output_dim
+    self$num_inputs_decoder <- length(known_idx) +length(observed_idx)
 
     self$minibatch_size <- minibatch_size
     self$input_placeholder <- NULL
