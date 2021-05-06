@@ -99,7 +99,7 @@ gated_residual_network <- torch::nn_module(
     self$skip_linear_layer <- linear_layer(input_size, output, use_time_distributed, batch_first)
 
     self$hidden_linear_layer1 <- linear_layer(input_size, hidden_layer_size, use_time_distributed, batch_first)
-    self$hidden_context_layer <- linear_layer(input_size, hidden_layer_size, use_time_distributed, batch_first)
+    self$hidden_context_layer <- linear_layer(hidden_layer_size, hidden_layer_size, use_time_distributed, batch_first)
     self$hidden_linear_layer2 <- linear_layer(hidden_layer_size, hidden_layer_size, use_time_distributed, batch_first)
 
     self$elu <- torch::nn_elu()
@@ -109,11 +109,11 @@ gated_residual_network <- torch::nn_module(
   },
   forward = function(x, context = torch::torch_zeros_like(x)) {
     # Setup skip connection
-    # if (is.null(self$output_size)) {
-    #   skip <- x
-    # } else {
+    if (is.null(self$output_size)) {
+      skip <- x
+    } else {
     skip <- self$skip_linear_layer(x)
-    # }
+    }
     # Apply feedforward network
     hidden <- self$hidden_linear_layer1(x)
     if (!torch::torch_equal(context, torch::torch_zeros_like(x))) {
@@ -285,18 +285,18 @@ static_combine_and_mask <- torch::nn_module(
 lstm_combine_and_mask <- torch::nn_module(
   "lstm_combine_and_mask",
   initialize = function(input_size, num_inputs, hidden_layer_size, dropout_rate, use_time_distributed=FALSE, batch_first=TRUE){
-    self$hidden_layer_size <- hidden_layer_size
-    self$input_size <- input_size
-    self$num_inputs <- num_inputs
+    # self$hidden_layer_size <- hidden_layer_size
+    # self$input_size <- input_size
+    # self$num_inputs <- num_inputs
     self$dropout_rate <- dropout_rate
 
-    self$flattened_grn <- gated_residual_network(self$num_inputs*self$hidden_layer_size, self$hidden_layer_size,
-                                                 self$num_inputs, self$dropout_rate, use_time_distributed=use_time_distributed,
+    self$flattened_grn <- gated_residual_network(num_inputs*hidden_layer_size, hidden_layer_size,
+                                                 num_inputs, self$dropout_rate, use_time_distributed=use_time_distributed,
                                                  return_gate=TRUE, batch_first=batch_first)
 
     self$single_variable_grns <- torch::nn_module_list()
-    for (i in seq_len(self$num_inputs)) {
-      self$single_variable_grns$append(gated_residual_network(self$hidden_layer_size, self$hidden_layer_size,
+    for (i in seq_len(num_inputs)) {
+      self$single_variable_grns$append(gated_residual_network(hidden_layer_size, hidden_layer_size,
                                                               NULL, self$dropout_rate,
                                                               use_time_distributed=use_time_distributed,
                                                               return_gate=FALSE, batch_first=batch_first))
@@ -324,7 +324,7 @@ lstm_combine_and_mask <- torch::nn_module(
 
     sparse_weights <- self$softmax(sparse_weights)$unsqueeze(3)
 
-    transformed_embedding <- seq_len(self$num_inputs) %>%
+    transformed_embedding <- seq_len(num_inputs) %>%
       purrr::map(~self$single_variable_grns[[.x]](embedding[.., .x])) %>%
       torch::torch_stack( dim=-1)
 

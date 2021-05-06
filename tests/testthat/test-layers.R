@@ -41,6 +41,8 @@ test_that("gated residual network, w and wo output_size, w or wo dropout_rate, w
   x <- torch::torch_randn(32, 10, device=device)
   grn <- gated_residual_network(10, 5)$to(device=device)
 
+  expect_equal(grn(x)$shape, c(32,5))
+
   x <- torch::torch_randn(32, 16, device=device)
   static_context_grn <- gated_residual_network(hidden_layer_size, hidden_layer_size)$to(device=device)
 
@@ -68,8 +70,8 @@ test_that("gated residual network, w and wo output_size, w or wo dropout_rate, w
 
 test_that("gated residual network works in all initial conditions w additional_context", {
 
-  x <- torch::torch_randn(4, 19, 48, device=device)
-  context <- torch::torch_ones(4, 1, 48)$to(device=device)
+  x <- torch::torch_randn(4, 19, 16*3, device=device)
+  context <- torch::torch_ones(4, 1, 19)$to(device=device)
   grn <- gated_residual_network(48, 16, 3)$to(device=device)
 
   expect_equal(grn(x, context)$shape, c(4, 19, 3))
