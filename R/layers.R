@@ -85,49 +85,48 @@ gated_residual_network <- torch::nn_module(
   "gated_residual_network",
   initialize = function(input_size, hidden_layer_size, output_size=NULL,  dropout_rate=NULL,
                         use_time_distributed=TRUE, return_gate=FALSE, batch_first=FALSE ) {
+
     if (is.null(output_size)) {
-      output <- hidden_layer_size
-    } else {
-      output <- output_size
+      output_size <- hidden_layer_size
     }
-    self$output <- output
+
     self$input_size <- input_size
     self$output_size <- output_size
     self$hidden_layer_size <- hidden_layer_size
     self$return_gate <- return_gate
 
-    self$skip_linear_layer <- linear_layer(input_size, output, use_time_distributed, batch_first)
+    self$skip_linear_layer <- linear_layer(input_size, output_size, use_time_distributed, batch_first)
 
     self$hidden_linear_layer1 <- linear_layer(input_size, hidden_layer_size, use_time_distributed, batch_first)
     self$hidden_context_layer <- linear_layer(hidden_layer_size, hidden_layer_size, use_time_distributed, batch_first)
     self$hidden_linear_layer2 <- linear_layer(hidden_layer_size, hidden_layer_size, use_time_distributed, batch_first)
 
     self$elu <- torch::nn_elu()
-    self$glu <- gated_linear_unit(hidden_layer_size, output, dropout_rate, use_time_distributed, batch_first)
-    self$add_and_norm <- add_and_norm(hidden_layer_size = output)
+    self$glu <- gated_linear_unit(hidden_layer_size, output_size, dropout_rate, use_time_distributed, batch_first)
+    self$add_and_norm <- add_and_norm(hidden_layer_size = output_size)
     self$skip_connection <- torch::nn_linear(input_size, hidden_layer_size)
   },
-  forward = function(x, context = torch::torch_zeros_like(x)) {
+  forward = function(x, context = NULL) {
     # Setup skip connection
     if (is.null(self$output_size)) {
       skip <- x
     } else {
-    skip <- self$skip_linear_layer(x)
+      skip <- self$skip_linear_layer(x)
     }
     # Apply feedforward network
     hidden <- self$hidden_linear_layer1(x)
-    if (!torch::torch_equal(context, torch::torch_zeros_like(x))) {
+
+    if (!is.null(context))
       hidden <- hidden + self$hidden_context_layer(context)
 
-    }
     hidden <- self$elu(hidden)
     hidden <- self$hidden_linear_layer2(hidden)
 
     gating_layer_gate <- self$glu(hidden)
     if (self$return_gate) {
-          return(list(self$add_and_norm(skip, gating_layer_gate[[1]]), gating_layer_gate[[2]]))
+      list(self$add_and_norm(skip, gating_layer_gate[[1]]), gating_layer_gate[[2]])
     } else {
-          return(self$add_and_norm(skip, gating_layer_gate[[1]]))
+      self$add_and_norm(skip, gating_layer_gate[[1]])
     }
   }
 )
