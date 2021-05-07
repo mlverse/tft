@@ -172,9 +172,9 @@ test_that("static_combine_and_mask works", {
   num_inputs <- 1
   embedding <- torch::torch_ones(c(4, num_static, hidden_layer_size), device=device) # [4, 3, 16]
   static_cbn_n_mask <- static_combine_and_mask(10, num_static, hidden_layer_size, dropout_rate=0)$to(device=device)
+
   #without additional_context
   additional_context <- NULL
-
 
   static_vec_sparse_weights <- static_cbn_n_mask(embedding, additional_context)
   static_vec <- static_vec_sparse_weights[[1]]
@@ -183,8 +183,8 @@ test_that("static_combine_and_mask works", {
   expect_equal(static_vec$shape, c(4,hidden_layer_size))
   expect_equal(sparse_weights$shape, c(4,num_static,1))
 
-  # with additional_context (like flatten_embeddings = [?, num_static*hidden_layer])
-  additional_context <- array(as.numeric(rnorm(4*num_static*hidden_layer_size)< 1), dim=c(4,num_static*hidden_layer_size)) %>%
+  # with additional_context (like flatten_embeddings = [?, hidden_layer])
+  additional_context <- array(as.numeric(rnorm(4*hidden_layer_size)< 1), dim=c(4,hidden_layer_size)) %>%
     torch::torch_tensor(device = device)
 
   static_vec_sparse_weights <- static_cbn_n_mask(embedding, additional_context)
