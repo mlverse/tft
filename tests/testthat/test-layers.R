@@ -1,5 +1,5 @@
-#device <- torch::torch_device(if (torch::cuda_is_available()) "cuda" else "cpu")
-device="cpu"
+device <- torch::torch_device(if (torch::cuda_is_available()) "cuda" else "cpu")
+# device="cpu"
 test_that("gated linear units works, w & wo dropout_rate", {
 
   x <- torch::torch_randn(100, 10, device=device)
@@ -170,7 +170,7 @@ test_that("static_combine_and_mask works", {
   hidden_layer_size <- 16
   num_static <- 3
   num_inputs <- 1
-  embedding <- torch::torch_ones(c(4, num_static, hidden_layer_size), device=device) # [4, 3, 16]
+  embedding <- torch::torch_randn(4, num_static, hidden_layer_size, device=device) # [4, 3, 16]
   static_cbn_n_mask <- static_combine_and_mask(10, num_static, hidden_layer_size, dropout_rate=0)$to(device=device)
 
   #without additional_context
@@ -184,8 +184,7 @@ test_that("static_combine_and_mask works", {
   expect_equal(sparse_weights$shape, c(4,num_static,1))
 
   # with additional_context (like flatten_embeddings = [?, hidden_layer])
-  additional_context <- array(as.numeric(rnorm(4*hidden_layer_size)< 1), dim=c(4,hidden_layer_size)) %>%
-    torch::torch_tensor(device = device)
+  additional_context <- torch::torch_randint(0,2,size = c(4,hidden_layer_size),device = device)
 
   static_vec_sparse_weights <- static_cbn_n_mask(embedding, additional_context)
   static_vec <- static_vec_sparse_weights[[1]]
@@ -200,7 +199,7 @@ test_that("lstm_combine_and_mask works", {
 
   hidden_layer_size <- 16
   # historical_lstm_combine_and_mask like
-  embedding <- torch::torch_ones(c(4, 24, hidden_layer_size, 5), device=device)
+  embedding <- torch::torch_randn(4, 24, hidden_layer_size, 5, device=device)
   hist_lstm_cbn_n_mask <- lstm_combine_and_mask(10, num_inputs=5, hidden_layer_size=hidden_layer_size, dropout_rate=0)$to(device=device)
   #without additional_context
   additional_context <- NULL
@@ -216,7 +215,7 @@ test_that("lstm_combine_and_mask works", {
   expect_equal(static_gate, NULL)
 
   # with additional_context (like flatten_embeddings = [?, hidden_layer])
-  additional_context <- array(as.numeric(rnorm(4*hidden_layer_size)< 1), dim=c(4,hidden_layer_size)) %>% torch::torch_tensor(device = device)
+  additional_context <-torch::torch_randint(0,2,size = c(4,hidden_layer_size),device = device)
 
   lstm_output_lst <- hist_lstm_cbn_n_mask(embedding, additional_context)
   temporal_ctx <- lstm_output_lst[[1]]
@@ -230,7 +229,7 @@ test_that("lstm_combine_and_mask works", {
   # future_lstm_combine_and_mask like
   embedding <- torch::torch_ones(c(4, 24, hidden_layer_size, 1), device=device)
   futr_lstm_cbn_n_mask <- lstm_combine_and_mask(10, num_inputs=1, hidden_layer_size=hidden_layer_size, dropout_rate=0)$to(device=device)
-  additional_context <- array(as.numeric(rnorm(4*hidden_layer_size)< 1), dim=c(4,hidden_layer_size)) %>% torch::torch_tensor(device = device)
+  additional_context <- torch::torch_randint(0,2,size = c(4,hidden_layer_size),device = device)
 
   lstm_output_lst <- futr_lstm_cbn_n_mask(embedding, additional_context)
   temporal_ctx <- lstm_output_lst[[1]]
