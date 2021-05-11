@@ -129,8 +129,9 @@ test_that("tft_train works with pure embeddings", {
 
 test_that("tft_nn works with a small example inspired from README with tsibbledata::vic_elec", {
   nn <- tft:::tft_nn(input_dim = 5, output_dim = 1, cat_idx = c(5,6), cat_dims = list(2,1),
-                                  observed_idx = 3, static_idx = 6, target_idx = 2,
-                                  known_idx = 5, dropout_rate = 0, num_heads = 3)
+                     observed_idx = 3, static_idx = 6, target_idx = 2,
+                     known_idx = 5, dropout_rate = 0, num_heads = 3,
+                     total_time_steps = 10, num_encoder_steps = 8)
 
   expect_error(nn(
                  known_numerics = torch::torch_randn(100, 10, 0),
