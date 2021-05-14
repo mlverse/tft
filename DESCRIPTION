@@ -27,8 +27,12 @@ Imports:
     purrr,
     rlang,
     tibble,
-    tsibble,
-    hardhat
+    slider,
+    hardhat,
+    coro,
+    glue,
+    progress,
+    methods
 Suggests:
     dplyr,
     padr,
@@ -36,11 +40,11 @@ Suggests:
     lubridate,
     fs,
     readr,
+    tsibble,
     tsibbledata,
     testthat (>= 3.0.0)
 Remotes:
-    mlverse/torch,
-    tidymodels/recipes#632
+    mlverse/torch
 Collate: 
     'batch.R'
     'utils.R'

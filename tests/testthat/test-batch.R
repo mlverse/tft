@@ -4,7 +4,7 @@ test_that("batch_data works with roles in vic_elec dataset", {
   skip_on_os("mac")
 
   data("vic_elec")
-  vic_elec <- vic_elec %>%
+  vic_elec <- vic_elec[1:1000,] %>%
     dplyr::mutate(Location = as.factor("Victoria")) %>%
     dplyr::rename(id = Date)
   rec <- recipe(Demand ~ ., data = vic_elec) %>%
@@ -18,15 +18,15 @@ test_that("batch_data works with roles in vic_elec dataset", {
   x <- batch_data(recipe=rec, df=vic_elec, total_time_steps=10, device="cpu")
 
   expect_length(x, 13)
-  # test tensor shape (20 time_steps while total_time_steps is hardcoded in hours)
-  expect_equal(x$known$numerics$size()[2:3], c( 20, 0))
-  expect_equal(x$known$categorical$size()[2:3], c( 20, 1))
-  expect_equal(x$observed$numerics$size()[2:3], c( 20, 1))
-  expect_equal(x$observed$categorical$size()[2:3], c( 20, 0))
-  expect_equal(x$static$numerics$size()[2:3], c( 20, 0))
-  expect_equal(x$static$categorical$size()[2:3], c( 20, 1))
-  expect_equal(x$target$numerics$size()[2:3], c( 20, 1))
-  expect_equal(x$target$categorical$size()[2:3], c( 20, 0))
+  # test tensor shape is1 0 time_steps
+  expect_equal(x$known$numerics$size()[2:3], c( 10, 0))
+  expect_equal(x$known$categorical$size()[2:3], c( 10, 1))
+  expect_equal(x$observed$numerics$size()[2:3], c( 10, 1))
+  expect_equal(x$observed$categorical$size()[2:3], c( 10, 0))
+  expect_equal(x$static$numerics$size()[2:3], c( 10, 0))
+  expect_equal(x$static$categorical$size()[2:3], c( 10, 1))
+  expect_equal(x$target$numerics$size()[2:3], c( 10, 1))
+  expect_equal(x$target$categorical$size()[2:3], c( 10, 0))
   expect_s3_class(x$blueprint, c("default_recipe_blueprint","recipe_blueprint","hardhat_blueprint" ))
 })
 
@@ -37,7 +37,7 @@ test_that("tft_initialize works with roles in vic_elec dataset", {
   skip_on_os("mac")
 
   data("vic_elec")
-  vic_elec <- vic_elec %>%
+  vic_elec <- vic_elec[1:1000,] %>%
     dplyr::mutate(Location = as.factor("Victoria")) %>%
     dplyr::rename(id = Date)
   rec <- recipe(Demand ~ ., data = vic_elec) %>%
@@ -75,7 +75,7 @@ test_that("tft_initialize works with pinball_loss", {
   skip_on_os("mac")
 
   data("vic_elec")
-  vic_elec <- vic_elec %>%
+  vic_elec <- vic_elec[1:1000,] %>%
     dplyr::mutate(Location = as.factor("Victoria")) %>%
     dplyr::rename(id = Date)
   rec <- recipe(Demand ~ ., data = vic_elec) %>%
@@ -102,7 +102,7 @@ test_that("tft_train works with pure embeddings", {
   skip_on_os("mac")
 
   data("vic_elec")
-  vic_elec <- vic_elec %>%
+  vic_elec <- vic_elec[1:1000,] %>%
     dplyr::mutate(Location = as.factor("Victoria"),
                   Demand = as.factor(ceiling(Demand)),
                   Temperature = as.factor(ceiling(Temperature))) %>%

@@ -14,75 +14,35 @@ batch_data <- function(recipe, df, total_time_steps = 12, device) {
   }
 
   var_type_role <- summary(recipe)
-  id <- recipes::terms_select(var_type_role, term=quos(recipes::has_role("id")))
-  time <- recipes::terms_select(var_type_role, term=quos(recipes::has_role("time")))
-  all_numeric <- c(recipes::terms_select(var_type_role, term=quos(recipes::all_numeric())),
+  id <- recipes::terms_select(var_type_role, term=rlang::quos(recipes::has_role("id")))
+  time <- recipes::terms_select(var_type_role, term=rlang::quos(recipes::has_role("time")))
+  all_numeric <- c(recipes::terms_select(var_type_role, term=rlang::quos(recipes::all_numeric())),
                    var_type_role[var_type_role$type == "date", "variable"] %>% unlist ) %>%
     as.character()
-  all_nominal <- c(recipes::terms_select(var_type_role, term=quos(recipes::all_nominal())),
+  all_nominal <- c(recipes::terms_select(var_type_role, term=rlang::quos(recipes::all_nominal())),
                    var_type_role[var_type_role$type %in% c("logical", "other"), "variable"] %>% unlist) %>%
     as.character()
-  known <- recipes::terms_select(var_type_role, term=quos(recipes::has_role("known_input")))
-  observed <- recipes::terms_select(var_type_role, term=quos(recipes::has_role("observed_input")))
-  static <- recipes::terms_select(var_type_role, term=quos(recipes::has_role("static_input")))
+  known <- recipes::terms_select(var_type_role, term=rlang::quos(recipes::has_role("known_input")))
+  observed <- recipes::terms_select(var_type_role, term=rlang::quos(recipes::has_role("observed_input")))
+  static <- recipes::terms_select(var_type_role, term=rlang::quos(recipes::has_role("static_input")))
   known_numeric <- intersect(known, all_numeric)
   known_categorical <- intersect(known, all_nominal)
   observed_numeric <- intersect(observed, all_numeric)
   observed_categorical <- intersect(observed, all_nominal)
-  target_numeric <- intersect(terms_select(var_type_role, term=quos(recipes::all_outcomes())), all_numeric)
-  target_categorical <- intersect(terms_select(var_type_role, term=quos(recipes::all_outcomes())), all_nominal)
+  target_numeric <- intersect(recipes::terms_select(var_type_role, term=rlang::quos(recipes::all_outcomes())), all_numeric)
+  target_categorical <- intersect(recipes::terms_select(var_type_role, term=rlang::quos(recipes::all_outcomes())), all_nominal)
   static_numeric <- intersect(static, all_numeric)
   static_categorical <- intersect(static, all_nominal)
 
 
   processed_roles <- hardhat::mold(recipe, df)
-  # TODO use tsibble function and interval attribute to reach the same result
-  # TODO get rid or the remaining hardcoded $id
-  positions <- df %>%
-    dplyr::group_by(dplyr::across(id)) %>%
-    dplyr::filter(dplyr::n() >= (total_time_steps*2+1)) %>%
-    dplyr::group_split(.keep = TRUE) %>%
-    purrr::map_dfr(
-      ~tibble::tibble(
-        id = dplyr::first(.x$id),
-        start_time = seq(
-          # TODO don't hardcode Time
-          from = min(.x$Time),
-          # TODO don't hardcode steps to be hours here
-          to   = max(.x$Time) - lubridate::hours(total_time_steps),
-          by   = "hours"
-        ),
-        end_time = start_time + lubridate::hours(total_time_steps)
-      )
-    )
-  if (nrow(positions)<500) {
-    rlang::warn(glue::glue("total_time_steps={total_time_steps} hours does not allow to extract 500 samples, you should lower its value"))
-  }
-  if (nrow(positions)<2) {
-    rlang::abort(glue::glue("total_time_steps={total_time_steps} hours does not allow to extract samples, you should lower its value"))
-  }
 
-  # the as.numeric(as.factor) trick is to prevent logicals to become tensors in [0,1]
-  df <-  df %>%
-    dplyr::mutate(dplyr::across(all_nominal, ~as.numeric(as.factor(.x))))
+  output <- df %>%
+    dplyr::group_by(rlang::eval_tidy(id)) %>%
+    slider::slide(~.x, .before=total_time_steps-1, .complete = TRUE) %>%
+    purrr::compact() %>%
+    purrr::map(ungroup)
 
-  # TODO remove this time saving workaround
-  # positions <- positions %>% dplyr::sample_n(500)
-  positions <- positions %>% dplyr::sample_n(50)
-
-  output <- positions %>%
-    dplyr::group_split(id, start_time) %>%
-    # TODO don't hardcode Time
-    purrr::map(
-      ~df %>%
-        dplyr::filter(
-          id == .x$id,
-          Time >= .x$start_time,
-          Time < .x$end_time
-        )
-    )
-# TODO BUG 10 groups do not size total_time_steps*2 and should be removed or torch_stack will fail
-  output <-output[output %>% purrr::map_lgl(~nrow(.x)==(total_time_steps*2))]
 
   known_t <- list(
     numerics = output %>%
@@ -436,9 +396,9 @@ tft_train <- function(obj, data, config = tft_config(), epoch_shift=0L) {
 
   # resolve loss (could have changed)
   if (config$loss == "quantile_loss") {
-    config$loss_fn <- tft:::quantile_loss(config$quantiles)
+    config$loss_fn <- quantile_loss(config$quantiles)
   } else if (config$loss == "pinball_loss") {
-    config$loss_fn <- tft:::pinball_loss(config$training_tau)
+    config$loss_fn <- pinball_loss(config$training_tau)
   } else if (config$loss == "rmsse_loss") {
     config$loss_fn <- rmsse_loss()
   } else if (config$loss == "smape_loss") {
