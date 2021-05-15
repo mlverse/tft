@@ -26,7 +26,7 @@ tft_nn <- torch::nn_module(
     self$num_heads <- num_heads
     self$batch_first <- TRUE
     self$num_static <- length(self$static_idx)
-    self$num_inputs <- length(known_idx) +length(observed_idx) + self$output_dim
+    self$num_inputs <- length(known_idx) +length(static_idx) + self$output_dim
     self$num_inputs_decoder <- length(known_idx) +length(observed_idx)
 
     self$minibatch_size <- minibatch_size
@@ -34,7 +34,8 @@ tft_nn <- torch::nn_module(
     self$attention_components <- NULL
     self$prediction_parts <- NULL
 
-    ### To Be Splitted Categorical embeddings. May be improved via tabnet::embedding_generator
+    ### TODO should Be Splitted Categorical embeddings. Currently stacks kwn_cat + obs_cat + stc_cat + target in that order
+    ### TODO May be improved via tabnet::embedding_generator
     self$embeddings <- purrr::map(
       seq_along(cat_idxs), ~torch::nn_embedding(
         self$cat_dims[[.x]],
@@ -179,7 +180,7 @@ tft_nn <- torch::nn_module(
     # combined_input_size <- self$input_size
     encoder_steps <- self$num_encoder_steps
 
-    #### was get_tft_embeddings
+    #### used to be in  get_tft_embeddings
     kwn_cat <- known_categorical$shape[3]
     obs_cat <- observed_categorical$shape[3]
     stc_cat <- static_categorical$shape[3]
@@ -194,10 +195,10 @@ tft_nn <- torch::nn_module(
     # Static inputs , we keep only the first time-step (by nature)
     if (!is.null(self$static_idx)) {
       static_inputs <- c(
-        if (!is.null(stc_num))
+        if (stc_num>0)
           purrr::map(seq_len(stc_num), ~self$static_input_layer(static_numerics[,1:1,.x]$to(dtype=torch::torch_float()))),
-        if (!is.null(stc_cat))
-          purrr::map(seq_len(stc_cat), ~self$embeddings[[.x + kwn_cat + obs_cat]](static_categorical[,1:1,.x]$to(dtype=torch::torch_long())))
+        if (stc_cat>0)
+          purrr::map(seq_len(stc_cat), ~self$embeddings[[kwn_cat + obs_cat + .x]](static_categorical[,1:1,.x]$to(dtype=torch::torch_long())))
       ) %>%
         torch::torch_stack(dim=-1)
 
@@ -208,22 +209,22 @@ tft_nn <- torch::nn_module(
 
     # Targets ( should be numerical only ?)
     target_inputs <- c(
-      if (!is.null(tgt_num))
+      if (tgt_num>0)
         purrr::map(seq_len(tgt_num), ~self$time_varying_embedding_layer(target_numerics[.., .x:.x]$to(dtype=torch::torch_float()))),
-      if (!is.null(tgt_cat))
-        purrr::map(seq_len(tgt_cat), ~self$embeddings[[.x + kwn_cat + obs_cat+ stc_cat]](target_categorical[..,.x]$to(dtype=torch::torch_long())))
+      if (tgt_cat>0)
+        purrr::map(seq_len(tgt_cat), ~self$embeddings[[kwn_cat + obs_cat + stc_cat + .x]](target_categorical[..,.x]$to(dtype=torch::torch_long())))
 
       ) %>%
       torch::torch_stack(dim=-1)
 
 
     # Observed covariates are unknown inputs
-    if (!is.null(obs_num) | !is.null(obs_cat)) {
+    if (obs_num+obs_cat>0) {
       unknown_inputs <-  c(
-        if (!is.null(obs_num))
+        if (obs_num>0)
           purrr::map(seq_len(obs_num), ~self$time_varying_embedding_layer(observed_numerics[..,.x:.x]$to(dtype=torch::torch_float()))),
-        if (!is.null(obs_cat))
-          purrr::map(seq_len(obs_cat), ~self$embeddings[[.x + kwn_cat]](observed_categorical[..,.x]$to(dtype=torch::torch_long())))
+        if (obs_cat>0)
+          purrr::map(seq_len(obs_cat), ~self$embeddings[[kwn_cat + .x]](observed_categorical[..,.x]$to(dtype=torch::torch_long())))
       ) %>%
         torch::torch_stack(dim=-1)
     } else {
@@ -231,11 +232,11 @@ tft_nn <- torch::nn_module(
 
     }
     # Known inputs
-    if (!is.null(kwn_num) | !is.null(kwn_cat)) {
+    if (kwn_num+kwn_cat>0) {
       known_inputs <- c(
-        if (!is.null(kwn_num))
+        if (kwn_num>0)
           purrr::map(seq_len(kwn_num), ~self$time_varying_embedding_layer(known_numerics[..,.x:.x]$to(dtype=torch::torch_float()))),
-        if (!is.null(kwn_cat))
+        if (kwn_cat>0)
           purrr::map(seq_len(kwn_cat), ~self$embeddings[[.x]](known_categorical[..,.x]$to(dtype=torch::torch_long())))
     ) %>%
         torch::torch_stack(dim=-1)

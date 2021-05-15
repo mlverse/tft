@@ -14,17 +14,17 @@ batch_data <- function(recipe, df, total_time_steps = 12, device) {
   }
 
   var_type_role <- summary(recipe)
-  id <- recipes::terms_select(var_type_role, term=rlang::quos(recipes::has_role("id")))
-  time <- recipes::terms_select(var_type_role, term=rlang::quos(recipes::has_role("time")))
-  all_numeric <- c(recipes::terms_select(var_type_role, term=rlang::quos(recipes::all_numeric())),
+  id <- recipes::terms_select(var_type_role, terms=rlang::quos(recipes::has_role("id")))
+  time <- recipes::terms_select(var_type_role, terms=rlang::quos(recipes::has_role("time")))
+  all_numeric <- c(recipes::terms_select(var_type_role, terms=rlang::quos(recipes::all_numeric()), empty_fun = function(x) {NULL}),
                    var_type_role[var_type_role$type == "date", "variable"] %>% unlist ) %>%
     as.character()
-  all_nominal <- c(recipes::terms_select(var_type_role, term=rlang::quos(recipes::all_nominal())),
+  all_nominal <- c(recipes::terms_select(var_type_role, terms=rlang::quos(recipes::all_nominal()), empty_fun = function(x) {NULL}),
                    var_type_role[var_type_role$type %in% c("logical", "other"), "variable"] %>% unlist) %>%
     as.character()
-  known <- recipes::terms_select(var_type_role, term=rlang::quos(recipes::has_role("known_input")))
-  observed <- recipes::terms_select(var_type_role, term=rlang::quos(recipes::has_role("observed_input")))
-  static <- recipes::terms_select(var_type_role, term=rlang::quos(recipes::has_role("static_input")))
+  known <- recipes::terms_select(var_type_role, terms=rlang::quos(recipes::has_role("known_input")), empty_fun = function(x) {NULL})
+  observed <- recipes::terms_select(var_type_role, terms=rlang::quos(recipes::has_role("observed_input")), empty_fun = function(x) {NULL})
+  static <- recipes::terms_select(var_type_role, terms=rlang::quos(recipes::has_role("static_input")), empty_fun = function(x) {NULL})
   known_numeric <- intersect(known, all_numeric)
   known_categorical <- intersect(known, all_nominal)
   observed_numeric <- intersect(observed, all_numeric)
@@ -37,7 +37,9 @@ batch_data <- function(recipe, df, total_time_steps = 12, device) {
 
   processed_roles <- hardhat::mold(recipe, df)
 
+  # the as.numeric(as.factor) trick is required to prevent logicals to become tensors in [0,1] unexpected by nn_embedding
   output <- df %>%
+    dplyr::mutate(dplyr::across(all_nominal, ~as.numeric(as.factor(.x)))) %>%
     dplyr::group_by(rlang::eval_tidy(id)) %>%
     slider::slide(~.x, .before=total_time_steps-1, .complete = TRUE) %>%
     purrr::compact() %>%
