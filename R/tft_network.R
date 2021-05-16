@@ -27,7 +27,7 @@ tft_nn <- torch::nn_module(
     self$batch_first <- TRUE
     self$num_static <- length(self$static_idx)
     self$num_inputs <- length(known_idx) +length(static_idx) + self$output_dim
-    self$num_inputs_decoder <- length(known_idx) +length(observed_idx)
+    self$num_inputs_decoder <- length(known_idx) +length(static_idx)
 
     self$minibatch_size <- minibatch_size
     self$input_placeholder <- NULL
@@ -192,13 +192,13 @@ tft_nn <- torch::nn_module(
     tgt_num <- target_numerics$shape[3]
 
 
-    # Static inputs , we keep only the first time-step (by nature)
+    # Static inputs
     if (!is.null(self$static_idx)) {
       static_inputs <- c(
         if (stc_num>0)
-          purrr::map(seq_len(stc_num), ~self$static_input_layer(static_numerics[,1:1,.x]$to(dtype=torch::torch_float()))),
+          purrr::map(seq_len(stc_num), ~self$static_input_layer(static_numerics[,,.x]$to(dtype=torch::torch_float()))),
         if (stc_cat>0)
-          purrr::map(seq_len(stc_cat), ~self$embeddings[[kwn_cat + obs_cat + .x]](static_categorical[,1:1,.x]$to(dtype=torch::torch_long())))
+          purrr::map(seq_len(stc_cat), ~self$embeddings[[kwn_cat + obs_cat + .x]](static_categorical[,,.x]$to(dtype=torch::torch_long())))
       ) %>%
         torch::torch_stack(dim=-1)
 
@@ -258,9 +258,11 @@ tft_nn <- torch::nn_module(
                                           target_inputs[ , 1:encoder_steps, ]), dim=-1)
     }
     # Isolate only known future inputs.
-    future_inputs <- known_inputs[ ,(encoder_steps+1):-1, ]
+    future_inputs <- torch::torch_cat(c(known_inputs[ ,(encoder_steps+1):-1, ],
+                                        static_inputs[ ,(encoder_steps+1):-1, ]), dim=-1)
 
-    static_encoder_weights <- self$static_combine_and_mask(static_inputs)
+    #Static_input first time-step (as constant by nature)
+    static_encoder_weights <- self$static_combine_and_mask(static_inputs[,1:1,])
     static_weights <- static_encoder_weights[[2]]
     static_encoder <- static_encoder_weights[[1]]
     static_context_variable_selection <- self$static_context_variable_selection_grn(static_encoder)
@@ -273,7 +275,7 @@ tft_nn <- torch::nn_module(
     future_flags <- future_features_flags[[2]]
 
     history_lstm_state_h_state_c <- self$lstm_encoder(historical_features_flags[[1]], c(static_context_state_h$unsqueeze(1), static_context_state_c$unsqueeze(1)))
-    future_lstm <- self$lstm_decoder(future_features_flags[[1]], c(history_lstm_state_h_state_c[[2]], history_lstm_state_h_state_c[[3]]))
+    future_lstm <- self$lstm_decoder(future_features_flags[[1]], c(history_lstm_state_h_state_c[[2]][[1]], history_lstm_state_h_state_c[[2]][[2]]))
 
     lstm_layer <- torch::torch_cat(c(history_lstm_state_h_state_c[[1]], future_lstm[[1]]), dim=1)
     # Apply gated skip connection
