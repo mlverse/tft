@@ -122,7 +122,7 @@ test_that("scaled_dot_product_attention works, w or wo mask", {
   expect_equal(attn$shape, c(2, 4, 4))
 
   # with mask
-  mask <- array(as.numeric(rnorm(2*4*4)< 1), dim=c(2,4,4))
+  mask <- torch::torch_randn(2,4,4, device=device)
 
   output_attn_lst <- sdp_attention(query(x), key(x), value(x), mask)
   output <- output_attn_lst[[1]]
@@ -145,7 +145,6 @@ test_that("interpretable_multihead_attention works", {
   #without mask
   mask <- NULL
   query <- key <- value <- torch::torch_randn(5, 4, 12, device=device)
-  x <- torch::torch_randn(5, 4, 10, device=device)
 
   outputs_attn_lst <- multihead_attn(query, key, value, mask)
   outputs <- outputs_attn_lst[[1]]
@@ -155,7 +154,7 @@ test_that("interpretable_multihead_attention works", {
   expect_equal(attn$shape, c(2, 5, 4, 4))
 
   # with mask
-  mask <- array(as.numeric(rnorm(5*4*4)< 1), dim=c(5,4,4))
+  mask <- torch::torch_randn(5, 4, 4, device=device)
 
   outputs_attn_lst <- multihead_attn(query, key, value, mask)
   outputs <- outputs_attn_lst[[1]]
@@ -163,6 +162,37 @@ test_that("interpretable_multihead_attention works", {
 
   expect_equal(outputs$shape, c(5, 4, 12))
   expect_equal(attn$shape, c(2, 5, 4, 4))
+
+})
+
+test_that("interpretable_multihead_attention works with one head", {
+
+  multihead_attn <- interpretable_multihead_attention(n_head=1, d_model=12, dropout_rate=0)$to(device=device)
+  # nn shape test
+  expect_length(multihead_attn$modules, 12)
+  expect_length(multihead_attn$attention$modules, 3)
+  expect_length(multihead_attn$attention$modules[[1]], 1)
+
+  #without mask
+  mask <- NULL
+  query <- key <- value <- torch::torch_randn(5, 4, 12, device=device)
+
+  outputs_attn_lst <- multihead_attn(query, key, value, mask)
+  outputs <- outputs_attn_lst[[1]]
+  attn <- outputs_attn_lst[[2]]
+
+  expect_equal(outputs$shape, c(5, 4, 12))
+  expect_equal(attn$shape, c(1, 5, 4, 4))
+
+  # with mask
+  mask <- torch::torch_randn(5, 4, 4, device=device)
+
+  outputs_attn_lst <- multihead_attn(query, key, value, mask)
+  outputs <- outputs_attn_lst[[1]]
+  attn <- outputs_attn_lst[[2]]
+
+  expect_equal(outputs$shape, c(5, 4, 12))
+  expect_equal(attn$shape, c(1, 5, 4, 4))
 
 })
 

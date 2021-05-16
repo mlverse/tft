@@ -163,10 +163,10 @@ tft_nn <- torch::nn_module(
     #   Args:
     #     self_attn_inputs: Inputs to self attention layer to determine mask shape
     #   """
-    len_s <- self_attn_inputs$shape[[2]] # 192
-    bs <- tail(self_attn_inputs$shape,1) # [64]
-    # create batch_size identity matrices
-    mask <- torch::torch_cumsum(torch::torch_eye(len_s, device = self$device)$reshape(c(1, len_s, len_s))$torch_repeat_interleave(bs, 1, 1), 1)
+    len_s <- self_attn_inputs$shape[2] # 192
+    bs <- self_attn_inputs$shape[1] # 64
+    # create batch_size lower triangular matrices
+    mask <- purrr::map(seq_len(bs), ~torch::torch_ones(len_s, len_s, device = self$device)$tril()) %>% torch::torch_stack( dim=1)
     return(mask)
   },
 
@@ -176,8 +176,6 @@ tft_nn <- torch::nn_module(
                      static_numerics, static_categorical,
                      target_numerics, target_categorical) {
     # Size definitions.
-    # time_steps <- self$time_steps
-    # combined_input_size <- self$input_size
     encoder_steps <- self$num_encoder_steps
 
     #### used to be in  get_tft_embeddings
@@ -277,9 +275,9 @@ tft_nn <- torch::nn_module(
     history_lstm_state_h_state_c <- self$lstm_encoder(historical_features_flags[[1]], c(static_context_state_h$unsqueeze(1), static_context_state_c$unsqueeze(1)))
     future_lstm <- self$lstm_decoder(future_features_flags[[1]], c(history_lstm_state_h_state_c[[2]][[1]], history_lstm_state_h_state_c[[2]][[2]]))
 
-    lstm_layer <- torch::torch_cat(c(history_lstm_state_h_state_c[[1]], future_lstm[[1]]), dim=1)
+    lstm_layer <- torch::torch_cat(c(history_lstm_state_h_state_c[[1]], future_lstm[[1]]), dim=2)
     # Apply gated skip connection
-    input_embeddings <- torch::torch_cat(c(historical_features_flags[[1]], future_features_flags[[1]]), dim=1)
+    input_embeddings <- torch::torch_cat(c(historical_features_flags[[1]], future_features_flags[[1]]), dim=2)
 
     lstm_layer <- self$lstm_glu(lstm_layer)
     temporal_feature_layer <- self$lstm_glu_add_and_norm(lstm_layer[[1]], input_embeddings)
@@ -293,7 +291,7 @@ tft_nn <- torch::nn_module(
     x_self_att <- self$self_attn_layer(enriched, enriched, enriched, mask)#, attn_mask=mask.repeat(self$num_heads, 1, 1))
 
     x <- self$self_attention_glu(x_self_att[[1]])
-    x <- self$self_attention_glu_add_and_norm(x, enriched)
+    x <- self$self_attention_glu_add_and_norm(x[[1]], enriched)
 
     # Nonlinear processing on outputs
     decoder <- self$decoder_grn(x)
@@ -313,6 +311,6 @@ tft_nn <- torch::nn_module(
     )
 
     outputs <- self$output_layer(transformer_layer[ ,(encoder_steps+1):-1, ])
-  return(list(outputs, all_inputs, attention_components))
+  return(list(outputs, NULL, attention_components))
  }
 )

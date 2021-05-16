@@ -143,7 +143,7 @@ scaled_dot_product_attention <- torch::nn_module(
     # temper <- torch::torch_sqrt(torch::torch_tensor(key$shape[key$ndim], dtype = torch::torch_float, device = self$device) )
     attn <- torch::torch_bmm(query, key$permute(c(1, 3, 2)) )
     if (!is.null(mask)) {
-      mmask <- -1e-9 * (1 - torch::torch_tensor(mask, dtype = torch::torch_float(), device = query$device))
+      mmask <- -1e-9 * (1 - mask)
       attn <- torch::torch_add(attn, mmask)
     }
     attn <- self$activation(attn)
@@ -188,7 +188,6 @@ interpretable_multihead_attention <- torch::nn_module(
     # mask: Masking if required with dim (?, T, T)
     # returns a list( layer_outputs, attention_weights)
 
-    # TODO get rid of ugly for / if logic
     n_head <- self$n_head
     heads <- list()
     attns <- list()
@@ -202,19 +201,10 @@ interpretable_multihead_attention <- torch::nn_module(
       heads <- c(heads, head_dropout)
       attns <- c(attns, attn_lst[[2]])
     }
-    if (n_head>1) {
-      head <- torch::torch_stack(heads)
-    } else {
-      head <- heads[1]
-    }
     attn <- torch::torch_stack(attns)
-
-    if (n_head>1) {
-      outputs <- torch::torch_mean(head, dim=1)
-    } else {
-      outputs <- head
-    }
-    outputs <- outputs %>%
+    outputs <- heads %>%
+      torch::torch_stack(dim=1) %>%
+      torch::torch_mean(dim=1) %>%
       self$w_o() %>%
       self$dropout()
 
