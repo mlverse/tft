@@ -132,7 +132,7 @@ test_that("tft_train works with pure nominal inputs", {
     step_normalize(all_numeric(), -all_outcomes())
 
   processed <- tft:::batch_data(recipe=rec, df=vic_elec, total_time_steps=10, device="auto")
-  config <- tft:::tft_config(batch_size=50, epochs = 3, total_time_steps=12, num_encoder_steps=10)
+  config <- tft:::tft_config(batch_size=50, epochs = 3, total_time_steps=10, num_encoder_steps=7)
 
   tft_model_lst <- tft:::tft_initialize(processed, config)
   tft_model <-  tft:::new_tft_fit(tft_model_lst, blueprint = processed$blueprint)
@@ -161,7 +161,7 @@ test_that("tft_train works with pure numerical inputs", {
     step_normalize(all_numeric(), -all_outcomes())
 
   processed <- tft:::batch_data(recipe=rec, df=vic_elec, total_time_steps=10, device="auto")
-  config <- tft:::tft_config(batch_size=50, epochs = 3, total_time_steps=12, num_encoder_steps=10)
+  config <- tft:::tft_config(batch_size=50, epochs = 3, total_time_steps=10, num_encoder_steps=7)
 
   tft_model_lst <- tft:::tft_initialize(processed, config)
   tft_model <-  tft:::new_tft_fit(tft_model_lst, blueprint = processed$blueprint)

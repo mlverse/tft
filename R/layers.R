@@ -295,11 +295,12 @@ lstm_combine_and_mask <- torch::nn_module(
   forward = function( embedding, additional_context=NULL) {
     # Add temporal features
     dim_embedding <- embedding$shape
+    batch <- dim_embedding[1]
     time_steps <- dim_embedding[2]
     embedding_dim <- dim_embedding[3]
     num_inputs <- dim_embedding[4]
 
-    flattened_embedding <- torch::torch_reshape(embedding, list(-1, time_steps, embedding_dim * num_inputs))
+    flattened_embedding <- torch::torch_reshape(embedding, list(batch, time_steps, embedding_dim * num_inputs))
 
     if (!is.null(additional_context)) {
       expanded_static_context <- additional_context$unsqueeze(2)
