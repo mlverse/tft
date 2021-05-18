@@ -247,10 +247,12 @@ train_batch <- function(network, optimizer, batch, config) {
                     batch$observed_numerics, batch$observed_categorical,
                     batch$static_numerics, batch$static_categorical,
                     batch$target_numerics, batch$target_categorical)
-  loss <- config$loss_fn(output[[1]], batch$y)
+  actuals <- torch::torch_cat(c(batch$target_numerics[,(config$num_encoder_steps+1):-1,],
+                        batch$target_categorical[,(config$num_encoder_steps+1):-1,]), dim=-1)
+  loss <- config$loss_fn(output[[1]], actuals)
 
-  # Add the overall sparsity loss
-  loss <- loss - config$lambda_sparse * output[[2]]
+  # Add the overall sparsity loss (currently lambda_sparse is not in config qnd output[[2]] is NULL)
+  # loss <- loss - config$lambda_sparse * output[[2]]
 
   # step of the optimization
   optimizer$zero_grad()
@@ -267,11 +269,16 @@ train_batch <- function(network, optimizer, batch, config) {
 
 valid_batch <- function(network, batch, config) {
   # forward pass
-  output <- network(batch$x)
-  loss <- config$loss_fn(output[[1]], batch$y)
+  output <- network(batch$known_numerics, batch$known_categorical,
+                    batch$observed_numerics, batch$observed_categorical,
+                    batch$static_numerics, batch$static_categorical,
+                    batch$target_numerics, batch$target_categorical)
+  actuals <- torch::torch_cat(c(batch$target_numerics[,(config$num_encoder_steps+1):-1,],
+                                batch$target_categorical[,(config$num_encoder_steps+1):-1,]), dim=-1)
+  loss <- config$loss_fn(output[[1]], actuals)
 
   # Add the overall sparsity loss
-  loss <- loss - config$lambda_sparse * output[[2]]
+  # loss <- loss - config$lambda_sparse * output[[2]]
 
   list(
     loss = loss$item()
@@ -489,28 +496,29 @@ tft_train <- function(obj, data, config = tft_config(), epoch_shift=0L) {
 
   network$to(device = "cpu")
 
-  importance_sample_size <- config$importance_sample_size
-  if (is.null(config$importance_sample_size) && data$x$shape[1] > 1e5) {
-    rlang::warn(c(glue::glue("Computing importances for a dataset with size {data$x$shape[1]}."),
-                  "This can consume too much memory. We are going to use a sample of size 1e5",
-                  "You can disable this message by using the `importance_sample_size` argument."))
-    importance_sample_size <- 1e5
-  }
-  indexes <- torch::torch_randint(
-    1, data$x$shape[1], min(importance_sample_size, data$x$shape[1]),
-    dtype = torch::torch_long()
-  )
-  importances <- tibble::tibble(
-    variables = colnames(x),
-    importance = compute_feature_importance(network, data$x[indexes,..])
-  )
+  # TODO extract feature importance
+  # importance_sample_size <- config$importance_sample_size
+  # if (is.null(config$importance_sample_size) && data$target$numerics$shape[1] > 1e5) {
+  #   rlang::warn(c(glue::glue("Computing importances for a dataset with size {data$x$shape[1]}."),
+  #                 "This can consume too much memory. We are going to use a sample of size 1e5",
+  #                 "You can disable this message by using the `importance_sample_size` argument."))
+  #   importance_sample_size <- 1e5
+  # }
+  # indexes <- torch::torch_randint(
+  #   1, data$target$numerics$shape[1], min(importance_sample_size, data$target$numerics$shape[1]),
+  #   dtype = torch::torch_long()
+  # )
+  # importances <- tibble::tibble(
+  #   variables = colnames(x),
+  #   importance = compute_feature_importance(network, data$x[indexes,..])
+  # )
 
   list(
     network = network,
     metrics = metrics,
     config = config,
-    checkpoints = checkpoints,
-    importances = importances
+    checkpoints = checkpoints
+    # importances = importances
   )
 }
 
@@ -550,3 +558,4 @@ predict_impl_class <- function(obj, x, batch_size) {
   hardhat::spruce_class(p)
 
 }
+

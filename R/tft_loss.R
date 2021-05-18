@@ -7,7 +7,7 @@ pinball_loss <- torch::nn_module(
     },
     forward = function(predictions, actuals) {
       cond <- torch::torch_zeros_like(predictions, device=self$device)
-      loss <- torch::torch_sub(actuals, predictions)$to(self$device)
+      loss <- torch::torch_sub(actuals, predictions)
 
       less_than <- torch::torch_mul(loss,
                                     torch::torch_mul(torch::torch_gt(loss, cond)$type_as(torch::torch_float())$to(self$device),
@@ -29,9 +29,10 @@ quantile_loss <- torch::nn_module(
     stopifnot(!actuals$requires_grad)
     stopifnot(predictions$size(1) == actuals$size(1))
     losses = list()
-    for (i in self$quantiles) {
-      errors <- actuals - predictions[, i]
-      losses <- c(losses, torch::torch_max( (q-1) * errors, q * errors)$unsqueeze(2) )
+    for (i in seq_along(self$quantiles)) {
+      # TODO i:i is not robust to multi_output prediction
+      errors <- actuals - predictions[, i:i]
+      losses <- c(losses, torch::torch_maximum( (self$quantiles[[i]]-1) * errors, self$quantiles[[i]] * errors)$unsqueeze(2) )
 
     }
     loss = torch::torch_mean(torch::torch_sum(torch::torch_cat(losses, dim=2), dim=2))

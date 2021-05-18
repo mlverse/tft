@@ -1,10 +1,12 @@
+device <- "auto"
+# device="cpu"
 test_that("batch_data works with roles in vic_elec dataset", {
   library(recipes)
   library(tsibbledata)
   skip_on_os("mac")
 
   data("vic_elec")
-  vic_elec <- vic_elec[1:151,] %>%
+  vic_elec <- vic_elec[1:109,] %>%
     dplyr::mutate(Location = as.factor("Victoria"))
   rec <- recipe(Demand ~ ., data = vic_elec) %>%
     update_role(Date, new_role="id") %>%
@@ -14,7 +16,7 @@ test_that("batch_data works with roles in vic_elec dataset", {
     update_role(Location, new_role="static_input") %>%
     step_normalize(all_numeric(), -all_outcomes())
 
-  x <- batch_data(recipe=rec, df=vic_elec, total_time_steps=10, device="cpu")
+  x <- batch_data(recipe=rec, df=vic_elec, total_time_steps=10, device=device)
 
   expect_length(x, 13)
   # test tensor shape is1 0 time_steps
@@ -36,7 +38,7 @@ test_that("tft_initialize works with roles in vic_elec dataset", {
   skip_on_os("mac")
 
   data("vic_elec")
-  vic_elec <- vic_elec[1:151,] %>%
+  vic_elec <- vic_elec[1:109,] %>%
     dplyr::mutate(Location = as.factor("Victoria"))
   rec <- recipe(Demand ~ ., data = vic_elec) %>%
     update_role(Date, new_role="id") %>%
@@ -46,7 +48,7 @@ test_that("tft_initialize works with roles in vic_elec dataset", {
     update_role(Location, new_role="static_input") %>%
     step_normalize(all_numeric(), -all_outcomes())
 
-  processed <- batch_data(recipe=rec, df=vic_elec, total_time_steps=10, device="cpu")
+  processed <- batch_data(recipe=rec, df=vic_elec, total_time_steps=10, device=device)
   config <- tft_config( epochs = 30, total_time_steps=12, num_encoder_steps=10)
 
   tft_model_lst <- tft_initialize(processed, config)
@@ -73,7 +75,7 @@ test_that("tft_initialize works with pinball_loss", {
   skip_on_os("mac")
 
   data("vic_elec")
-  vic_elec <- vic_elec[1:151,] %>%
+  vic_elec <- vic_elec[1:109,] %>%
     dplyr::mutate(Location = as.factor("Victoria"))
   rec <- recipe(Demand ~ ., data = vic_elec) %>%
     update_role(Date, new_role="id") %>%
@@ -83,7 +85,7 @@ test_that("tft_initialize works with pinball_loss", {
     update_role(Location, new_role="static_input") %>%
     step_normalize(all_numeric(), -all_outcomes())
 
-  processed <- tft:::batch_data(recipe=rec, df=vic_elec, total_time_steps=10, device="cpu")
+  processed <- tft:::batch_data(recipe=rec, df=vic_elec, total_time_steps=10, device=device)
   config <- tft_config( epochs = 30, total_time_steps=12, num_encoder_steps=10, loss="pinball_loss")
 
   tft_model_lst <- tft:::tft_initialize(processed, config)
@@ -120,7 +122,7 @@ test_that("tft_train works with pure nominal inputs", {
   skip_on_os("mac")
 
   data("vic_elec")
-  vic_elec <- vic_elec[1:151,] %>%
+  vic_elec <- vic_elec[1:109,] %>%
     dplyr::mutate(Location = as.factor("Victoria"),
                   Temperature = factor(ceiling(Temperature), ordered = T))
   rec <- recipe(Demand ~ ., data = vic_elec) %>%
@@ -131,8 +133,8 @@ test_that("tft_train works with pure nominal inputs", {
     update_role(Location, new_role="static_input") %>%
     step_normalize(all_numeric(), -all_outcomes())
 
-  processed <- tft:::batch_data(recipe=rec, df=vic_elec, total_time_steps=10, device="auto")
-  config <- tft:::tft_config(batch_size=50, epochs = 3, total_time_steps=10, num_encoder_steps=7)
+  processed <- tft:::batch_data(recipe=rec, df=vic_elec, total_time_steps=10, device=device)
+  config <- tft:::tft_config(batch_size=50, epochs = 2, total_time_steps=10, num_encoder_steps=7, verbose = T)
 
   tft_model_lst <- tft:::tft_initialize(processed, config)
   tft_model <-  tft:::new_tft_fit(tft_model_lst, blueprint = processed$blueprint)
@@ -149,7 +151,7 @@ test_that("tft_train works with pure numerical inputs", {
   skip_on_os("mac")
 
   data("vic_elec")
-  vic_elec <- vic_elec[1:151,] %>%
+  vic_elec <- vic_elec[1:109,] %>%
     dplyr::mutate(Location = 1.5,
                   Holiday = lubridate::wday(Date))
   rec <- recipe(Demand ~ ., data = vic_elec) %>%
@@ -160,8 +162,8 @@ test_that("tft_train works with pure numerical inputs", {
     update_role(Location, new_role="static_input") %>%
     step_normalize(all_numeric(), -all_outcomes())
 
-  processed <- tft:::batch_data(recipe=rec, df=vic_elec, total_time_steps=10, device="auto")
-  config <- tft:::tft_config(batch_size=50, epochs = 3, total_time_steps=10, num_encoder_steps=7)
+  processed <- tft:::batch_data(recipe=rec, df=vic_elec, total_time_steps=10, device=device)
+  config <- tft:::tft_config(batch_size=50, epochs = 2, total_time_steps=10, num_encoder_steps=7, verbose = T)
 
   tft_model_lst <- tft:::tft_initialize(processed, config)
   tft_model <-  tft:::new_tft_fit(tft_model_lst, blueprint = processed$blueprint)
