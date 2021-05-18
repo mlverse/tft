@@ -195,7 +195,7 @@ tft_nn <- torch::nn_module(
     if (!is.null(self$static_idx)) {
       static_inputs <- c(
         if (stc_num>0)
-          purrr::map(seq_len(stc_num), ~self$static_input_layer(static_numerics[,,.x]$to(dtype=torch::torch_float()))),
+          purrr::map(seq_len(stc_num), ~self$static_input_layer(static_numerics[,,.x:.x]$to(dtype=torch::torch_float()))),
         if (stc_cat>0)
           purrr::map(seq_len(stc_cat), ~self$embeddings[[kwn_cat + obs_cat + .x]](static_categorical[,,.x]$to(dtype=torch::torch_long())))
       ) %>%
