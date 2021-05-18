@@ -144,10 +144,10 @@ tft_bridge <- function(processed, config = tft_config(), tft_model, from_epoch) 
 
 #' @importFrom stats predict
 #' @export
-predict.tft_fit <- function(object, new_data, type = NULL, ..., epoch = NULL) {
+predict.tft_fit <- function(object, recipe, new_data, type = NULL, ..., epoch = NULL) {
   # Enforces column order, type, column names, etc
   processed <- hardhat::forge(new_data, object$blueprint)
-  out <- predict_tft_bridge(type, object, processed$predictors, epoch)
+  out <- predict_tft_bridge(type, object, recipe, processed$predictors, epoch)
   hardhat::validate_prediction_size(out, new_data)
   out
 }
@@ -180,7 +180,7 @@ check_type <- function(model, type) {
 
 
 
-predict_tft_bridge <- function(type, object, predictors, epoch) {
+predict_tft_bridge <- function(type, object, recipe, predictors, epoch) {
 
   type <- check_type(object, type)
 
@@ -204,9 +204,9 @@ predict_tft_bridge <- function(type, object, predictors, epoch) {
 
   switch(
     type,
-    numeric = predict_impl_numeric(object, predictors),
-    prob    = predict_impl_prob(object, predictors),
-    class   = predict_impl_class(object, predictors)
+    numeric = predict_impl_numeric(object, recipe, predictors),
+    prob    = predict_impl_prob(object, recipe, predictors),
+    class   = predict_impl_class(object, recipe, predictors)
   )
 }
 

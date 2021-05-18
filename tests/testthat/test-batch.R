@@ -2,10 +2,9 @@ device <- "auto"
 # device="cpu"
 test_that("batch_data works with roles in vic_elec dataset", {
   library(recipes)
-  library(tsibbledata)
   skip_on_os("mac")
 
-  data("vic_elec")
+  data("vic_elec",package = "tsibbledata")
   vic_elec <- vic_elec[1:109,] %>%
     dplyr::mutate(Location = as.factor("Victoria"))
   rec <- recipe(Demand ~ ., data = vic_elec) %>%
@@ -34,10 +33,9 @@ test_that("batch_data works with roles in vic_elec dataset", {
 
 test_that("tft_initialize works with roles in vic_elec dataset", {
   library(recipes)
-  library(tsibbledata)
   skip_on_os("mac")
 
-  data("vic_elec")
+  data("vic_elec",package = "tsibbledata")
   vic_elec <- vic_elec[1:109,] %>%
     dplyr::mutate(Location = as.factor("Victoria"))
   rec <- recipe(Demand ~ ., data = vic_elec) %>%
@@ -71,10 +69,9 @@ test_that("tft_initialize works with roles in vic_elec dataset", {
 
 test_that("tft_initialize works with pinball_loss", {
   library(recipes)
-  library(tsibbledata)
   skip_on_os("mac")
 
-  data("vic_elec")
+  data("vic_elec",package = "tsibbledata")
   vic_elec <- vic_elec[1:109,] %>%
     dplyr::mutate(Location = as.factor("Victoria"))
   rec <- recipe(Demand ~ ., data = vic_elec) %>%
@@ -118,10 +115,9 @@ test_that("tft_nn works with a small example inspired from README with tsibbleda
 
 test_that("tft_train works with pure nominal inputs", {
   library(recipes)
-  library(tsibbledata)
   skip_on_os("mac")
 
-  data("vic_elec")
+  data("vic_elec",package = "tsibbledata")
   vic_elec <- vic_elec[1:109,] %>%
     dplyr::mutate(Location = as.factor("Victoria"),
                   Temperature = factor(ceiling(Temperature), ordered = T))
@@ -173,3 +169,24 @@ test_that("tft_train works with pure numerical inputs", {
 
 })
 
+test_that("predict works", {
+  library(recipes)
+  skip_on_os("mac")
+
+  data("vic_elec",package = "tsibbledata")
+  vic_elec <- vic_elec[1:109,] %>%
+    mutate(Location = as.factor("Victoria"))
+
+  rec <- recipe(Demand ~ ., data = vic_elec) %>%
+    update_role(Date, new_role="id") %>%
+    update_role(Time, new_role="time") %>%
+    update_role(Temperature, new_role="observed_input") %>%
+    update_role(Holiday, new_role="known_input") %>%
+    update_role(Location, new_role="static_input") %>%
+    step_normalize(all_numeric(), -all_outcomes())
+
+
+  fit <- tft_fit(rec, vic_elec, epochs = 1, batch_size=100, total_time_steps=12, num_encoder_steps=10, verbose=T )
+  expect_error(predict(fit, rec, vic_elec),
+               regexp=NA)
+})

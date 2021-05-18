@@ -517,17 +517,17 @@ tft_train <- function(obj, data, config = tft_config(), epoch_shift=0L) {
     network = network,
     metrics = metrics,
     config = config,
-    checkpoints = checkpoints
-    # importances = importances
+    checkpoints = checkpoints,
+    importances = obj$fit$importances
   )
 }
 
-predict_impl <- function(obj, df, transform, batch_size = 1e5) {
-  data <- batch_data(df, transform)
+predict_impl <- function(obj, recipe, df, transform, batch_size = 1e5) {
+  data <- batch_data(recipe, df, total_time_steps=obj$config$total_time_steps, device=obj$config$device)
 
   network <- obj$fit$network
   network$eval()
-
+  # TODO need rework
   splits <- torch::torch_split(data$x, split_size = 10000)
   splits <- lapply(splits, function(x) network(x)[[1]])
   torch::torch_cat(splits)
