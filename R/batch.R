@@ -522,19 +522,26 @@ tft_train <- function(obj, data, config = tft_config(), epoch_shift=0L) {
   )
 }
 
-predict_impl <- function(obj, recipe, df, transform, batch_size = 1e5) {
-  data <- batch_data(recipe, df, total_time_steps=obj$config$total_time_steps, device=obj$config$device)
+predict_impl <- function(obj, recipe, processed, batch_size = 1e5) {
 
   network <- obj$fit$network
   network$eval()
-  # TODO need rework
-  splits <- torch::torch_split(data$x, split_size = 10000)
-  splits <- lapply(splits, function(x) network(x)[[1]])
-  torch::torch_cat(splits)
+  if (processed[[1]][[1]]$shape[1]>batch_size) {
+
+    # TODO need rework : requires the 2 level hyerarchy and names
+    splits <- processed %>% map(1:4, ~torch::torch_split(processed, split_size = batch_size))
+  } else {
+    splits <-list(processed[1:4])
+  }
+  outputs <- lapply(splits, function(data) network(known_numerics = data$known$numerics, known_categorical = data$known$categorical,
+                                                  observed_numerics = data$observed$numerics, observed_categorical = data$observed$categorical,
+                                                  static_numerics = data$static$numerics, static_categorical = data$static$categorical,
+                                                  target_numerics = data$target$numerics, target_categorical = data$target$categorical)[[1]])
+  torch::torch_cat(outputs)
 }
 
-predict_impl_numeric <- function(obj, x, batch_size) {
-  p <- as.numeric(predict_impl(obj, x, batch_size))
+predict_impl_numeric <- function(obj, recipe, processed) {
+  p <- as.numeric(predict_impl(obj, recipe, processed))
   hardhat::spruce_numeric(p)
 }
 
@@ -542,15 +549,15 @@ get_blueprint_levels <- function(obj) {
   levels(obj$blueprint$ptypes$outcomes[[1]])
 }
 
-predict_impl_prob <- function(obj, x, batch_size) {
-  p <- predict_impl(obj, x, batch_size)
+predict_impl_prob <- function(obj, recipe, processed) {
+  p <- predict_impl(obj, recipe, processed)
   p <- torch::nnf_softmax(p, dim = 2)
   p <- as.matrix(p)
   hardhat::spruce_prob(get_blueprint_levels(obj), p)
 }
 
-predict_impl_class <- function(obj, x, batch_size) {
-  p <- predict_impl(obj, x, batch_size)
+predict_impl_class <- function(obj, recipe, processed) {
+  p <- predict_impl(obj, recipe, processed)
   p <- torch::torch_max(p, dim = 2)
   p <- as.integer(p[[2]])
   p <- get_blueprint_levels(obj)[p]
