@@ -12,6 +12,9 @@ experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](h
 [![CRAN
 status](https://www.r-pkg.org/badges/version/tft)](https://CRAN.R-project.org/package=tft)
 [![](https://cranlogs.r-pkg.org/badges/tft)](https://cran.r-project.org/package=tft)
+[![Codecov test
+coverage](https://codecov.io/gh/mlverse/tft/branch/master/graph/badge.svg)](https://codecov.io/gh/mlverse/tft?branch=master)
+
 <!-- badges: end -->
 
 An R implementation of: [tft: Temporal Fusion
