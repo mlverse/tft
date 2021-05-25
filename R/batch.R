@@ -3,8 +3,8 @@
 #' @param df a data frame
 #' @param recipe a recipe affecting tft roles to df
 #' @param total_time_steps time_step value (default 48)
-#' @param device the device to use for training. ["cpu"] or ["cuda"]. The default (["auto"])
-#'   uses ["cuda"] if it's available, otherwise uses ["cpu"].
+#' @param device the device to use for training. `cpu` or `cuda`. The default (`auto`)
+#'   uses `cuda` if it's available, otherwise uses `cpu`.
 batch_data <- function(recipe, df, total_time_steps = 12, device) {
   if (device == "auto") {
     if (torch::cuda_is_available())
@@ -127,7 +127,7 @@ df_to_tensor <- function(df, device) {
 #' @param num_heads (int) number of interpretable multi-attention head (default=1)
 #' @param loss (character or function) Loss function for training within
 #'   ["quantile_loss", "pinball_loss", "rmsse_loss", "smape_loss"]
-#'   (default to ["quantile_loss"])
+#'   (default to `quantile_loss`)
 #' @param quantiles (list) list of quantiles forcasts to be used in quantile loss. (default = [list(0.5)]).
 #' @param training_tau (float) training_tau value to be used in pinball loss. (default = 0.3).
 #' @param batch_size (int) Number of examples per batch, large batch sizes are
@@ -145,7 +145,7 @@ df_to_tensor <- function(df, device) {
 #' @param valid_split (float) The fraction of the dataset used for validation.
 #' @param verbose (bool) wether to print progress and loss values during
 #'   training.
-#' @param lr_scheduler if `NULL`, (default) no learning rate decay is used. if ["step"]
+#' @param lr_scheduler if `NULL`, (default) no learning rate decay is used. if `step`
 #'   decays the learning rate by `lr_decay` every `step_size` epochs. It can
 #'   also be a [torch::lr_scheduler] function that only takes the optimizer
 #'   as parameter. The `step` method is called once per epoch.
@@ -160,8 +160,8 @@ df_to_tensor <- function(df, device) {
 #' @param checkpoint_epochs checkpoint model weights and architecture every
 #'   `checkpoint_epochs`. (default is 10). This may cause large memory usage.
 #'   Use `0` to disable checkpoints.
-#' @param device the device to use for training. ["cpu"] or ["cuda"]. The default (["auto"])
-#'   uses ["cuda"] if it's available, otherwise uses ["cpu"].
+#' @param device the device to use for training. `cpu` or `cuda`. The default (`auto`)
+#'   uses `cuda`` if it's available, otherwise uses `cpu`.
 #'
 #' @return A named list with all hyperparameters of the TabNet implementation.
 #'
@@ -529,7 +529,7 @@ predict_impl <- function(obj, recipe, processed, batch_size = 1e5) {
   if (processed[[1]][[1]]$shape[1]>batch_size) {
 
     # TODO need rework : requires the 2 level hyerarchy and names
-    splits <- processed %>% map(1:4, ~torch::torch_split(processed, split_size = batch_size))
+    splits <- processed %>% purrr::map(1:4, ~torch::torch_split(processed, split_size = batch_size))
   } else {
     splits <-list(processed[1:4])
   }

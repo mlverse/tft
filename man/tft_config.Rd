@@ -40,7 +40,7 @@ clip_value. Pass \code{NULL} (default) to not clip.}
 
 \item{loss}{(character or function) Loss function for training within
 \link{"quantile_loss", "pinball_loss", "rmsse_loss", "smape_loss"}
-(default to \link{"quantile_loss"})}
+(default to \code{quantile_loss})}
 
 \item{epochs}{(int) Number of training epochs.}
 
@@ -67,7 +67,7 @@ Batch Normalization (default=256)}
 \item{optimizer}{the optimization method. currently only 'adam' is supported,
 you can also pass any torch optimizer function.}
 
-\item{lr_scheduler}{if \code{NULL}, (default) no learning rate decay is used. if \link{"step"}
+\item{lr_scheduler}{if \code{NULL}, (default) no learning rate decay is used. if \code{step}
 decays the learning rate by \code{lr_decay} every \code{step_size} epochs. It can
 also be a \link[torch:lr_scheduler]{torch::lr_scheduler} function that only takes the optimizer
 as parameter. The \code{step} method is called once per epoch.}
@@ -99,8 +99,8 @@ basic TFT.}
 \item{verbose}{(bool) wether to print progress and loss values during
 training.}
 
-\item{device}{the device to use for training. \link{"cpu"} or \link{"cuda"}. The default (\link{"auto"})
-uses \link{"cuda"} if it's available, otherwise uses \link{"cpu"}.}
+\item{device}{the device to use for training. \code{cpu} or \code{cuda}. The default (\code{auto})
+uses \verb{cuda`` if it's available, otherwise uses }cpu`.}
 }
 \value{
 A named list with all hyperparameters of the TabNet implementation.

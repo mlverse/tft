@@ -48,7 +48,7 @@
 #'   update_role(Time, new_role="time") %>%
 #'   update_role(Temperature, new_role="observed_input") %>%
 #'   update_role(Holiday, new_role="known_input")
-#' fit <- tft_fit(rec, data = vic_elec, epochs = 1)
+#' fit <- tft_fit(rec, df = vic_elec, epochs = 1, total_time_steps=10, num_encoder_steps=7)
 #' }
 #'
 #' @return A TFT model object. It can be used for serialization, predictions, or further fitting.
