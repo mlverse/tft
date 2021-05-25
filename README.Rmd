@@ -20,6 +20,8 @@ knitr::opts_chunk$set(
 [![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://www.tidyverse.org/lifecycle/#experimental)
 [![CRAN status](https://www.r-pkg.org/badges/version/tft)](https://CRAN.R-project.org/package=tft)
 [![](https://cranlogs.r-pkg.org/badges/tft)](https://cran.r-project.org/package=tft)
+[![Codecov test coverage](https://codecov.io/gh/mlverse/tft/branch/master/graph/badge.svg)](https://codecov.io/gh/mlverse/tft?branch=master)
+
 <!-- badges: end -->
 
 
@@ -49,29 +51,23 @@ library(yardstick)
 set.seed(1)
 
 data("vic_elec", package = "tsibbledata")
-vic_elec <- vic_elec %>% 
-  mutate(Location = as.factor("Victoria")) %>% 
-  rename(id = Date)
+vic_elec <- vic_elec[1:256,] %>% 
+  mutate(Location = as.factor("Victoria")) 
 vic_elec_split <- initial_time_split(vic_elec, prop=3/4, lag=96)
   
 vic_elec_train <- training(vic_elec_split)
 vic_elec_test <- testing(vic_elec_split)
 
 rec <- recipe(Demand ~ ., data = vic_elec_train) %>%
-  update_role(id, new_role="id") %>% 
-  update_role(Time, new_role="time") %>% 
-  update_role(Temperature, new_role="observed_input") %>% 
-  update_role(Holiday, new_role="known_input") %>% 
-  update_role(Location, new_role="static_input") %>% 
+  update_role(Date, new_role="id") %>%
+  update_role(Time, new_role="time") %>%
+  update_role(Temperature, new_role="observed_input") %>%
+  update_role(Holiday, new_role="known_input") %>%
+  update_role(Location, new_role="static_input") %>%
   step_normalize(all_numeric(), -all_outcomes())
 
 
-fit <- tft_fit(rec, vic_elec_train, epochs = 30, total_time_steps=12, num_encoder_steps=10 )
+fit <- tft_fit(rec, vic_elec_train, epochs = 15, batch_size=100, total_time_steps=12, num_encoder_steps=10, verbose=T )
 
-metrics <- metric_set(accuracy, precision, recall)
-cbind(vic_elec_test, predict(fit, vic_elec_test)) %>% 
-  metrics(Demand, estimate = .pred_class)
-  
-cbind(vic_elec_test, predict(fit, vic_elec_test, type = "prob")) %>% 
-  roc_auc(Demand, .pred_No)
+yhat <- predict(fit, rec, vic_elec_test)
 ```

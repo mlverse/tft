@@ -39,8 +39,8 @@ batch_data <- function(recipe, df, total_time_steps = 12, device) {
 
   # the as.numeric(as.factor) trick is required to prevent logicals to become tensors in [0,1] unexpected by nn_embedding
   output <- df %>%
-    dplyr::mutate(dplyr::across(all_nominal, ~as.numeric(as.factor(.x)))) %>%
-    dplyr::group_by(rlang::eval_tidy(id)) %>%
+    dplyr::mutate(dplyr::across(dplyr::all_of(all_nominal), ~as.numeric(as.factor(.x)))) %>%
+    dplyr::group_by(rlang::eval_tidy(static)) %>%
     slider::slide(~.x, .before=total_time_steps-1, .complete = TRUE) %>%
     purrr::compact() %>%
     purrr::map(ungroup)
@@ -147,7 +147,7 @@ df_to_tensor <- function(df, device) {
 #'   training.
 #' @param lr_scheduler if `NULL`, (default) no learning rate decay is used. if `step`
 #'   decays the learning rate by `lr_decay` every `step_size` epochs. It can
-#'   also be a [torch::lr_scheduler] function that only takes the optimizer
+#'   also be a `torch::lr_scheduler` function that only takes the optimizer
 #'   as parameter. The `step` method is called once per epoch.
 #' @param lr_decay multiplies the initial learning rate by `lr_decay` every
 #'   `step_size` epochs. Unused if `lr_scheduler` is a `torch::lr_scheduler`
