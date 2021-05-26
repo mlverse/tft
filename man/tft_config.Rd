@@ -69,7 +69,7 @@ you can also pass any torch optimizer function.}
 
 \item{lr_scheduler}{if \code{NULL}, (default) no learning rate decay is used. if \code{step}
 decays the learning rate by \code{lr_decay} every \code{step_size} epochs. It can
-also be a \link[torch:lr_scheduler]{torch::lr_scheduler} function that only takes the optimizer
+also be a \code{torch::lr_scheduler} function that only takes the optimizer
 as parameter. The \code{step} method is called once per epoch.}
 
 \item{lr_decay}{multiplies the initial learning rate by \code{lr_decay} every
