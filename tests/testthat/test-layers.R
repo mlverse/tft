@@ -25,10 +25,10 @@ test_that("time distributed layer works", {
 
   o <- td(x)
   expect_true(
-    torch::torch_equal(o[1,..], o[2,..])
+    torch::torch_allclose(o[1,..], o[2,..])
   )
   expect_true(
-    torch::torch_equal(o[1,..], o[5,..])
+    torch::torch_allclose(o[1,..], o[5,..])
   )
 
 })
