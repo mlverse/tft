@@ -39,7 +39,7 @@ recommended. (default: 1024)}
 clip_value. Pass \code{NULL} (default) to not clip.}
 
 \item{loss}{(character or function) Loss function for training within
-\link{"quantile_loss", "pinball_loss", "rmsse_loss", "smape_loss"}
+\code{"quantile_loss"}, \code{"pinball_loss"}, \code{"rmsse_loss"}, \code{"smape_loss"}
 (default to \code{quantile_loss})}
 
 \item{epochs}{(int) Number of training epochs.}
@@ -53,7 +53,7 @@ This is the width of Temporal fusion decoder N.}
 \item{num_encoder_steps}{(int) Size of the look-back time window in steps. This is the size
 of LSTM encoder.}
 
-\item{quantiles}{(list) list of quantiles forcasts to be used in quantile loss. (default = \link{list(0.5)}).}
+\item{quantiles}{(list) list of quantiles forcasts to be used in quantile loss. (default = \code{list(0.5)}).}
 
 \item{training_tau}{(float) training_tau value to be used in pinball loss. (default = 0.3).}
 

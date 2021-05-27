@@ -126,9 +126,9 @@ df_to_tensor <- function(df, device) {
 #'   basic TFT.
 #' @param num_heads (int) number of interpretable multi-attention head (default=1)
 #' @param loss (character or function) Loss function for training within
-#'   ["quantile_loss", "pinball_loss", "rmsse_loss", "smape_loss"]
+#'   `"quantile_loss"`, `"pinball_loss"`, `"rmsse_loss"`, `"smape_loss"`
 #'   (default to `quantile_loss`)
-#' @param quantiles (list) list of quantiles forcasts to be used in quantile loss. (default = [list(0.5)]).
+#' @param quantiles (list) list of quantiles forcasts to be used in quantile loss. (default = `list(0.5)`).
 #' @param training_tau (float) training_tau value to be used in pinball loss. (default = 0.3).
 #' @param batch_size (int) Number of examples per batch, large batch sizes are
 #'   recommended. (default: 1024)

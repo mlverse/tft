@@ -62,7 +62,7 @@ torch::torch_set_num_interop_threads(1)
 }
 
 \examples{
-if (torch::torch_is_installed()) {
+if (torch::torch_is_installed() && FALSE) {
 data("vic_elec", package = "tsibbledata")
 library(recipes)
 rec <- recipe(Demand ~ ., data = vic_elec) \%>\%

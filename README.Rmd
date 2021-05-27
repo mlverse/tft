@@ -67,7 +67,7 @@ rec <- recipe(Demand ~ ., data = vic_elec_train) %>%
   step_normalize(all_numeric(), -all_outcomes())
 
 
-fit <- tft_fit(rec, vic_elec_train, epochs = 15, batch_size=100, total_time_steps=12, num_encoder_steps=10, verbose=T )
+fit <- tft_fit(rec, vic_elec_train, epochs = 100, batch_size=100, total_time_steps=12, num_encoder_steps=10, verbose=TRUE)
 
 yhat <- predict(fit, rec, vic_elec_test)
 ```
