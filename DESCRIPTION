@@ -11,7 +11,7 @@ Authors@R: c(
            family = "Regouby",
            email = "christophe.regouby@free.fr", role = c("aut"))
            )
-Description: Implements of Temporal Fusion Transformer by Bryan Lim et al (2019) <arXiv:1912.09363> 
+Description: Implements the Temporal Fusion Transformer by Bryan Lim et al (2019) <arXiv:1912.09363> 
     a novel attention-based deep-learning model for interpretable high-performance multi-horizon forecasting.
     It's also fully compatible with the 'tidymodels' ecosystem.
 License: MIT + file LICENSE
