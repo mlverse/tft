@@ -1,14 +1,19 @@
 Package: tft
-Title: What the Package Does (One Line, Title Case)
+Title: Implementation of Temporal Fusion Transformer
 Version: 0.0.0.9000
 Authors@R: c(
     person(given = "Daniel",
            family = "Falbel",
            role = c("aut", "cre"),
            email = "daniel@rstudio.com"),
-    person(family = "RStudio", role = c("cph"))
+    person(family = "RStudio", role = c("cph")),
+    person(given = "Christophe", 
+           family = "Regouby",
+           email = "christophe.regouby@free.fr", role = c("aut"))
            )
-Description: What the package does (one paragraph).
+Description: Implements the Temporal Fusion Transformer by Bryan Lim et al (2019) <arXiv:1912.09363> 
+    a novel attention-based deep-learning model for interpretable high-performance multi-horizon forecasting.
+    It's also fully compatible with the 'tidymodels' ecosystem.
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
@@ -21,7 +26,13 @@ Imports:
     cli,
     purrr,
     rlang,
-    tibble
+    tibble,
+    slider,
+    hardhat,
+    coro,
+    glue,
+    progress,
+    methods
 Suggests:
     dplyr,
     padr,
@@ -29,16 +40,19 @@ Suggests:
     lubridate,
     fs,
     readr,
+    tsibble,
+    tsibbledata,
     testthat (>= 3.0.0)
 Remotes:
-    mlverse/torch,
-    tidymodels/recipes#632
+    mlverse/torch
 Collate: 
     'batch.R'
     'utils.R'
     'dataset-electricity.R'
-    'embedding.R'
+    'hardhat.R'
     'layers.R'
     'roles.R'
+    'tft_loss.R'
+    'tft_network.R'
     'utils-pipe.R'
 Config/testthat/edition: 3

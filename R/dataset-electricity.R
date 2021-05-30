@@ -132,35 +132,20 @@ electricity_download <- function(root) {
   } else {
     success("Skipping download. Zip file already exists.")
   }
-
-  txt_path <- fs::path(root, "LD2011_2014.txt")
-  if (!fs::file_exists(txt_path)) {
-    success("Unzipping...\n")
-    utils::unzip(zip_path, exdir = root)
-
-    if (tools::md5sum(txt_path) != "e317add771cebd2df4121e50570eaa25") {
-      rlang::abort(paste(
-        "Something wrong happened while unzipping. Unexpected md5 hash.",
-        "Expected: 'e317add771cebd2df4121e50570eaa25' and ",
-        "got: '", tools::md5sum(txt_path), "'."))
-    }
-  } else {
-    success("Skipping unziping. Text file already exists.")
-  }
-
-  txt_path
+  # skipping unzip, readr can deal with zip files
+  zip_path
 }
 
 electricity_split <- function(data, valid_boundary = 1315, test_boundary = 1339) {
-  # TODO: understand and explain the -7 stuff.
+  # TODO: understand and explain the -7 stuff.-> turninto +7
   list(
     train = dplyr::filter(data, days_from_start < valid_boundary),
     valid = dplyr::filter(
       data,
-      days_from_start >= (valid_boundary - 7),
+      days_from_start >= (valid_boundary + 7),
       days_from_start < test_boundary
     ),
-    test  = dplyr::filter(data, days_from_start >= (test_boundary - 7))
+    test  = dplyr::filter(data, days_from_start >= (test_boundary + 7))
   )
 }
 
@@ -169,8 +154,8 @@ electricity_recipe <- function(data) {
   base_recipe <- recipes::recipe(pwr_usage ~ ., data) %>%
     role_id(id) %>%
     role_time(hours_from_start) %>%
-    role_known(hour, day_of_week, hours_from_start) %>%
-    role_static(id)
+    role_known(hour, day_of_week, hours_from_start) #%>%
+    # role_static(id)
 
   num_recipe <- base_recipe %>%
     recipes::step_normalize(
