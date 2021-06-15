@@ -39,8 +39,8 @@ jobs:
       - name: Install system dependencies
         if: runner.os == 'Linux'
         run: |
-          pak::local_system_requirements(execute = TRUE)
-          pak::pkg_system_requirements("covr", execute = TRUE)
+          pak::local_system_requirements(execute = TRUE, "ubuntu", "20.04")
+          pak::pkg_system_requirements("covr", execute = TRUE, "ubuntu", "20.04")
         shell: Rscript {0}
 
       - name: Install dependencies
