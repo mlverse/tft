@@ -1,6 +1,10 @@
+.travis.yml
 ^tft\.Rproj$
 ^\.Rproj\.user$
 ^\.github$
 ^LICENSE\.md$
 ^README\.Rmd$
 ^codecov\.yml$
+
+# ignore pictures for readme.md
+^.*\.png$
