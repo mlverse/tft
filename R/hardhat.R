@@ -88,8 +88,8 @@ tft_fit.recipe <- function(x, df, tft_model = NULL, ..., from_epoch = NULL) {
   assertthat::validate_that(length(all_numeric)>=1,
                             msg="No numerical variable can be found in the recipe, , you should maybe review it.")
   observed <- recipes::terms_select(var_type_role, terms=rlang::quos(recipes::has_role("observed_input")), empty_fun = function(x) {NULL})
-  assertthat::validate_that(length(observed)>=1,
-                            msg="No variable can be found with the `observed_input` role in the recipe, , you should maybe review it.")
+  assertthat::assert_that(length(observed)>=1,
+                            msg="At least one variable with role `observed_input` shall be present in the recipe")
 
   processed <- batch_data(recipe=x, df=df,
                           total_time_steps = config[["total_time_steps"]],
