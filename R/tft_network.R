@@ -4,7 +4,7 @@ tft_nn <- torch::nn_module(
                          known_idx, observed_idx, static_idx, target_idx,
                          total_time_steps = 252 + 5, num_encoder_steps = 252,
                          minibatch_size = 256, quantiles = list(0.5),
-                         hidden_layer_size = 160, dropout_rate, stack_size = 1, num_heads) {
+                         hidden_layer_size = 160, dropout_rate, stack_size = 1, num_heads, device) {
     self$cat_idxs <- cat_idxs  #  _known_categorical_input_idx
     self$cat_dims <- cat_dims # category_counts, list of nlevels along categories
     self$static_idx <- static_idx  # _static_input_loc # the grouping variable like shop_id
@@ -24,6 +24,7 @@ tft_nn <- torch::nn_module(
     self$dropout_rate <- dropout_rate
     self$num_stacks <- stack_size
     self$num_heads <- num_heads
+    self$device <- device
     self$batch_first <- TRUE
     self$num_static <- length(self$static_idx)
     self$num_inputs <- length(known_idx) +length(static_idx) + self$output_dim

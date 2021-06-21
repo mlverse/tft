@@ -341,7 +341,8 @@ tft_initialize <- function(data, config = tft_config()) {
     hidden_layer_size = config$hidden_layer_size,
     dropout_rate = config$dropout_rate,
     stack_size = config$stack_size,
-    num_heads = config$num_heads
+    num_heads = config$num_heads,
+    device = device
   )
 
   # main loop
