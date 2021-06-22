@@ -527,9 +527,12 @@ predict_impl <- function(obj, recipe, processed, batch_size = 1e5) {
 
   network <- obj$fit$network
   network$eval()
+  if (obj$fit$config$device=="cuda") {
+    network$to(device=obj$fit$config$device)
+  }
   if (processed[[1]][[1]]$shape[1]>batch_size) {
 
-    # TODO need rework : requires the 2 level hyerarchy and names
+    # TODO need rework : requires the 2 level hierarchy (batches and time_steps) and names, here lazily simplified to 4 batches
     splits <- processed %>% purrr::map(1:4, ~torch::torch_split(processed, split_size = batch_size))
   } else {
     splits <-list(processed[1:4])
@@ -542,8 +545,10 @@ predict_impl <- function(obj, recipe, processed, batch_size = 1e5) {
 }
 
 predict_impl_numeric <- function(obj, recipe, processed) {
-  p <- as.numeric(predict_impl(obj, recipe, processed))
-  hardhat::spruce_numeric(p)
+  p <- as.matrix(predict_impl(obj, recipe, processed))
+  # spruce_numeric is not adapted to multi-horizon forecast
+  #hardhat::spruce_numeric(p)
+  tibble(.pred=p)
 }
 
 get_blueprint_levels <- function(obj) {

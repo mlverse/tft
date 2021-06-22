@@ -46,10 +46,12 @@ tft_nn <- torch::nn_module(
 
     ### Static inputs
     self$static_input_layer <- linear_layer(input_size=1, size=self$hidden_layer_size,
-                                            use_time_distributed=TRUE, batch_first=self$batch_first)
+                                            use_time_distributed=TRUE,
+                                            batch_first=self$batch_first)$to(device=self$device)
     ### Time_varying inputs
     self$time_varying_embedding_layer <- linear_layer(input_size=1, size=self$hidden_layer_size,
-                                                      use_time_distributed=TRUE, batch_first=self$batch_first)
+                                                      use_time_distributed=TRUE,
+                                                      batch_first=self$batch_first)$to(device=self$device)
     self$static_combine_and_mask <- static_combine_and_mask(
       input_size=self$input_dim,
       num_static=self$num_static,
