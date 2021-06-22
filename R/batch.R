@@ -545,7 +545,7 @@ predict_impl <- function(obj, recipe, processed, batch_size = 1e5) {
 }
 
 predict_impl_numeric <- function(obj, recipe, processed) {
-  p <- as.matrix(predict_impl(obj, recipe, processed))
+  p <- predict_impl(obj, recipe, processed)$to(device="cpu") %>% as.array
   # spruce_numeric is not adapted to multi-horizon forecast
   #hardhat::spruce_numeric(p)
   tibble(.pred=p)
