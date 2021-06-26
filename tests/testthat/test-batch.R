@@ -168,7 +168,7 @@ test_that("tft_train works with pure numerical inputs", {
 
 })
 
-test_that("predict works", {
+test_that("predict works with numerical outcomes", {
   library(recipes)
   skip_on_os("mac")
 

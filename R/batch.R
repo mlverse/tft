@@ -478,10 +478,10 @@ tft_train <- function(obj, data, config = tft_config(), epoch_shift=0L) {
 
     network$eval()
     if (has_valid) {
-      for (batch in torch::enumerate(valid_dl)) {
+      coro::loop(for (batch in valid_dl) {
         m <- valid_batch(network, batch_to_device(batch, device), config)
         valid_metrics <- c(valid_metrics, m)
-      }
+      })
       metrics[[epoch]][["valid"]] <- transpose_metrics(valid_metrics)
     }
 
@@ -530,26 +530,40 @@ predict_impl <- function(obj, recipe, processed, batch_size = 1e5) {
   if (obj$fit$config$device=="cuda") {
     network$to(device=obj$fit$config$device)
   }
-  if (processed[[1]][[1]]$shape[1]>batch_size) {
+  dl <- torch::dataloader(
+    torch::tensor_dataset(known_numerics = processed$known$numerics, known_categorical = processed$known$categorical,
+                          observed_numerics = processed$observed$numerics, observed_categorical = processed$observed$categorical,
+                          static_numerics = processed$static$numerics, static_categorical = processed$static$categorical,
+                          target_numerics = processed$target$numerics, target_categorical = processed$target$categorical),
+    batch_size = obj$fit$config$batch_size,
+    drop_last = obj$fit$config$drop_last)
 
-    # TODO need rework : requires the 2 level hierarchy (batches and time_steps) and names, here lazily simplified to 4 batches
-    splits <- processed %>% purrr::map(1:4, ~torch::torch_split(processed, split_size = batch_size))
-  } else {
-    splits <-list(processed[1:4])
-  }
-  outputs <- lapply(splits, function(data) network(known_numerics = data$known$numerics, known_categorical = data$known$categorical,
-                                                  observed_numerics = data$observed$numerics, observed_categorical = data$observed$categorical,
-                                                  static_numerics = data$static$numerics, static_categorical = data$static$categorical,
-                                                  target_numerics = data$target$numerics, target_categorical = data$target$categorical)[[1]])
-  torch::torch_cat(outputs)
+  batch_outputs <- c()
+  coro::loop(for (batch in dl){
+    batch_output <- network(batch$known$numerics, batch$known$categorical,
+                       batch$observed$numerics, batch$observed$categorical,
+                       batch$static$numerics, batch$static$categorical,
+                       batch$target$numerics, batch$target$categorical)
+    batch_outputs <- c(batch_outputs,batch_output[[1]])
+  })
+  torch::torch_cat(output)
 }
 
-predict_impl_numeric <- function(obj, recipe, processed) {
-  p <- predict_impl(obj, recipe, processed)$to(device="cpu") %>% as.array
+predict_impl_numeric <- function(obj, recipe, processed, batch_size) {
+  p_device <- predict_impl(obj, recipe, processed, batch_size)
+  p <- p_device$to(device="cpu") %>% as.array
   # spruce_numeric is not adapted to multi-horizon forecast
   #hardhat::spruce_numeric(p)
   tibble(.pred=p)
 }
+
+# TODO need class resolution
+predict_impl_class <- predict_impl_numeric
+
+# TODO need class resolution and probability extraction
+predict_impl_prob <- predict_impl_class
+
+
 
 get_blueprint_levels <- function(obj) {
   levels(obj$blueprint$ptypes$outcomes[[1]])
