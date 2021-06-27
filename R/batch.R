@@ -523,12 +523,13 @@ tft_train <- function(obj, data, config = tft_config(), epoch_shift=0L) {
   )
 }
 
-predict_impl <- function(obj, recipe, processed, batch_size = 1e5) {
+predict_impl <- function(obj, recipe, processed) {
 
   network <- obj$fit$network
   network$eval()
-  if (obj$fit$config$device=="cuda") {
-    network$to(device=obj$fit$config$device)
+  if (obj$fit$config$device %in% c("auto", "cuda")) {
+    if (torch::cuda_is_available())
+      network$to(device="cuda")
   }
   dl <- torch::dataloader(
     torch::tensor_dataset(known_numerics = processed$known$numerics, known_categorical = processed$known$categorical,
@@ -540,30 +541,22 @@ predict_impl <- function(obj, recipe, processed, batch_size = 1e5) {
 
   batch_outputs <- c()
   coro::loop(for (batch in dl){
-    batch_output <- network(batch$known$numerics, batch$known$categorical,
-                       batch$observed$numerics, batch$observed$categorical,
-                       batch$static$numerics, batch$static$categorical,
-                       batch$target$numerics, batch$target$categorical)
+    batch_output <- network(batch$known_numerics, batch$known_categorical,
+                       batch$observed_numerics, batch$observed_categorical,
+                       batch$static_numerics, batch$static_categorical,
+                       batch$target_numerics, batch$target_categorical)
     batch_outputs <- c(batch_outputs,batch_output[[1]])
   })
-  torch::torch_cat(output)
+  torch::torch_cat(batch_outputs)
 }
 
-predict_impl_numeric <- function(obj, recipe, processed, batch_size) {
-  p_device <- predict_impl(obj, recipe, processed, batch_size)
-  p <- p_device$to(device="cpu") %>% as.array
-  # spruce_numeric is not adapted to multi-horizon forecast
+predict_impl_numeric <- function(obj, recipe, processed) {
+  p <- predict_impl(obj, recipe, processed)
+  p <- p$to(device="cpu") %>% as.array
+  # spruce_numeric is not compliant with multi-horizon forecast
   #hardhat::spruce_numeric(p)
   tibble(.pred=p)
 }
-
-# TODO need class resolution
-predict_impl_class <- predict_impl_numeric
-
-# TODO need class resolution and probability extraction
-predict_impl_prob <- predict_impl_class
-
-
 
 get_blueprint_levels <- function(obj) {
   levels(obj$blueprint$ptypes$outcomes[[1]])
@@ -572,16 +565,18 @@ get_blueprint_levels <- function(obj) {
 predict_impl_prob <- function(obj, recipe, processed) {
   p <- predict_impl(obj, recipe, processed)
   p <- torch::nnf_softmax(p, dim = 2)
-  p <- as.matrix(p)
+  p <- p$to(device="cpu") %>% as.array
+  # TODO spurce_prob is not compliant with multi-horizon forecast
   hardhat::spruce_prob(get_blueprint_levels(obj), p)
 }
 
 predict_impl_class <- function(obj, recipe, processed) {
   p <- predict_impl(obj, recipe, processed)
   p <- torch::torch_max(p, dim = 2)
-  p <- as.integer(p[[2]])
+  p <- as.integer(p[[2]]$to(device="cpu"))
   p <- get_blueprint_levels(obj)[p]
   p <- factor(p, levels = get_blueprint_levels(obj))
+  # TODO spruce_class is not compliant with multi-horizon forecast
   hardhat::spruce_class(p)
 
 }

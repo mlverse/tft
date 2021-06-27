@@ -196,7 +196,6 @@ predict_tft_bridge <- function(type, object, recipe, processed, epoch) {
 
     # find closest checkpoint for that epoch
     ind <- epoch %/% object$fit$config$checkpoint_epoch
-    batch_size <- object$fit$config$batch_size
 
     object$fit$network <- reload_model(object$fit$checkpoints[[ind]])
   }
@@ -210,9 +209,9 @@ predict_tft_bridge <- function(type, object, recipe, processed, epoch) {
 
   switch(
     type,
-    numeric = predict_impl_numeric(object, recipe, processed, batch_size),
-    prob    = predict_impl_prob(object, recipe, processed, batch_size),
-    class   = predict_impl_class(object, recipe, processed, batch_size)
+    numeric = predict_impl_numeric(object, recipe, processed),
+    prob    = predict_impl_prob(object, recipe, processed),
+    class   = predict_impl_class(object, recipe, processed)
   )
 }
 
