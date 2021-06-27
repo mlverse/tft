@@ -1,7 +1,7 @@
 device <- "auto"
 # device="cpu"
 test_that("batch_data works with roles in vic_elec dataset", {
-  library(recipes)
+  suppressMessages(library(recipes))
   skip_on_os("mac")
 
   data("vic_elec",package = "tsibbledata")
@@ -96,7 +96,7 @@ test_that("tft_nn works with a small example inspired from README with tsibbleda
   nn <- tft:::tft_nn(input_dim = 5, output_dim = 1, cat_idx = c(5,6), cat_dims = list(2,1),
                      observed_idx = 3, static_idx = 6, target_idx = 2,
                      known_idx = 5, dropout_rate = 0, num_heads = 3,
-                     total_time_steps = 10, num_encoder_steps = 8)
+                     total_time_steps = 10, num_encoder_steps = 8, device="cpu")
 
   expect_error(nn(
                  known_numerics = torch::torch_randn(100, 10, 0),
@@ -142,11 +142,10 @@ test_that("tft_train works with pure nominal inputs", {
 
 
 test_that("tft_train works with pure numerical inputs", {
-  library(recipes)
-  library(tsibbledata)
+  suppressMessages(library(recipes))
   skip_on_os("mac")
 
-  data("vic_elec")
+  data("vic_elec",package = "tsibbledata")
   vic_elec <- vic_elec[1:109,] %>%
     dplyr::mutate(Location = 1.5,
                   Holiday = lubridate::wday(Date))
@@ -159,7 +158,7 @@ test_that("tft_train works with pure numerical inputs", {
     step_normalize(all_numeric(), -all_outcomes())
 
   processed <- tft:::batch_data(recipe=rec, df=vic_elec, total_time_steps=10, device=device)
-  config <- tft:::tft_config(batch_size=50, epochs = 2, total_time_steps=10, num_encoder_steps=7, verbose = T)
+  config <- tft:::tft_config(batch_size=50, epochs = 2, total_time_steps=10, num_encoder_steps=7)
 
   tft_model_lst <- tft:::tft_initialize(processed, config)
   tft_model <-  tft:::new_tft_fit(tft_model_lst, blueprint = processed$blueprint)
@@ -169,12 +168,12 @@ test_that("tft_train works with pure numerical inputs", {
 
 })
 
-test_that("predict works", {
+test_that("predict works with numerical multi-horizon outcomes", {
   library(recipes)
   skip_on_os("mac")
 
   data("vic_elec",package = "tsibbledata")
-  vic_elec <- vic_elec[1:109,] %>%
+  vic_elec <- vic_elec[1:159,] %>%
     mutate(Location = as.factor("Victoria"))
 
   rec <- recipe(Demand ~ ., data = vic_elec) %>%
@@ -186,7 +185,7 @@ test_that("predict works", {
     step_normalize(all_numeric(), -all_outcomes())
 
 
-  fit <- tft_fit(rec, vic_elec, epochs = 1, batch_size=100, total_time_steps=12, num_encoder_steps=10, verbose=T )
+  fit <- tft_fit(rec, vic_elec, epochs = 1, batch_size=200, total_time_steps=12, num_encoder_steps=10, verbose = TRUE, device=device )
   expect_error(predict(fit, rec, vic_elec),
                regexp=NA)
 })

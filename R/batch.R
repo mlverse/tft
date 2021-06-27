@@ -341,7 +341,8 @@ tft_initialize <- function(data, config = tft_config()) {
     hidden_layer_size = config$hidden_layer_size,
     dropout_rate = config$dropout_rate,
     stack_size = config$stack_size,
-    num_heads = config$num_heads
+    num_heads = config$num_heads,
+    device = device
   )
 
   # main loop
@@ -477,10 +478,10 @@ tft_train <- function(obj, data, config = tft_config(), epoch_shift=0L) {
 
     network$eval()
     if (has_valid) {
-      for (batch in torch::enumerate(valid_dl)) {
+      coro::loop(for (batch in valid_dl) {
         m <- valid_batch(network, batch_to_device(batch, device), config)
         valid_metrics <- c(valid_metrics, m)
-      }
+      })
       metrics[[epoch]][["valid"]] <- transpose_metrics(valid_metrics)
     }
 
@@ -522,27 +523,39 @@ tft_train <- function(obj, data, config = tft_config(), epoch_shift=0L) {
   )
 }
 
-predict_impl <- function(obj, recipe, processed, batch_size = 1e5) {
+predict_impl <- function(obj, recipe, processed) {
 
   network <- obj$fit$network
   network$eval()
-  if (processed[[1]][[1]]$shape[1]>batch_size) {
-
-    # TODO need rework : requires the 2 level hyerarchy and names
-    splits <- processed %>% purrr::map(1:4, ~torch::torch_split(processed, split_size = batch_size))
-  } else {
-    splits <-list(processed[1:4])
+  if (obj$fit$config$device %in% c("auto", "cuda")) {
+    if (torch::cuda_is_available())
+      network$to(device="cuda")
   }
-  outputs <- lapply(splits, function(data) network(known_numerics = data$known$numerics, known_categorical = data$known$categorical,
-                                                  observed_numerics = data$observed$numerics, observed_categorical = data$observed$categorical,
-                                                  static_numerics = data$static$numerics, static_categorical = data$static$categorical,
-                                                  target_numerics = data$target$numerics, target_categorical = data$target$categorical)[[1]])
-  torch::torch_cat(outputs)
+  dl <- torch::dataloader(
+    torch::tensor_dataset(known_numerics = processed$known$numerics, known_categorical = processed$known$categorical,
+                          observed_numerics = processed$observed$numerics, observed_categorical = processed$observed$categorical,
+                          static_numerics = processed$static$numerics, static_categorical = processed$static$categorical,
+                          target_numerics = processed$target$numerics, target_categorical = processed$target$categorical),
+    batch_size = obj$fit$config$batch_size,
+    drop_last = obj$fit$config$drop_last)
+
+  batch_outputs <- c()
+  coro::loop(for (batch in dl){
+    batch_output <- network(batch$known_numerics, batch$known_categorical,
+                       batch$observed_numerics, batch$observed_categorical,
+                       batch$static_numerics, batch$static_categorical,
+                       batch$target_numerics, batch$target_categorical)
+    batch_outputs <- c(batch_outputs,batch_output[[1]])
+  })
+  torch::torch_cat(batch_outputs)
 }
 
 predict_impl_numeric <- function(obj, recipe, processed) {
-  p <- as.numeric(predict_impl(obj, recipe, processed))
-  hardhat::spruce_numeric(p)
+  p <- predict_impl(obj, recipe, processed)
+  p <- p$to(device="cpu") %>% as.array
+  # spruce_numeric is not compliant with multi-horizon forecast
+  #hardhat::spruce_numeric(p)
+  tibble(.pred=p)
 }
 
 get_blueprint_levels <- function(obj) {
@@ -552,16 +565,18 @@ get_blueprint_levels <- function(obj) {
 predict_impl_prob <- function(obj, recipe, processed) {
   p <- predict_impl(obj, recipe, processed)
   p <- torch::nnf_softmax(p, dim = 2)
-  p <- as.matrix(p)
+  p <- p$to(device="cpu") %>% as.array
+  # TODO spurce_prob is not compliant with multi-horizon forecast
   hardhat::spruce_prob(get_blueprint_levels(obj), p)
 }
 
 predict_impl_class <- function(obj, recipe, processed) {
   p <- predict_impl(obj, recipe, processed)
   p <- torch::torch_max(p, dim = 2)
-  p <- as.integer(p[[2]])
+  p <- as.integer(p[[2]]$to(device="cpu"))
   p <- get_blueprint_levels(obj)[p]
   p <- factor(p, levels = get_blueprint_levels(obj))
+  # TODO spruce_class is not compliant with multi-horizon forecast
   hardhat::spruce_class(p)
 
 }
