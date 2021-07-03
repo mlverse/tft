@@ -32,7 +32,8 @@ Imports:
     coro,
     glue,
     progress,
-    methods
+    methods,
+    assertthat
 Suggests:
     dplyr,
     padr,
