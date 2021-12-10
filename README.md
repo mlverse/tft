@@ -26,14 +26,11 @@ PyTorch’s implementation using the
 
 ## Installation
 
-Currently,`tft` relies on development versions of `mlverse/torch` and
-`tidymodels/recipes`. You can install the development version
+You can install the development version of {tft} from
 [GitHub](https://github.com/) with:
 
 ``` r
 # install.packages("remotes")
-remotes::install_github("mlverse/torch")
-remotes::install_github("tidymodels/recipes")
 remotes::install_github("mlverse/tft")
 ```
 
