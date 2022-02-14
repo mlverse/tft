@@ -26,8 +26,8 @@ PyTorch’s implementation using the
 
 ## Installation
 
-You can install the development version [GitHub](https://github.com/)
-with:
+You can install the development version of {tft} from
+[GitHub](https://github.com/) with:
 
 ``` r
 # install.packages("remotes")
