@@ -74,20 +74,20 @@ tft_fit.recipe <- function(x, df, tft_model = NULL, ..., from_epoch = NULL) {
   config <- do.call(tft_config, list(...))
   var_type_role <- summary(x)
 
-  id <- recipes::terms_select(var_type_role, terms=rlang::quos(recipes::has_role("id")))
+  id <- recipes::recipes_eval_select(df, info=var_type_role, quos=rlang::quos(recipes::has_role("id")))
   assertthat::validate_that(length(id)>=1,
                             msg="No variable with role `id` can be found in the recipe, you should maybe review it.")
 
-  time <- recipes::terms_select(var_type_role, terms=rlang::quos(recipes::has_role("time")))
+  time <- recipes::recipes_eval_select(df, info=var_type_role, quos=rlang::quos(recipes::has_role("time")))
   assertthat::assert_that(length(time)==1,
                           msg="Exactly one variable with role `time` shall be present in the recipe")
 
-  all_numeric <- c(recipes::terms_select(var_type_role, terms=rlang::quos(recipes::all_numeric()), empty_fun = function(x) {NULL}),
+  all_numeric <- c(recipes::recipes_eval_select(df, info=var_type_role, quos=rlang::quos(recipes::all_numeric()), empty_fun = function(x) {NULL}),
                    var_type_role[var_type_role$type == "date", "variable"] %>% unlist ) %>%
     as.character()
   assertthat::validate_that(length(all_numeric)>=1,
                             msg="No numerical variable can be found in the recipe, , you should maybe review it.")
-  observed <- recipes::terms_select(var_type_role, terms=rlang::quos(recipes::has_role("observed_input")), empty_fun = function(x) {NULL})
+  observed <- recipes::recipes_eval_select(df, info=var_type_role, quos=rlang::quos(recipes::has_role("observed_input")), empty_fun = function(x) {NULL})
   assertthat::assert_that(length(observed)>=1,
                             msg="At least one variable with role `observed_input` shall be present in the recipe")
 
