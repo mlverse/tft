@@ -14,23 +14,23 @@ batch_data <- function(recipe, df, total_time_steps = 12, device) {
   }
 
   var_type_role <- summary(recipe)
-  id <- recipes::terms_select(var_type_role, terms=rlang::quos(recipes::has_role("id")))
-  time <- recipes::terms_select(var_type_role, terms=rlang::quos(recipes::has_role("time")))
-  all_numeric <- c(recipes::terms_select(var_type_role, terms=rlang::quos(recipes::all_numeric()), empty_fun = function(x) {NULL}),
+  id <- recipes::recipes_eval_select(df, info=var_type_role, quos=rlang::quos(recipes::has_role("id")))
+  time <- recipes::recipes_eval_select(df, info=var_type_role, quos=rlang::quos(recipes::has_role("time")))
+  all_numeric <- c(recipes::recipes_eval_select(df, info=var_type_role, quos=rlang::quos(recipes::all_numeric())),
                    var_type_role[var_type_role$type == "date", "variable"] %>% unlist ) %>%
     as.character()
-  all_nominal <- c(recipes::terms_select(var_type_role, terms=rlang::quos(recipes::all_nominal()), empty_fun = function(x) {NULL}),
+  all_nominal <- c(recipes::recipes_eval_select(df, info=var_type_role, quos=rlang::quos(recipes::all_nominal())),
                    var_type_role[var_type_role$type %in% c("logical", "other"), "variable"] %>% unlist) %>%
     as.character()
-  known <- recipes::terms_select(var_type_role, terms=rlang::quos(recipes::has_role("known_input")), empty_fun = function(x) {NULL})
-  observed <- recipes::terms_select(var_type_role, terms=rlang::quos(recipes::has_role("observed_input")), empty_fun = function(x) {NULL})
-  static <- recipes::terms_select(var_type_role, terms=rlang::quos(recipes::has_role("static_input")), empty_fun = function(x) {NULL})
+  known <- recipes::recipes_eval_select(df, info=var_type_role, quos=rlang::quos(recipes::has_role("known_input")))
+  observed <- recipes::recipes_eval_select(df, info=var_type_role, quos=rlang::quos(recipes::has_role("observed_input")))
+  static <- recipes::recipes_eval_select(df, info=var_type_role, quos=rlang::quos(recipes::has_role("static_input")))
   known_numeric <- intersect(known, all_numeric)
   known_categorical <- intersect(known, all_nominal)
   observed_numeric <- intersect(observed, all_numeric)
   observed_categorical <- intersect(observed, all_nominal)
-  target_numeric <- intersect(recipes::terms_select(var_type_role, term=rlang::quos(recipes::all_outcomes())), all_numeric)
-  target_categorical <- intersect(recipes::terms_select(var_type_role, term=rlang::quos(recipes::all_outcomes())), all_nominal)
+  target_numeric <- intersect(recipes::recipes_eval_select(df, info=var_type_role, quos=rlang::quos(recipes::all_outcomes())), all_numeric)
+  target_categorical <- intersect(recipes::recipes_eval_select(df, info=var_type_role, quos=rlang::quos(recipes::all_outcomes())), all_nominal)
   static_numeric <- intersect(static, all_numeric)
   static_categorical <- intersect(static, all_nominal)
 
