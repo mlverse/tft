@@ -39,29 +39,35 @@ remotes::install_github("mlverse/tft")
 ``` r
 library(tft)
 library(rsample)
-library(recipes)
-#> Loading required package: dplyr
-#> 
-#> Attaching package: 'dplyr'
-#> The following objects are masked from 'package:stats':
-#> 
-#>     filter, lag
-#> The following objects are masked from 'package:base':
-#> 
-#>     intersect, setdiff, setequal, union
-#> 
-#> Attaching package: 'recipes'
-#> The following object is masked from 'package:stats':
-#> 
-#>     step
-library(yardstick)
-#> For binary classification, the first factor level is assumed to be the event.
-#> Use the argument `event_level = "second"` to alter this as needed.
+suppressMessages(library(recipes))
+suppressMessages(library(yardstick))
+suppressMessages(library(tsibble))
 set.seed(1)
 
 data("vic_elec", package = "tsibbledata")
-vic_elec <- vic_elec[1:256,] %>% 
-  mutate(Location = as.factor("Victoria")) 
+vic_elec <- vic_elec %>% 
+  mutate(Location = as.factor("Victoria"))
+
+str(vic_elec)
+#> tbl_ts [52,608 × 6] (S3: tbl_ts/tbl_df/tbl/data.frame)
+#>  $ Time       : POSIXct[1:52608], format: "2012-01-01 00:00:00" "2012-01-01 00:30:00" ...
+#>  $ Demand     : num [1:52608] 4383 4263 4049 3878 4036 ...
+#>  $ Temperature: num [1:52608] 21.4 21.1 20.7 20.6 20.4 ...
+#>  $ Date       : Date[1:52608], format: "2012-01-01" "2012-01-01" ...
+#>  $ Holiday    : logi [1:52608] TRUE TRUE TRUE TRUE TRUE TRUE ...
+#>  $ Location   : Factor w/ 1 level "Victoria": 1 1 1 1 1 1 1 1 1 1 ...
+#>  - attr(*, "key")= tibble [1 × 1] (S3: tbl_df/tbl/data.frame)
+#>   ..$ .rows: list<int> [1:1] 
+#>   .. ..$ : int [1:52608] 1 2 3 4 5 6 7 8 9 10 ...
+#>   .. ..@ ptype: int(0) 
+#>  - attr(*, "index")= chr "Time"
+#>   ..- attr(*, "ordered")= logi TRUE
+#>  - attr(*, "index2")= chr "Time"
+#>  - attr(*, "interval")= interval [1:1] 30m
+#>   ..@ .regular: logi TRUE
+```
+
+``` r
 vic_elec_split <- initial_time_split(vic_elec, prop=3/4, lag=96)
   
 vic_elec_train <- training(vic_elec_split)
@@ -76,22 +82,7 @@ rec <- recipe(Demand ~ ., data = vic_elec_train) %>%
   step_normalize(all_numeric(), -all_outcomes())
 
 
-fit <- tft_fit(rec, vic_elec_train, epochs = 15, batch_size=100, total_time_steps=12, num_encoder_steps=10, verbose=T )
-#> [Epoch 001] Loss: 2560.704346
-#> [Epoch 002] Loss: 2564.179688
-#> [Epoch 003] Loss: 2552.926025
-#> [Epoch 004] Loss: 2556.754639
-#> [Epoch 005] Loss: 2547.451904
-#> [Epoch 006] Loss: 2545.158325
-#> [Epoch 007] Loss: 2538.207275
-#> [Epoch 008] Loss: 2530.014282
-#> [Epoch 009] Loss: 2523.856934
-#> [Epoch 010] Loss: 2520.648315
-#> [Epoch 011] Loss: 2514.970459
-#> [Epoch 012] Loss: 2497.054443
-#> [Epoch 013] Loss: 2492.264893
-#> [Epoch 014] Loss: 2480.940186
-#> [Epoch 015] Loss: 2468.159546
+fit <- tft_fit(rec, vic_elec_train, epochs = 100, batch_size=100, total_time_steps=12, num_encoder_steps=10, verbose=TRUE)
 
 yhat <- predict(fit, rec, vic_elec_test)
 ```

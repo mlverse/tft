@@ -72,6 +72,25 @@ tft_fit.default <- function(x, ...) {
 tft_fit.recipe <- function(x, df, tft_model = NULL, ..., from_epoch = NULL) {
   #processed <- hardhat::mold(x, df) # is part of batch_data
   config <- do.call(tft_config, list(...))
+  var_type_role <- summary(x)
+
+  id <- recipes::recipes_eval_select(df, info=var_type_role, quos=rlang::quos(recipes::has_role("id")))
+  assertthat::validate_that(length(id)>=1,
+                            msg="No variable with role `id` can be found in the recipe, you should maybe review it.")
+
+  time <- recipes::recipes_eval_select(df, info=var_type_role, quos=rlang::quos(recipes::has_role("time")))
+  assertthat::assert_that(length(time)==1,
+                          msg="Exactly one variable with role `time` shall be present in the recipe")
+
+  all_numeric <- c(recipes::recipes_eval_select(df, info=var_type_role, quos=rlang::quos(recipes::all_numeric())),
+                   var_type_role[var_type_role$type == "date", "variable"] %>% unlist ) %>%
+    as.character()
+  assertthat::validate_that(length(all_numeric)>=1,
+                            msg="No numerical variable can be found in the recipe, , you should maybe review it.")
+  observed <- recipes::recipes_eval_select(df, info=var_type_role, quos=rlang::quos(recipes::has_role("observed_input")))
+  assertthat::assert_that(length(observed)>=1,
+                            msg="At least one variable with role `observed_input` shall be present in the recipe")
+
   processed <- batch_data(recipe=x, df=df,
                           total_time_steps = config[["total_time_steps"]],
                           device = config[["device"]])
