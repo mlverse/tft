@@ -52,6 +52,7 @@ Collate:
     'dataset-electricity.R'
     'hardhat.R'
     'layers.R'
+    'lazy-tsibble.R'
     'roles.R'
     'tft_loss.R'
     'tft_network.R'
