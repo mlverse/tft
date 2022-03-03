@@ -46,7 +46,7 @@ batch_data <- function(recipe, df, total_time_steps = 12, device) {
 
   known_t <- prepare_tensors(output, known_numeric, known_categorical)
   observed_t <- prepare_tensors(output, observed_numeric, observed_categorical)
-  targets_t <- prepare_tensors(output, target_numeric, target_categorical)
+  target_t <- prepare_tensors(output, target_numeric, target_categorical)
   static_t <- prepare_tensors(output, static_numeric, static_categorical)
 
   cat_idxs = c(which(names(df) %in% known_categorical),
