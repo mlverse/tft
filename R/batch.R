@@ -34,7 +34,6 @@ batch_data <- function(recipe, df, total_time_steps = 12, device) {
   static_numeric <- intersect(static, all_numeric)
   static_categorical <- intersect(static, all_nominal)
 
-
   processed_roles <- hardhat::mold(recipe, df)
 
   # the as.numeric(as.factor) trick is required to prevent logicals to become tensors in [0,1] unexpected by nn_embedding
@@ -45,50 +44,21 @@ batch_data <- function(recipe, df, total_time_steps = 12, device) {
     purrr::compact() %>%
     purrr::map(ungroup)
 
+  known_t <- prepare_tensors(output, known_numeric, known_categorical)
+  observed_t <- prepare_tensors(output, observed_numeric, observed_categorical)
+  targets_t <- prepare_tensors(output, target_numeric, target_categorical)
+  static_t <- prepare_tensors(output, static_numeric, static_categorical)
 
-  known_t <- list(
-    numerics = output %>%
-        purrr::map(~.x %>% dplyr::select(dplyr::all_of(known_numeric)) %>% df_to_tensor(device = device)) %>%
-        torch::torch_stack(),
-    categorical = output %>%
-        purrr::map(~.x %>% dplyr::select(dplyr::all_of(known_categorical)) %>% df_to_tensor(device = device)) %>%
-        torch::torch_stack()
-  )
-
-  observed_t <- list(
-    numerics = output %>%
-      purrr::map(~.x %>% dplyr::select(dplyr::all_of(observed_numeric)) %>% df_to_tensor(device = device)) %>%
-      torch::torch_stack(),
-    categorical = output %>%
-      purrr::map(~.x %>% dplyr::select(dplyr::all_of(observed_categorical)) %>% df_to_tensor(device = device)) %>%
-      torch::torch_stack()
-  )
-
-  target_t <- list(
-    numerics = output %>%
-      purrr::map(~.x %>% dplyr::select(dplyr::all_of(target_numeric)) %>% df_to_tensor(device = device)) %>%
-      torch::torch_stack(),
-    categorical = output %>%
-      purrr::map(~.x %>% dplyr::select(dplyr::all_of(target_categorical)) %>% df_to_tensor(device = device)) %>%
-      torch::torch_stack()
-  )
-
-  static_t <- list(
-    numerics = output %>%
-      purrr::map(~.x %>% dplyr::select(dplyr::all_of(static_numeric)) %>% df_to_tensor(device = device)) %>%
-      torch::torch_stack(),
-    categorical = output %>%
-      purrr::map(~.x %>% dplyr::select(dplyr::all_of(static_categorical)) %>% df_to_tensor(device = device)) %>%
-      torch::torch_stack()
-  )
   cat_idxs = c(which(names(df) %in% known_categorical),
                which(names(df) %in% observed_categorical),
                which(names(df) %in% static_categorical),
                which(names(df) %in% target_categorical))
+
   known_idx = which(names(df) %in% c(known_numeric, known_categorical))
   observed_idx = which(names(df) %in%  c(observed_numeric, observed_categorical))
   static_idx = which(names(df) %in% c(static_numeric, static_categorical))
   target_idx =  which(names(df) %in% c(target_numeric, target_categorical))
+
   list(known = known_t,
        observed = observed_t,
        static = static_t,
@@ -102,6 +72,17 @@ batch_data <- function(recipe, df, total_time_steps = 12, device) {
        cat_dims = purrr::map(cat_idxs, ~length(unique(df[[.x]]))),
        output_dim = length(target_categorical) + length(target_numeric),
        blueprint = processed_roles$blueprint
+  )
+}
+
+prepare_tensors <- function(output, numeric, categorical) {
+  list(
+    numerics = output %>%
+      purrr::map(~.x %>% dplyr::select(dplyr::all_of(numeric)) %>% df_to_tensor(device = device)) %>%
+      torch::torch_stack(),
+    categorical = output %>%
+      purrr::map(~.x %>% dplyr::select(dplyr::all_of(categorical)) %>% df_to_tensor(device = device)) %>%
+      torch::torch_stack()
   )
 }
 
