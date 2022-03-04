@@ -45,7 +45,8 @@ Suggests:
     tsibbledata,
     testthat (>= 3.0.0),
     rmarkdown,
-    walmartdata
+    walmartdata,
+    tidymodels
 Remotes:
     dfalbel/walmartdata
 Collate: 
