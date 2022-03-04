@@ -43,9 +43,11 @@ Suggests:
     readr,
     tsibble,
     tsibbledata,
-    testthat (>= 3.0.0)
+    testthat (>= 3.0.0),
+    rmarkdown,
+    walmartdata
 Remotes:
-    mlverse/torch
+    dfalbel/walmartdata
 Collate: 
     'batch.R'
     'utils.R'

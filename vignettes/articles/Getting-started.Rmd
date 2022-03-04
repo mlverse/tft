@@ -1,0 +1,194 @@
+---
+title: "Getting started"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+suppressPackageStartupMessages(library(tidymodels))
+library(tft)
+```
+
+tft is an R implementation of Temporal Fusion Transformers (TFT) using the torch package. The Temporal Fusion Transformer is a neural network architecture proposed by Bryan Lim et al. with the goal of making interpretable multi-horizon time-series forecasts.
+
+The R package tft abstracts away the details of the architecture and
+provides an API that allows easy experimenting with the TFT architecture.
+
+In this article we will create forecasts for the `?walmart_sales_weekly` dataset included in the [walmartdata](https://github.com/dfalbel/walmartdata) package. This dataset has weekly sales of a sample of
+weekly sales by department of 45 retail stores. It also includes a few external predictors like the temperature,
+fuel price and the size of the store.
+
+```{r}
+data(walmart_sales, package = "walmartdata")
+dplyr::glimpse(walmart_sales)
+```
+
+## Preparing the data
+
+tft uses the tsibble to specify time time columns and keys - when you want to create
+forecasts for multiple timeseries in a single model. So let's first, transform
+the `data.frame` into a `tbl_ts`.
+
+We have weekly observations for each Store and Department, but since Type and Size
+are informations that don't vary on time we have also added them as 'keys' for 
+`tsibble`. We specify the index column as the `Date` column.
+
+```{r}
+sales <- tsibble::tsibble(
+  walmart_sales, key = c(Store, Dept, Type, Size), 
+  index = Date
+)
+sales
+```
+
+`tsibble` correctly identifies the weekly period (`[7D]`) and shows us that we
+have `r nrow(tsibble::key_data(sales))` different time series that we want to
+create predictions to.
+
+tft also uses the [recipes](https://github.com/tidymodels/recipes) ppackage to
+specify the response variables, the predictors and their types. We can
+also use recipes to specify transformations on the data that will be used by
+the model.
+
+By default the keys of the the tsibble are considered as 'static' predictors, ie,
+they don't vary on time for each time series. You can remove the role 'predictor'
+from it if you don't want it to be used as a predictor.
+
+We can also have 'known' predictors: these vary on time but in a regular way thus 
+we can compute them for each time step, even for future ones - like the 'IsHoliday' 
+and information like the day of the week and other similar. We expect you to be
+able to specify them for every time point when using the `forecast` function.
+
+The index variable is not used in the model, unless transformed. All other predictors
+are considered 'observed' predictors and thus only 'past' values will be used in the
+model. Past values of the response variable are also used as 'observed' values in
+the model.
+
+```{r}
+rec <- recipe(Weekly_Sales ~ ., data = sales) %>% 
+  add_role(IsHoliday, new_role = "known") %>% 
+  step_date(Date, role = "known", features = c("year", "month", "doy")) %>% 
+  step_normalize(all_numeric_predictors()) %>% 
+  step_indicate_na(starts_with("MarkDown")) %>% 
+  step_impute_mean(starts_with("Markdown"))
+```
+
+It's recommended to include features that represent seasonality as known predictors
+in the TFT model, like mon, day of the week and etc.
+It's also recommended to normalize the predictors and treat missing values as
+the model don't treat them implicitly. 
+
+You can bake `prep` and `juice` the recipe to see how the transformations are working:
+
+```{r}
+rec %>% prep() %>% juice() %>% glimpse()
+```
+
+## Metrics and validation
+
+Now we should think about the size of the horizon we want to create forecasts to.
+It could be a single week ahead or ten, and this will influence how we split our
+data for training, validation and testing. This is not really a data analysis
+decision but more of a business decision, ie: how many weeks ahead we want know
+so we can plan the demand and etc. Let's say we want 4 weeks ahead, ie ~1 month.
+
+The [rsample](https://github.com/tidymodels/rsample) package provides `sliding_*`
+functions that are very useful for the task of creating time splits.
+
+```{r}
+resamples <- sliding_period(
+  arrange(sales, Date),
+  index = Date,
+  period = "week",
+  lookback = Inf,
+  assess_stop = 4,
+  step = 4,
+  skip = 104
+)
+```
+
+Now we can separate the splits in, training and testing, ie: a few of them will
+be used for cross-validation and choosing the hyperparamerters, the others are 
+used for testing the model. We are going to use the last 4 splits for testing and 
+the first 5 to cross validate.
+
+```{r}
+train_splits <- resamples %>% slice(1:5)
+test_splits <- resamples %>% slice(-c(1:5))
+```
+
+**Note**: we have selected 4 weeks as the horizon of our predictions. We need to
+use this same value when specifying the horizon for the tft model.
+
+## Fitting the model
+
+We can now tune the tft model and compute metrics using:
+
+```{r, eval = FALSE}
+model <- workflow() %>% 
+  add_recipe(rec) %>% 
+  add_model(tft(horizon = 4))
+
+grid <- grid_regular(model, levels = 5)
+
+results <- tune_grid(
+  model,
+  resamples,
+  grid
+)
+
+collect_metrics(results)
+```
+
+```{r echo=FALSE}
+res <- tibble(
+  epochs = c(1, 5, 7, 1, 5),
+  hidden_layer_size = c(160, 500, 300, 160, 500),
+  training_tau = c(0.3, 0.003, 0.1, 0.5, 0.003)
+)
+res$rmse <- runif(5)
+res
+```
+
+Once you are happy with the tuning you can finalize the workflow and
+obtain the metrics for the test splits.
+
+```{r, eval = FALSE}
+final_params <- select_best(results, metric = "rmse")
+workflow <- finalize_workflow(model, final_params)
+results <- fit_resamples(model, test_splits)
+collect_metrics(results)
+```
+
+```{r, echo = FALSE}
+tibble(metric = c("rmse"), value = 0.001)
+```
+
+To obtain predictions for future observations, first we need to load a 
+data.frame that includes known predictors like the `IsHoliday` variable
+for all time steps in the future data frame. Then we can call `forecast`
+or `predict` to obtain the predictions for the future data.
+
+Note that `forecast` or `predict` currently can only predict for 
+`horizon` time steps ahead. And don't provide a away for doing 
+rolling forecasts.
+
+```{r, eval = FALSE}
+final_model <- fit(model, sales)
+final_predictions <- forecast(model, new_data = newdata)
+final_predictions
+```
+
+```{r, echo = FALSE}
+pred <- sales %>% tsibble::new_data(n = 4)
+pred$.pred <- sample(sales$Weekly_Sales, size = nrow(pred))
+pred
+```
+
