@@ -42,6 +42,12 @@
 <li class="nav-item">
   <a class="nav-link" href="reference/index.html">Reference</a>
 </li>
+<li class="nav-item dropdown">
+  <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" role="button" aria-expanded="false" aria-haspopup="true" id="dropdown-articles">Articles</a>
+  <div class="dropdown-menu" aria-labelledby="dropdown-articles">
+    <a class="dropdown-item" href="articles/Getting-started.html">Getting started</a>
+  </div>
+</li>
 <li class="nav-item">
   <a class="nav-link" href="news/index.html">Changelog</a>
 </li>
@@ -105,10 +111,10 @@
 <span class="co">#&gt;  - attr(*, "interval")= interval [1:1] 30m</span>
 <span class="co">#&gt;   ..@ .regular: logi TRUE</span></code></pre></div>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span class="va">vic_elec_split</span> <span class="op">&lt;-</span> <span class="fu">initial_time_split</span><span class="op">(</span><span class="va">vic_elec</span>, prop<span class="op">=</span><span class="fl">3</span><span class="op">/</span><span class="fl">4</span>, lag<span class="op">=</span><span class="fl">96</span><span class="op">)</span>
+<code class="sourceCode R"><span class="va">vic_elec_split</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rsample.tidymodels.org/reference/initial_split.html" class="external-link">initial_time_split</a></span><span class="op">(</span><span class="va">vic_elec</span>, prop<span class="op">=</span><span class="fl">3</span><span class="op">/</span><span class="fl">4</span>, lag<span class="op">=</span><span class="fl">96</span><span class="op">)</span>
   
-<span class="va">vic_elec_train</span> <span class="op">&lt;-</span> <span class="fu">training</span><span class="op">(</span><span class="va">vic_elec_split</span><span class="op">)</span>
-<span class="va">vic_elec_test</span> <span class="op">&lt;-</span> <span class="fu">testing</span><span class="op">(</span><span class="va">vic_elec_split</span><span class="op">)</span>
+<span class="va">vic_elec_train</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rsample.tidymodels.org/reference/initial_split.html" class="external-link">training</a></span><span class="op">(</span><span class="va">vic_elec_split</span><span class="op">)</span>
+<span class="va">vic_elec_test</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rsample.tidymodels.org/reference/initial_split.html" class="external-link">testing</a></span><span class="op">(</span><span class="va">vic_elec_split</span><span class="op">)</span>
 
 <span class="va">rec</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://recipes.tidymodels.org/reference/recipe.html" class="external-link">recipe</a></span><span class="op">(</span><span class="va">Demand</span> <span class="op">~</span> <span class="va">.</span>, data <span class="op">=</span> <span class="va">vic_elec_train</span><span class="op">)</span> <span class="op"><a href="reference/pipe.html">%&gt;%</a></span>
   <span class="fu"><a href="https://recipes.tidymodels.org/reference/roles.html" class="external-link">update_role</a></span><span class="op">(</span><span class="va">Date</span>, new_role<span class="op">=</span><span class="st">"id"</span><span class="op">)</span> <span class="op"><a href="reference/pipe.html">%&gt;%</a></span>
