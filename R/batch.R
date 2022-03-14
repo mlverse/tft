@@ -43,7 +43,7 @@ batch_data <- function(recipe, df, total_time_steps = 12, device) {
     dplyr::group_by(rlang::eval_tidy(static)) %>%
     slider::slide(~.x, .before=total_time_steps-1, .complete = TRUE) %>%
     purrr::compact() %>%
-    purrr::map(ungroup)
+    purrr::map(dplyr::ungroup)
 
 
   known_t <- list(
@@ -107,9 +107,9 @@ batch_data <- function(recipe, df, total_time_steps = 12, device) {
 
 df_to_tensor <- function(df, device) {
   df %>%
-    dplyr::mutate(dplyr::across(where(is.factor), as.integer)) %>%
-    dplyr::mutate(dplyr::across(where(lubridate::is.Date), as.integer)) %>%
-    dplyr::mutate(dplyr::across(where(lubridate::is.POSIXt), as.integer)) %>%
+    dplyr::mutate(dplyr::across(tidyselect::where(is.factor), as.integer)) %>%
+    dplyr::mutate(dplyr::across(tidyselect::where(lubridate::is.Date), as.integer)) %>%
+    dplyr::mutate(dplyr::across(tidyselect::where(lubridate::is.POSIXt), as.integer)) %>%
     as.matrix() %>%
     torch::torch_tensor(device = device,dtype = torch::torch_float())
 }
@@ -555,7 +555,7 @@ predict_impl_numeric <- function(obj, recipe, processed) {
   p <- p$to(device="cpu") %>% as.array
   # spruce_numeric is not compliant with multi-horizon forecast
   #hardhat::spruce_numeric(p)
-  tibble(.pred=p)
+  tibble::tibble(.pred=p)
 }
 
 get_blueprint_levels <- function(obj) {
