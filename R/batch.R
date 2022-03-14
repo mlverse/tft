@@ -107,9 +107,9 @@ batch_data <- function(recipe, df, total_time_steps = 12, device) {
 
 df_to_tensor <- function(df, device) {
   df %>%
-    dplyr::mutate(dplyr::across(tidyselect::where(is.factor), as.integer)) %>%
-    dplyr::mutate(dplyr::across(tidyselect::where(lubridate::is.Date), as.integer)) %>%
-    dplyr::mutate(dplyr::across(tidyselect::where(lubridate::is.POSIXt), as.integer)) %>%
+    dplyr::mutate_if(is.factor, as.integer) %>%
+    dplyr::mutate_if(lubridate::is.Date, as.integer) %>%
+    dplyr::mutate_if(lubridate::is.POSIXt, as.integer) %>%
     as.matrix() %>%
     torch::torch_tensor(device = device,dtype = torch::torch_float())
 }
