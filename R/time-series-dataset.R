@@ -38,12 +38,19 @@ time_series_dataset <- torch::dataset(
       ))
     }
 
+    # TODO we will probably want to take a prepared recipe so we are able to
+    # use this also for the validation data.
     self$recipe <- recipes::prep(recipe, df)
 
     self$df <-  self$recipe %>%
       recipes::juice() %>%
       dplyr::arrange(!!!tsibble::index_var(df))
 
+    # we create rsample `split` objects that don't materialize the data until
+    # `training` or `testing` allowing us to compute the number of slices that
+    # we are able to create.
+    # since data is already split between future and past values it's also easier
+    # to reason when implementing the network.
     self$slices <- self$df %>%
       dplyr::group_split(!!!tsibble::key(df)) %>%
       purrr::discard(~nrow(.x) < (lookback + 1 + assess_stop)) %>%
@@ -80,17 +87,13 @@ time_series_dataset <- torch::dataset(
     for (type in c("known", "static", "observed")) {
       encoder[[type]] <- list()
       for (dtype in c("num", "cat")) {
-
         vars <- x %>%
           dplyr::select(!!!self[[type]][[dtype]]) %>%
           to_tensor()
-
         if (type == "static") {
           vars <- vars[1,]
         }
-
         encoder[[type]][[dtype]] <- vars
-
       }
     }
 
