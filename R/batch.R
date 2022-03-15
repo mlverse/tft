@@ -166,7 +166,7 @@ df_to_tensor <- function(df, device) {
 #' @return A named list with all hyperparameters of the TabNet implementation.
 #'
 #' @export
-tft_config <- function(batch_size = 256,
+tft_config <- function(batch_size = 256^2,
                        clip_value = NULL,
                        loss = "quantile_loss",
                        epochs = 5,
