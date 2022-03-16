@@ -1,22 +1,3 @@
-library(recipes)
-
-data(walmart_sales, package = "walmartdata")
-df <- walmart_sales %>%
-  mutate(
-    Store = as.factor(Store),
-    Dept = as.factor(Dept)
-  ) %>%
-  tsibble::tsibble(
-    key = c(Store, Dept, Type, Size),
-    index = Date
-  )
-
-recipe <- recipe(Weekly_Sales ~ ., data = df) %>%
-  update_role(IsHoliday, new_role = "known") %>%
-  step_date(Date, role = "known", features = c("year", "month", "doy")) %>%
-  step_normalize(all_numeric_predictors()) %>%
-  step_indicate_na(starts_with("MarkDown")) %>%
-  step_impute_mean(starts_with("Markdown"))
 
 time_series_dataset <- torch::dataset(
   "time_series_dataset",
@@ -77,6 +58,16 @@ time_series_dataset <- torch::dataset(
     self$target <- terms %>%
       pull_term_names(role == "outcome")
 
+    # compute feature sizes
+    dictionary <- self$recipe$levels %>%
+      purrr::keep(~isTRUE(.x$factor)) %>%
+      purrr::map(~length(.x$values))
+
+    self$feature_sizes <- list()
+    self$feature_sizes$known <- dictionary[self$known$cat]
+    self$feature_sizes$observed <- dictionary[self$observed$cat]
+    self$feature_sizes$static <- dictionary[self$static$cat]
+    self$feature_sizes$target <- dictionary[self$target$cat]
   },
   .getitem = function(i) {
     split <- self$slices$splits[[i]]
@@ -129,6 +120,6 @@ to_tensor <- function(df) {
   df %>%
     dplyr::mutate(dplyr::across(where(is.factor), as.integer)) %>%
     as.matrix() %>%
-    torch::torch_tensor(dtype = torch::torch_float())
+    torch::torch_tensor()
 }
 
