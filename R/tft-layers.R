@@ -31,8 +31,7 @@ x <- coro::collect(torch::dataloader(dataset, batch_size = 32), 1)[[1]]
 #'
 #' @param n_features a list containing the shapes for all necessary information
 #'        to define the size of layers, including:
-#'                   - `$encoder$known$(num|cat)`: shape of known features
-#'                   - `$encoder$unknown$(num|cat)`: shape of unknown features
+#'                   - `$encoder$past$(num|cat)`: shape of past features
 #'                   - `$encoder$static$(num|cat)`: shape of the static features
 #'                   - `$decoder$target$(num|cat)`: shape of the targets.
 #'        We exclude the batch dimension.
@@ -42,51 +41,162 @@ temporal_fusion_transformer <- torch::nn_module(
   "temporal_fusion_transformer",
   initialize = function(n_features, feature_sizes, hidden_state_size) {
     self$preprocessing <- preprocessing(n_features, feature_sizes, hidden_state_size)
+    self$context <- static_context(n_features$encoder$static, hidden_state_size)
+    self$temporal_selection <- temporal_selection(n_features, hidden_state_size)
+    self$locality_enhancement <- locality_enhancement_layer(hidden_state_size, 1)
   },
   forward = function(x) {
-    x <- self$preprocessing(x)
+    # We use entity embeddings [31] for categorical variables as feature representations,
+    # and linear transformations for continuous variables – transforming each
+    # input variable into a (dmodel)-dimensional vector which matches the dimensions
+    # in subsequent layers for skip connections.
+    transformed <- self$preprocessing(x)
+
+    # In contrast with other time series forecasting architectures, the TFT is carefully
+    # designed to integrate information from static metadata, using separate
+    # GRN encoders to produce four different context vectors, cs, ce, cc, and ch.
+    # These contect vectors are wired into various locations in the temporal fusion
+    # decoder (Sec. 4.5) where static variables play an important role in processing.
+    context <- self$context(transformed$encoder$static)
+
+    # TFT is designed to provide instance-wise variable selection through the use
+    # of variable selection networks applied to both static covariates and time-dependent
+    # covariates. Beyond providing insights into which variables are most significant
+    # for the prediction problem, variable selection also allows TFT to remove any
+    # unnecessary noisy inputs which could negatively impact performance.
+    transformed <- self$temporal_selection(transformed, context)
+
+    # For instance, [12] adopts a single convolutional layer for locality enhancement
+    # – extracting local patterns using the same filter across all time. However,
+    # this might not be suitable for cases when observed inputs exist, due to the
+    # differing number of past and future inputs. As such, we propose the application
+    # of a sequence-to-sequence model to naturally handle these differences
+    self$locality_enhancement(transformed, context)
+  }
+)
+
+locality_enhancement_layer <- torch::nn_module(
+  "locality_enhancement_layer",
+  initialize = function(hidden_state_size, num_layers, dropout = 0) {
+    self$encoder <- torch::nn_lstm(
+      input_size = hidden_state_size,
+      hidden_size = hidden_state_size,
+      num_layers = num_layers,
+      dropout = dropout,
+      batch_first = TRUE
+    )
+    self$decoder <- torch::nn_lstm(
+      input_size = hidden_state_size,
+      hidden_size = hidden_state_size,
+      num_layers = num_layers,
+      dropout = dropout,
+      batch_first = TRUE
+    )
+    self$encoder_gate <- gated_linear_unit(
+      input_size = hidden_state_size,
+      output_size = hidden_state_size
+    )
+    self$decoder_gate <- gated_linear_unit(
+      input_size = hidden_state_size,
+      output_size = hidden_state_size
+    )
+    self$encoder_norm <- torch::nn_layer_norm(
+      normalized_shape = hidden_state_size
+    )
+    self$decoder_norm <- torch::nn_layer_norm(
+      normalized_shape = hidden_state_size
+    )
+    self$num_layers <- num_layers
+  },
+  forward = function(x, context) {
+    c(encoder_output, states) %<-% self$encoder(
+      input = x$encoder$past,
+      hx = self$expand_context(context$seq2seq_initial_state)
+    )
+    c(decoder_output, .) %<-% self$decoder(
+      input = x$decoder$known,
+      hx = states
+    )
+
+    list(
+      encoder = list(
+        past = encoder_output %>%
+          self$encoder_gate() %>%
+          magrittr::add(x$encoder$past) %>%
+          self$encoder_norm()
+      ),
+      decoder = list(
+        known = decoder_output %>%
+          self$decoder_gate() %>%
+          magrittr::add(x$decoder$known) %>%
+          self$decoder_norm()
+      )
+    )
+  },
+  expand_context = function(context) {
+    purrr::map(context, ~.x$expand(c(self$num_layers, -1, -1)))
   }
 )
 
 temporal_selection <- torch::nn_module(
   "selection",
   initialize = function(n_features, hidden_state_size) {
+    self$known <- variable_selection_network(
+      n_features = sum(as.numeric(n_features$decoder$known)),
+      hidden_state_size = hidden_state_size
+    )
+    self$past <- variable_selection_network(
+      n_features = sum(as.numeric(n_features$encoder$past)),
+      hidden_state_size = hidden_state_size
+    )
+  },
+  forward = function(x, context) {
+    x$encoder$past <- x$encoder$past %>%
+      self$past(context = context$temporal_variable_selection)
+    x$decoder$known <- x$decoder$known %>%
+      self$known(context = context$temporal_variable_selection)
+    x
+  }
+)
 
+static_context <- torch::nn_module(
+  "static_context",
+  initialize = function(n_features, hidden_state_size) {
     self$static <- variable_selection_network(
-      n_features = sum(as.numeric(n_features$encoder$static)),
+      n_features = sum(as.numeric(n_features)),
       hidden_state_size = hidden_state_size
     )
 
-    self$temporal_variable_selection_context <- gated_residual_network(
+    self$temporal_variable_selection <- gated_residual_network(
       input_size = hidden_state_size,
       output_size = hidden_state_size,
       hidden_state_size = hidden_state_size
     )
 
-    self$known <- variable_selection_network(
-      n_features = sum(as.numeric(n_features$encoder$known)),
+    self$cell_state <- gated_residual_network(
+      input_size = hidden_state_size,
+      output_size = hidden_state_size,
       hidden_state_size = hidden_state_size
     )
-
+    self$hidden_state <- gated_residual_network(
+      input_size = hidden_state_size,
+      output_size = hidden_state_size,
+      hidden_state_size = hidden_state_size
+    )
   },
   forward = function(x) {
-
-    x$encoder$static <- x$encoder$static %>%
+    selected <- x %>%
       torch::torch_unsqueeze(dim = 2) %>%
       self$static() %>%
       torch::torch_squeeze(dim = 2)
 
-    x$static_context <- list(
-      temporal_variable_selection = self$temporal_variable_selection_context(
-        x$encoder$static
+    list(
+      temporal_variable_selection = self$temporal_variable_selection(selected),
+      seq2seq_initial_state = list(
+        cell_state = self$cell_state(selected),
+        hidden_state = self$hidden_state(selected)
       )
     )
-
-    x$encoder$known <- x$encoder$known %>%
-      self$known(context = x$static_context$temporal_variable_selection)
-
-
-    x
   }
 )
 
@@ -174,24 +284,35 @@ gated_linear_unit <- torch::nn_module(
 preprocessing <- torch::nn_module(
   "preprocessing",
   initialize = function(n_features, feature_sizes, hidden_state_size) {
-    for (type in c("known", "static", "observed")) {
-      self[[type]] <- preprocessing_group(
-        n_features = n_features$encoder[[type]],
-        feature_sizes = feature_sizes[[type]],
-        hidden_state_size = hidden_state_size
-      )
-    }
+    self$past <- preprocessing_group(
+      n_features = n_features$encoder$past,
+      feature_sizes = feature_sizes$past,
+      hidden_state_size = hidden_state_size
+    )
+    self$known <- preprocessing_group(
+      n_features = n_features$decoder$known,
+      feature_sizes = feature_sizes$known,
+      hidden_state_size = hidden_state_size
+    )
+    self$static <- preprocessing_group(
+      n_features = n_features$encoder$static,
+      feature_sizes = feature_sizes$static,
+      hidden_state_size = hidden_state_size
+    )
   },
   forward = function(x) {
-    x$encoder$known <- self$known(x$encoder$known)
-    x$decoder$known <- self$known(x$decoder$known)
-    # add a time dimension temporarily
-    x$encoder$static <- x$encoder$static %>%
-      purrr::map(~torch::torch_unsqueeze(.x, dim = 2)) %>%
-      self$static() %>%
-      torch::torch_squeeze(dim = 2)
-    x$encoder$observed <- self$observed(x$encoder$observed)
-    x
+    list(
+      encoder = list(
+        past = self$past(x$encoder$past),
+        static = x$encoder$static %>%
+          purrr::map(~torch::torch_unsqueeze(.x, dim = 2)) %>%
+          self$static() %>%
+          torch::torch_squeeze(dim = 2)
+      ),
+      decoder = list(
+        known = self$known(x$decoder$known)
+      )
+    )
   }
 )
 

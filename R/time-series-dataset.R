@@ -53,8 +53,12 @@ time_series_dataset <- torch::dataset(
       pull_term_names(role %in% c("known"), !(variable %in% tsibble::key_vars(df)))
     self$observed <- terms %>%
       pull_term_names(role %in% c("predictor", "target"), !(variable %in% tsibble::key_vars(df)))
+
+    self$past <- purrr::map2(self$known, self$observed, ~c(.x, .y))
+
     self$static <- terms %>%
       pull_term_names(role %in% c("static", "predictor"), variable %in% tsibble::key_vars(df))
+
     self$target <- terms %>%
       pull_term_names(role == "outcome")
 
@@ -66,6 +70,7 @@ time_series_dataset <- torch::dataset(
     self$feature_sizes <- list()
     self$feature_sizes$known <- dictionary[self$known$cat]
     self$feature_sizes$observed <- dictionary[self$observed$cat]
+    self$feature_sizes$past <- dictionary[self$past$cat]
     self$feature_sizes$static <- dictionary[self$static$cat]
     self$feature_sizes$target <- dictionary[self$target$cat]
   },
@@ -75,7 +80,7 @@ time_series_dataset <- torch::dataset(
     y <- rsample::testing(split)
 
     encoder <- list()
-    for (type in c("known", "static", "observed")) {
+    for (type in c("past", "static")) {
       encoder[[type]] <- list()
       for (dtype in c("num", "cat")) {
         vars <- x %>%
