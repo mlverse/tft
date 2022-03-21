@@ -40,10 +40,37 @@ x <- coro::collect(torch::dataloader(dataset, batch_size = 32), 1)[[1]]
 temporal_fusion_transformer <- torch::nn_module(
   "temporal_fusion_transformer",
   initialize = function(n_features, feature_sizes, hidden_state_size) {
-    self$preprocessing <- preprocessing(n_features, feature_sizes, hidden_state_size)
-    self$context <- static_context(n_features$encoder$static, hidden_state_size)
-    self$temporal_selection <- temporal_selection(n_features, hidden_state_size)
-    self$locality_enhancement <- locality_enhancement_layer(hidden_state_size, 1)
+    self$preprocessing <- preprocessing(
+      n_features = n_features,
+      feature_sizes = feature_sizes,
+      hidden_state_size = hidden_state_size
+    )
+    self$context <- static_context(
+      n_features = n_features$encoder$static,
+      hidden_state_size = hidden_state_size
+    )
+    self$temporal_selection <- temporal_selection(
+      n_features = n_features,
+      hidden_state_size = hidden_state_size
+    )
+    self$locality_enhancement <- locality_enhancement_layer(
+      hidden_state_size = hidden_state_size,
+      num_layers =  1,
+      dropout = 0
+    )
+    self$temporal_attn <- temporal_self_attention(
+      n_heads = 3,
+      hidden_state_size = hidden_state_size,
+      dropout = 0
+    )
+    self$position_wise <- position_wise_feedforward(
+      hidden_state_size = hidden_state_size,
+      dropout = 0
+    )
+    self$output_layer <- quantile_output_layer(
+      n_quantiles = n_quantiles,
+      hidden_state_size = hidden_state_size
+    )
   },
   forward = function(x) {
     # We use entity embeddings [31] for categorical variables as feature representations,
@@ -71,7 +98,159 @@ temporal_fusion_transformer <- torch::nn_module(
     # this might not be suitable for cases when observed inputs exist, due to the
     # differing number of past and future inputs. As such, we propose the application
     # of a sequence-to-sequence model to naturally handle these differences
-    self$locality_enhancement(transformed, context)
+    transformed <- self$locality_enhancement(transformed, context)
+
+    # Besides preserving causal information flow via masking, the self-attention layer
+    # allows TFT to pick up long-range dependencies that may be challenging for RNN-based
+    # architectures to learn. Following the self-attention layer, an additional gating
+    # layer is also applied to facilitate training
+    attn_output <- self$temporal_attn(transformed)
+
+    # we also apply a gated residual connection which skips over the entire transformer
+    # block, providing a direct path to the sequence-to-sequence layer – yielding a
+    # simpler model if additional complexity is not required, as shown below
+    output <- self$position_wise(attn_output, transformed$decoder$known)
+
+    # TFT also generates prediction intervals on top of point forecasts. This is
+    # achieved by the simultaneous prediction of various percentiles (e.g. 10th,
+    # 50th and 90th) at each time step. Quantile forecasts are generated using linear
+    # transformation of the output from the temporal fusion decoder
+    self$output_layer(output)
+  }
+)
+
+
+quantile_output_layer <- torch::nn_module(
+  initialize = function(n_quantiles, hidden_state_size) {
+    self$linear <- torch::nn_linear(hidden_state_size, n_quantiles)
+  },
+  forward = function(x) {
+    self$linear(x)
+  }
+)
+
+position_wise_feedforward <- torch::nn_module(
+  initialize = function(hidden_state_size, dropout = 0) {
+    self$grn <- time_distributed(gated_residual_network(
+      input_size = hidden_state_size,
+      output_size = hidden_state_size,
+      hidden_state_size = hidden_state_size,
+      dropout = dropout
+    ))
+    self$layer_norm <- torch::nn_layer_norm(
+      normalized_shape = hidden_state_size
+    )
+    self$glu <- gated_linear_unit(
+      input_size = hidden_state_size,
+      output_size = hidden_state_size
+    )
+  },
+  forward = function(x, known) {
+    output <- self$grn(x)
+    self$layer_norm(known + self$glu(output))
+  }
+)
+
+temporal_self_attention <- torch::nn_module(
+  initialize = function(n_heads, hidden_state_size, dropout) {
+    self$multihead_attn <- interpretable_multihead_attention(
+      n_heads = 3, hidden_state_size = hidden_state_size,
+      dropout = 0
+    )
+    self$glu <- gated_linear_unit(
+      input_size = hidden_state_size,
+      output_size = hidden_state_size
+    )
+    self$layer_norm <- torch::nn_layer_norm(
+      normalized_shape = hidden_state_size
+    )
+  },
+  forward = function(x) {
+    full_seq <- torch::torch_cat(list(
+      x$encoder$past,
+      x$decoder$known
+    ), dim = 2)
+
+    attn_output <- self$multihead_attn(full_seq, full_seq, full_seq)
+    attn_output <- attn_output[,-x$decoder$known$size(2):N,]
+
+    self$layer_norm(self$glu(attn_output) + x$decoder$known)
+  }
+)
+
+interpretable_multihead_attention <- torch::nn_module(
+  initialize = function(n_heads, hidden_state_size, dropout) {
+    attn_size <- trunc(hidden_state_size / n_heads)
+
+    self$query_layers <- seq_len(n_heads) %>%
+      purrr::map(~torch::nn_linear(hidden_state_size, attn_size)) %>%
+      torch::nn_module_list()
+    self$key_layers <- seq_len(n_heads) %>%
+      purrr::map(~torch::nn_linear(hidden_state_size, attn_size)) %>%
+      torch::nn_module_list()
+    self$value_layer <- torch::nn_linear(hidden_state_size, attn_size)
+    self$output_layer <- torch::nn_linear(attn_size, hidden_state_size)
+
+    self$attention <- scaled_dot_product_attention(dropout = dropout)
+
+  },
+  forward = function(q, k, v) {
+    queries <- purrr::map(as.list(self$query_layers), ~.x(q))
+    keys <- purrr::map(as.list(self$key_layers), ~.x(k))
+    value <- self$value_layer(v)
+
+    outputs <- purrr::map2(queries, keys, ~self$attention(.x, .y, value))
+    outputs %>%
+      torch::torch_stack(dim = 3) %>%
+      torch::torch_mean(dim = 3) %>%
+      self$output_layer()
+  }
+)
+
+scaled_dot_product_attention <- torch::nn_module(
+  initialize = function(dropout = 0) {
+    self$dropout <- torch::nn_dropout(p = dropout)
+    self$softmax <- torch::nn_softmax(dim = 3)
+  },
+  forward = function(q, k, v, mask = TRUE) {
+    scaling_factor <- sqrt(k$size(3))
+    attn <- q %>%
+      torch::torch_bmm(k$permute(c(1,3,2))) %>%
+      torch::torch_divide(scaling_factor)
+
+    if (mask) {
+      m <- attn %>%
+        torch::torch_empty_like() %>%
+        torch::torch_triu(diagonal = 1)
+      attn <- attn$masked_fill(m$to(dtype = torch::torch_bool()), -1e9)
+    }
+
+    attn %>%
+      self$softmax() %>%
+      self$dropout() %>%
+      torch::torch_bmm(v)
+  }
+)
+
+static_enrichment_layer <- torch::nn_module(
+  "static_enrichment_layer",
+  initialize = function(hidden_state_size, dropout = 0) {
+    self$grn <- time_distributed(gated_residual_network(
+      input_size = hidden_state_size,
+      output_size = hidden_state_size,
+      hidden_state_size = hidden_state_size,
+      dropout = dropout
+    ))
+  },
+  forward = function(x, context) {
+    list(
+      encoder = list(
+        past = self$grn(x$encoder$past, context$static_enrichment)
+      ),
+      decoder = list(
+        known = self$grn(x$decoder$known, context$static_enrichment)
+      )
+    )
   }
 )
 
