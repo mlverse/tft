@@ -1,30 +1,3 @@
-library(recipes)
-
-data(walmart_sales, package = "walmartdata")
-df <- walmart_sales %>%
-  mutate(
-    Store = as.factor(Store),
-    Dept = as.factor(Dept)
-  ) %>%
-  tsibble::tsibble(
-    key = c(Store, Dept, Type, Size),
-    index = Date
-  )
-
-recipe <- recipe(Weekly_Sales ~ ., data = df) %>%
-  update_role(IsHoliday, new_role = "known") %>%
-  step_date(Date, role = "known", features = c("year", "month", "doy")) %>%
-  step_normalize(all_numeric_predictors()) %>%
-  step_indicate_na(starts_with("MarkDown")) %>%
-  step_impute_mean(starts_with("Markdown"))
-
-dataset <- time_series_dataset(df, recipe)
-n_features <- get_n_features(dataset[1])
-hidden_state_size <- 128
-feature_sizes <- dataset$feature_sizes
-
-x <- coro::collect(torch::dataloader(dataset, batch_size = 32), 1)[[1]]
-
 
 #' Temporal Fusion Transformer Module
 #'
@@ -33,42 +6,47 @@ x <- coro::collect(torch::dataloader(dataset, batch_size = 32), 1)[[1]]
 #'        to define the size of layers, including:
 #'                   - `$encoder$past$(num|cat)`: shape of past features
 #'                   - `$encoder$static$(num|cat)`: shape of the static features
-#'                   - `$decoder$target$(num|cat)`: shape of the targets.
+#'                   - `$decoder$target`: shape of the target variable
 #'        We exclude the batch dimension.
+#' @param feature_sizes The number of unique elements for each categorical
+#'        variable in the dataset.
 #' @param hidden_state_size The size of the model shared accross multiple parts
 #'        of the architecture.
+#' @param dropout the dropout rate used in many different places in the network
+#' @param num_heads the number of heads in the attention layer.
 temporal_fusion_transformer <- torch::nn_module(
   "temporal_fusion_transformer",
-  initialize = function(n_features, feature_sizes, hidden_state_size) {
+  initialize = function(num_features, feature_sizes, hidden_state_size = 100,
+                        dropout = 0.1, num_heads = 4, num_quantiles = 3) {
     self$preprocessing <- preprocessing(
-      n_features = n_features,
+      n_features = num_features,
       feature_sizes = feature_sizes,
       hidden_state_size = hidden_state_size
     )
     self$context <- static_context(
-      n_features = n_features$encoder$static,
+      n_features = num_features$encoder$static,
       hidden_state_size = hidden_state_size
     )
     self$temporal_selection <- temporal_selection(
-      n_features = n_features,
+      n_features = num_features,
       hidden_state_size = hidden_state_size
     )
     self$locality_enhancement <- locality_enhancement_layer(
       hidden_state_size = hidden_state_size,
       num_layers =  1,
-      dropout = 0
+      dropout = dropout
     )
     self$temporal_attn <- temporal_self_attention(
-      n_heads = 3,
+      n_heads = num_heads,
       hidden_state_size = hidden_state_size,
-      dropout = 0
+      dropout = dropout
     )
     self$position_wise <- position_wise_feedforward(
       hidden_state_size = hidden_state_size,
-      dropout = 0
+      dropout = dropout
     )
     self$output_layer <- quantile_output_layer(
-      n_quantiles = n_quantiles,
+      n_quantiles = num_quantiles,
       hidden_state_size = hidden_state_size
     )
   },
@@ -119,6 +97,18 @@ temporal_fusion_transformer <- torch::nn_module(
   }
 )
 
+quantile_loss <- torch::nn_module(
+  initialize = function(quantiles) {
+    self$quantiles <- torch::torch_tensor(quantiles)$unsqueeze(1)$unsqueeze(1)
+  },
+  forward = function(y_true, y_pred) {
+    low_res <- torch::torch_max(y_true - y_pred, other = torch::torch_zeros_like(y_pred))
+    up_res <- torch::torch_max(y_pred - y_true, other = torch::torch_zeros_like(y_pred))
+
+    torch::torch_mean(self$quantiles * low_res + (1 - self$quantiles) * up_res)
+  }
+)
+
 
 quantile_output_layer <- torch::nn_module(
   initialize = function(n_quantiles, hidden_state_size) {
@@ -155,7 +145,7 @@ temporal_self_attention <- torch::nn_module(
   initialize = function(n_heads, hidden_state_size, dropout) {
     self$multihead_attn <- interpretable_multihead_attention(
       n_heads = 3, hidden_state_size = hidden_state_size,
-      dropout = 0
+      dropout = dropout
     )
     self$glu <- gated_linear_unit(
       input_size = hidden_state_size,
@@ -171,7 +161,7 @@ temporal_self_attention <- torch::nn_module(
       x$decoder$known
     ), dim = 2)
 
-    attn_output <- self$multihead_attn(full_seq, full_seq, full_seq)
+    attn_output <- self$multihead_attn(x$decoder$known, full_seq, full_seq)
     attn_output <- attn_output[,-x$decoder$known$size(2):N,]
 
     self$layer_norm(self$glu(attn_output) + x$decoder$known)
@@ -213,6 +203,7 @@ scaled_dot_product_attention <- torch::nn_module(
     self$softmax <- torch::nn_softmax(dim = 3)
   },
   forward = function(q, k, v, mask = TRUE) {
+
     scaling_factor <- sqrt(k$size(3))
     attn <- q %>%
       torch::torch_bmm(k$permute(c(1,3,2))) %>%
@@ -220,8 +211,8 @@ scaled_dot_product_attention <- torch::nn_module(
 
     if (mask) {
       m <- attn %>%
-        torch::torch_empty_like() %>%
-        torch::torch_triu(diagonal = 1)
+        torch::torch_ones_like() %>%
+        torch::torch_triu(diagonal = 1 + (attn$size(3) - attn$size(2)))
       attn <- attn$masked_fill(m$to(dtype = torch::torch_bool()), -1e9)
     }
 
@@ -257,6 +248,9 @@ static_enrichment_layer <- torch::nn_module(
 locality_enhancement_layer <- torch::nn_module(
   "locality_enhancement_layer",
   initialize = function(hidden_state_size, num_layers, dropout = 0) {
+
+    dropout <- if (num_layers > 1) dropout else 0
+
     self$encoder <- torch::nn_lstm(
       input_size = hidden_state_size,
       hidden_size = hidden_state_size,
