@@ -105,7 +105,8 @@ quantile_loss <- torch::nn_module(
     low_res <- torch::torch_max(y_true - y_pred, other = torch::torch_zeros_like(y_pred))
     up_res <- torch::torch_max(y_pred - y_true, other = torch::torch_zeros_like(y_pred))
 
-    torch::torch_mean(self$quantiles * low_res + (1 - self$quantiles) * up_res)
+    quantiles <- self$quantiles$to(device = y_true$device)
+    torch::torch_mean(quantiles * low_res + (1 - quantiles) * up_res)
   }
 )
 
@@ -386,7 +387,8 @@ variable_selection_network <- torch::nn_module(
         input_size = hidden_state_size,
         output_size = hidden_state_size,
         hidden_state_size = hidden_state_size
-      )))
+      ))) %>%
+      torch::nn_module_list()
   },
   forward = function(x, context = NULL) {
     v <- self$global(x, context = context) %>%
@@ -395,7 +397,7 @@ variable_selection_network <- torch::nn_module(
 
     x <- x %>%
       torch::torch_unbind(dim = 3) %>%
-      purrr::map2(self$local, ~.y(.x)) %>%
+      purrr::map2(as.list(self$local), ~.y(.x)) %>%
       torch::torch_stack(dim = 3)
 
     torch::torch_sum(v*x, dim = 3)
