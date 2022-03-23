@@ -33,6 +33,8 @@ time_series_dataset <- torch::dataset(
     # since data is already split between future and past values it's also easier
     # to reason when implementing the network.
     self$slices <- self$df %>%
+      dplyr::ungroup() %>%
+      dplyr::mutate(.row = dplyr::row_number()) %>%
       dplyr::group_split(!!!tsibble::key(df)) %>%
       purrr::discard(~nrow(.x) < (lookback + 1 + assess_stop)) %>%
       purrr::map_dfr(~rsample::sliding_index(
@@ -45,6 +47,13 @@ time_series_dataset <- torch::dataset(
         complete = complete,
         step = step
       ))
+
+    self$slices <- self$slices$splits %>% purrr::map(
+      ~list(
+        encoder = rsample::training(.x)$.row,
+        decoder = rsample::testing(.x)$.row
+      )
+    )
 
     # figure out variables of each type
     terms <- self$recipe$term_info
@@ -75,9 +84,9 @@ time_series_dataset <- torch::dataset(
     self$feature_sizes$target <- dictionary[self$target$cat]
   },
   .getitem = function(i) {
-    split <- self$slices$splits[[i]]
-    x <- rsample::training(split)
-    y <- rsample::testing(split)
+    split <- self$slices[[i]]
+    x <- self$df[split$encoder,]
+    y <- self$df[split$decoder,]
 
     encoder <- list()
     for (type in c("past", "static")) {
@@ -104,7 +113,7 @@ time_series_dataset <- torch::dataset(
     list(list(encoder = encoder, decoder = decoder), decoder$target$num)
   },
   .length = function() {
-    nrow(self$slices)
+    length(self$slices)
   },
   to_tensor = function(df) {
     df %>%
