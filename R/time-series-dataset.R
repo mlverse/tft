@@ -52,7 +52,7 @@ time_series_dataset <- torch::dataset(
     self$known <- terms %>%
       pull_term_names(role %in% c("known"), !(variable %in% tsibble::key_vars(df)))
     self$observed <- terms %>%
-      pull_term_names(role %in% c("predictor", "target"), !(variable %in% tsibble::key_vars(df)))
+      pull_term_names(role %in% c("predictor", "outcome"), !(variable %in% tsibble::key_vars(df)))
 
     self$past <- purrr::map2(self$known, self$observed, ~c(.x, .y))
 
@@ -83,9 +83,8 @@ time_series_dataset <- torch::dataset(
     for (type in c("past", "static")) {
       encoder[[type]] <- list()
       for (dtype in c("num", "cat")) {
-        vars <- x %>%
-          dplyr::select(!!!self[[type]][[dtype]]) %>%
-          to_tensor()
+        vars <- x[,self[[type]][[dtype]]] %>%
+          self$to_tensor()
         if (type == "static") {
           vars <- vars[1,]
         }
@@ -97,16 +96,21 @@ time_series_dataset <- torch::dataset(
     for (type in c("known", "target")) {
       decoder[[type]] <- list()
       for(dtype in c("num", "cat")) {
-        decoder[[type]][[dtype]] <- y %>%
-          dplyr::select(!!!self[[type]][[dtype]]) %>%
-          to_tensor()
+        decoder[[type]][[dtype]] <- y[,self[[type]][[dtype]]] %>%
+          self$to_tensor()
       }
     }
 
-    list(encoder = encoder, decoder = decoder)
+    list(list(encoder = encoder, decoder = decoder), decoder$target$num)
   },
   .length = function() {
     nrow(self$slices)
+  },
+  to_tensor = function(df) {
+    df %>%
+      dplyr::mutate(dplyr::across(where(is.factor), as.integer)) %>%
+      as.matrix() %>%
+      torch::torch_tensor()
   }
 )
 
@@ -119,12 +123,5 @@ pull_term_names <- function(terms, ...) {
   output$num <- terms %>% dplyr::filter(type == "numeric") %>% dplyr::pull(variable)
 
   lapply(output, unique)
-}
-
-to_tensor <- function(df) {
-  df %>%
-    dplyr::mutate(dplyr::across(where(is.factor), as.integer)) %>%
-    as.matrix() %>%
-    torch::torch_tensor()
 }
 
