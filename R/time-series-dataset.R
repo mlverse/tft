@@ -88,36 +88,45 @@ time_series_dataset <- torch::dataset(
     x <- self$df[split$encoder,]
     y <- self$df[split$decoder,]
 
-    encoder <- list()
-    for (type in c("past", "static")) {
-      encoder[[type]] <- list()
-      for (dtype in c("num", "cat")) {
-        vars <- x[,self[[type]][[dtype]]] %>%
-          self$to_tensor()
-        if (type == "static") {
-          vars <- vars[1,]
-        }
-        encoder[[type]][[dtype]] <- vars
-      }
-    }
+    past <- list(
+      num = self$to_tensor(x[,self[["past"]][["num"]]]),
+      cat = self$to_cat_tensor(x[,self[["past"]][["cat"]]])
+    )
 
-    decoder <- list()
-    for (type in c("known", "target")) {
-      decoder[[type]] <- list()
-      for(dtype in c("num", "cat")) {
-        decoder[[type]][[dtype]] <- y[,self[[type]][[dtype]]] %>%
-          self$to_tensor()
-      }
-    }
+    static <- list(
+      num = self$to_tensor(x[1,self[["static"]][["num"]]])[1,],
+      cat = self$to_cat_tensor(x[1,self[["static"]][["cat"]]])[1,]
+    )
 
-    list(list(encoder = encoder, decoder = decoder), decoder$target$num)
+    known <- list(
+      num = self$to_tensor(y[,self[["known"]][["num"]]]),
+      cat = self$to_cat_tensor(y[,self[["known"]][["cat"]]])
+    )
+
+    target <- list(
+      num = self$to_tensor(y[,self[["target"]][["num"]]]),
+      cat = self$to_cat_tensor(y[,self[["target"]][["cat"]]])
+    )
+
+    list(
+      list(
+        encoder = list(past = past, static = static),
+        decoder = list(known = known, target = target)
+      ),
+      target$num
+    )
   },
   .length = function() {
     length(self$slices)
   },
+  to_cat_tensor = function(df) {
+    df %>%
+      purrr::map_dfc(as.integer) %>%
+      as.matrix() %>%
+      torch::torch_tensor()
+  },
   to_tensor = function(df) {
     df %>%
-      dplyr::mutate(dplyr::across(where(is.factor), as.integer)) %>%
       as.matrix() %>%
       torch::torch_tensor()
   }
