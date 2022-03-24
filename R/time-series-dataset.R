@@ -120,9 +120,12 @@ time_series_dataset <- torch::dataset(
     length(self$slices)
   },
   to_cat_tensor = function(df) {
+
+    if (ncol(df) == 0)
+      return(torch::torch_tensor(matrix(numeric(), ncol = 0, nrow = 0)))
+
     df %>%
-      purrr::map_dfc(as.integer) %>%
-      as.matrix() %>%
+      do.call(cbind, .) %>%
       torch::torch_tensor()
   },
   to_tensor = function(df) {
