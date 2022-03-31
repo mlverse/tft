@@ -85,8 +85,8 @@ time_series_dataset <- torch::dataset(
   },
   .getitem = function(i) {
     split <- self$slices[[i]]
-    x <- self$df[split$encoder,]
-    y <- self$df[split$decoder,]
+    x <- tibble::as_tibble(self$df[split$encoder,])
+    y <- tibble::as_tibble(self$df[split$decoder,])
 
     past <- list(
       num = self$to_tensor(x[,self[["past"]][["num"]]]),
@@ -120,9 +120,9 @@ time_series_dataset <- torch::dataset(
     length(self$slices)
   },
   to_cat_tensor = function(df) {
-
-    if (ncol(df) == 0)
+    if (length(df) == 0) {
       return(torch::torch_tensor(matrix(numeric(), ncol = 0, nrow = 0)))
+    }
 
     df %>%
       do.call(cbind, .) %>%
