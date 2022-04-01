@@ -492,13 +492,12 @@ preprocessing <- torch::nn_module(
 )
 
 
-#' Preprocess a group of time-varying variables
-#'
-#' Handles both numeric and categorical variables.
-#' Each numeric variables passes trough a linear transformation that is shared
-#' accross every time step.
-#' Categorical variables are represented trough embeddings.
-#'
+# Preprocess a group of time-varying variables
+#
+# Handles both numeric and categorical variables.
+# Each numeric variables passes trough a linear transformation that is shared
+# accross every time step.
+# Categorical variables are represented trough embeddings.
 preprocessing_group <- torch::nn_module(
   "preprocessing_group",
   initialize = function(n_features, feature_sizes, hidden_state_size) {
@@ -519,7 +518,7 @@ linear_preprocessing <- torch::nn_module(
       purrr::map(~time_distributed(torch::nn_linear(1, hidden_state_size))) %>%
       torch::nn_module_list()
   },
-  #' @param x `Tensor[batch, time_steps, n_features]`
+  # @param x `Tensor[batch, time_steps, n_features]`
   forward = function(x) {
     if (x$size(3) == 0) return(NULL)
     x %>%
@@ -537,7 +536,7 @@ embedding_preprocessing <- torch::nn_module(
       purrr::map(~time_distributed(torch::nn_embedding(.x, hidden_state_size))) %>%
       torch::nn_module_list()
   },
-  #' @param x `Tensor[batch, time_steps, n_features]`
+  # @param x `Tensor[batch, time_steps, n_features]`
   forward = function(x) {
     if (x$size(3) == 0) return(NULL)
     x %>%
