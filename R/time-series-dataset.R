@@ -1,31 +1,25 @@
 
 time_series_dataset <- torch::dataset(
   "time_series_dataset",
-  initialize = function(df, recipe, lookback = 2L, assess_start = 1L,
+  initialize = function(df, roles, lookback = 2L, assess_start = 1L,
                         assess_stop = 1L, complete = TRUE, step = 1L,
                         skip = 0L) {
 
-    if (!tsibble::is_tsibble(df)) {
+    self$roles <- roles
+    # create a tsibble using information from the recipe
+    keys <- roles$variable[roles$tft_role %in% c("key")]
+    index <- roles$variable[roles$tft_role %in% c("index")]
+
+    if (length(index) != 1) {
       cli::cli_abort(c(
-        "{.var df} must be {.cls tbl_ts}",
-        "x" = "Got a {.cls {class(df)}}"
+        "A sigle index must be provided in {.var roles}",
+        "x" = "Got {.var {length(index)}}"
       ))
     }
 
-    if (!inherits(recipe, "recipe")) {
-      cli::cli_abort(c(
-        "{.var recipe} must be a {.cls recipe}",
-        "x" = "Got a {.cls {class(recipe)}}"
-      ))
-    }
-
-    # TODO we will probably want to take a prepared recipe so we are able to
-    # use this also for the validation data.
-    self$recipe <- recipes::prep(recipe, df)
-
-    self$df <-  self$recipe %>%
-      recipes::juice() %>%
-      dplyr::arrange(!!!tsibble::index_var(df))
+    self$df <- df <- df %>%
+      tsibble::as_tsibble(key = keys, index = index) %>%
+      dplyr::arrange(!!!tsibble::index_var(.))
 
     # we create rsample `split` objects that don't materialize the data until
     # `training` or `testing` allowing us to compute the number of slices that
@@ -56,25 +50,23 @@ time_series_dataset <- torch::dataset(
     )
 
     # figure out variables of each type
-    terms <- self$recipe$term_info
+    terms <- self$roles
 
     self$known <- terms %>%
-      pull_term_names(role %in% c("known"), !(variable %in% tsibble::key_vars(df)))
+      pull_term_names(tft_role %in% c("known"), !(variable %in% tsibble::key_vars(df)))
     self$observed <- terms %>%
-      pull_term_names(role %in% c("predictor", "outcome"), !(variable %in% tsibble::key_vars(df)))
+      pull_term_names(tft_role %in% c("predictor", "outcome"), !(variable %in% tsibble::key_vars(df)))
 
     self$past <- purrr::map2(self$known, self$observed, ~c(.x, .y))
 
     self$static <- terms %>%
-      pull_term_names(role %in% c("static", "predictor"), variable %in% tsibble::key_vars(df))
+      pull_term_names(tft_role %in% c("static", "predictor", "key"), variable %in% tsibble::key_vars(df))
 
     self$target <- terms %>%
-      pull_term_names(role == "outcome")
+      pull_term_names(tft_role == "outcome")
 
     # compute feature sizes
-    dictionary <- self$recipe$levels %>%
-      purrr::keep(~isTRUE(.x$factor)) %>%
-      purrr::map(~length(.x$values))
+    dictionary <- purrr::set_names(roles$size, roles$variable)
 
     self$feature_sizes <- list()
     self$feature_sizes$known <- dictionary[self$known$cat]

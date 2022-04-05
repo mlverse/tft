@@ -6,7 +6,7 @@ step_include_roles <- function(
     role = NA,
     id = recipes::rand_id("include_roles")
 ) {
-  recipes::add_step(
+  recipe <- recipes::add_step(
     recipe,
     step_include_roles_new(
       role = role,
@@ -16,6 +16,16 @@ step_include_roles <- function(
       id = id
     )
   )
+  class(recipe) <- c("tft_recipe", "recipe")
+  recipe
+}
+
+#' @importFrom recipes bake
+#' @export
+prep.tft_recipe <- function(object, new_data, ...) {
+  out <- NextMethod()
+  out$term_info <- out$steps[[length(out$steps)]]$roles
+  out
 }
 
 step_include_roles_new <- function(role, roles, trained, skip, id) {
@@ -38,6 +48,11 @@ prep.step_include_roles <- function(x, training, info = NULL, ...) {
     else
       NA_integer_
   })
+
+  roles <- info$role
+  term_types <- c("key", "index", "static", "known")
+  info$role[info$role %in% term_types] <- "predictor"
+  info$tft_role <- roles
 
   step_include_roles_new(
     role = x$role,
