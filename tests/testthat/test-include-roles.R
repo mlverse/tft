@@ -12,6 +12,7 @@ test_that("include role works", {
   roles <- attr(x, "roles")
 
   expect_true(tibble::is_tibble(roles))
+  expect_equal(class(attr(x, "recipe")), c("tft_recipe", "recipe"))
   expect_equal(roles$tft_role[roles$variable %in% c("am", "vs")], rep("index", 2))
   expect_equal(roles$role[roles$variable %in% c("am", "vs")], rep("predictor", 2))
   expect_equal(roles$tft_role[roles$variable %in% c("disp", "hp")], rep("hello", 2))

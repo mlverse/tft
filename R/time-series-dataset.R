@@ -3,8 +3,9 @@ time_series_dataset <- torch::dataset(
   "time_series_dataset",
   initialize = function(df, roles, lookback = 2L, assess_start = 1L,
                         assess_stop = 1L, complete = TRUE, step = 1L,
-                        skip = 0L) {
+                        skip = 0L, mode = c("train", "predict")) {
 
+    mode <- rlang::arg_match(mode)
     self$roles <- roles
     # create a tsibble using information from the recipe
     keys <- roles$variable[roles$tft_role %in% c("key")]
@@ -26,21 +27,33 @@ time_series_dataset <- torch::dataset(
     # we are able to create.
     # since data is already split between future and past values it's also easier
     # to reason when implementing the network.
+
+    p_lookback <- lookback * lubridate::as.period(tsibble::interval(df))
+    p_assess_stop <- assess_stop * lubridate::as.period(tsibble::interval(df))
+    p_assess_start <- assess_start * lubridate::as.period(tsibble::interval(df))
+
     self$slices <- self$df %>%
       dplyr::ungroup() %>%
       dplyr::mutate(.row = dplyr::row_number()) %>%
       dplyr::group_split(!!!tsibble::key(df)) %>%
       purrr::discard(~nrow(.x) < (lookback + 1 + assess_stop)) %>%
-      purrr::map_dfr(~rsample::sliding_index(
-        dplyr::arrange(.x, !!!tsibble::index_var(df)),
-        index = tsibble::index_var(df),
-        lookback = lookback * lubridate::as.period(tsibble::interval(df)),
-        assess_stop = assess_stop * lubridate::as.period(tsibble::interval(df)),
-        assess_start = assess_start * lubridate::as.period(tsibble::interval(df)),
-        skip = skip,
-        complete = complete,
-        step = step
-      ))
+      purrr::map_dfr(function(.x) {
+
+        if (mode == "predict") {
+          skip <- nrow(.x) - (lookback + assess_stop + 1)
+        }
+
+        rsample::sliding_index(
+          dplyr::arrange(.x, !!!tsibble::index_var(df)),
+          index = tsibble::index_var(df),
+          lookback = lookback * lubridate::as.period(tsibble::interval(df)),
+          assess_stop = assess_stop * lubridate::as.period(tsibble::interval(df)),
+          assess_start = assess_start * lubridate::as.period(tsibble::interval(df)),
+          skip = skip,
+          complete = complete,
+          step = step
+        )
+      })
 
     self$slices <- self$slices$splits %>% purrr::map(
       ~list(

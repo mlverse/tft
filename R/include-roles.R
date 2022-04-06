@@ -25,6 +25,8 @@ step_include_roles <- function(
 prep.tft_recipe <- function(object, new_data, ...) {
   out <- NextMethod()
   out$term_info <- out$steps[[length(out$steps)]]$roles
+  out$steps[[length(out$steps)]]$recipe <- out
+  attr(out$template, "recipe") <- out
   out
 }
 
@@ -66,5 +68,6 @@ prep.step_include_roles <- function(x, training, info = NULL, ...) {
 #' @export
 bake.step_include_roles <- function(object, new_data, ...) {
   attr(new_data, "roles") <- object$roles
+  attr(new_data, "recipe") <- object$recipe
   new_data
 }
