@@ -44,21 +44,33 @@ tft_bridge <- function(processed) {
     module = result$module,
     future_data = result$future_data,
     past_data = result$past_data,
+    normalization = result$normalization,
     blueprint = processed$blueprint
   )
 }
 
-new_tft <- function(module, future_data, past_data, blueprint) {
+new_tft <- function(module, future_data, past_data, normalization, blueprint) {
   hardhat::new_model(
     module = module,
     future_data = future_data,
     past_data = past_data,
     blueprint = blueprint,
+    normalization = normalization,
     class = "tft"
   )
 }
 
 tft_impl <- function(x, recipe) {
+
+  normalization <- normalize_outcome(
+    x = x,
+    keys = get_variables_with_role(recipe$term_info, "key"),
+    outcome = get_variables_with_role(recipe$term_info, "outcome")
+  )
+
+  x <- normalization$x
+  normalization <- normalization$constant
+
   dataset <- time_series_dataset(x, recipe$term_info, lookback = 120, assess_stop = 4)
 
   n_features <- get_n_features(dataset[1][[1]])
@@ -91,7 +103,8 @@ tft_impl <- function(x, recipe) {
       batch_size = 256, num_workers = 0
     ))
 
-  list(future_data = future_data, past_data = dataset$df, module = result)
+  list(future_data = future_data, past_data = dataset$df, module = result,
+       normalization = normalization)
 }
 
 prepare_future_data <- function(df, recipe, horizon = 4) {
@@ -140,4 +153,36 @@ prepare_future_data <- function(df, recipe, horizon = 4) {
   }
 
   new_obs
+}
+
+# by default we normalize the outcomes per group.
+normalize_outcome <- function(x, keys, outcome) {
+  outcome <- rlang::sym(outcome)
+  constants <- x %>%
+    tibble::as_tibble() %>%
+    dplyr::ungroup() %>%
+    dplyr::group_by(!!!rlang::syms(keys)) %>%
+    dplyr::summarise(.groups = "drop",
+      ..mean := mean({{outcome}}),
+      ..sd := sd({{outcome}})
+    )
+
+  x <- x %>%
+    dplyr::left_join(constants, by = keys) %>%
+    dplyr::mutate({{outcome}} := ({{outcome}} - ..mean)/..sd) %>%
+    dplyr::select(-..mean, -..sd)
+
+  list(constants = constants, x = x)
+}
+
+unnormalize_outcome <- function(x, constants, outcome) {
+  keys <- names(constants)
+  keys <- keys[!keys %in% c("..mean", "..sd")]
+
+  outcome <- rlang::sym(outcome)
+
+  x %>%
+    dplyr::left_join(constants, by = keys) %>%
+    dplyr::mutate({{outcome}} := {{outcome}} *..sd + ..mean) %>%
+    dplyr::select(-..mean, -..sd)
 }

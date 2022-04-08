@@ -8,8 +8,8 @@ time_series_dataset <- torch::dataset(
     mode <- rlang::arg_match(mode)
     self$roles <- roles
     # create a tsibble using information from the recipe
-    keys <- roles$variable[roles$tft_role %in% c("key")]
-    index <- roles$variable[roles$tft_role %in% c("index")]
+    keys <- get_variables_with_role(roles, "key")
+    index <- get_variables_with_role(roles, "index")
 
     if (length(index) != 1) {
       cli::cli_abort(c(
@@ -151,3 +151,6 @@ pull_term_names <- function(terms, ...) {
   lapply(output, unique)
 }
 
+get_variables_with_role <- function(roles, role) {
+  roles$variable[roles$tft_role %in% role]
+}

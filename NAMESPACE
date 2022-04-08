@@ -2,6 +2,7 @@
 
 S3method(bake,step_group_normalize)
 S3method(bake,step_include_roles)
+S3method(predict,tft)
 S3method(prep,step_group_normalize)
 S3method(prep,step_include_roles)
 S3method(prep,tft_recipe)

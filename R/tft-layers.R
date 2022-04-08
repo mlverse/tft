@@ -99,9 +99,9 @@ temporal_fusion_transformer <- torch::nn_module(
 
 quantile_loss <- torch::nn_module(
   initialize = function(quantiles) {
-    self$quantiles <- torch::torch_tensor(quantiles)$unsqueeze(1)$unsqueeze(1)
+    self$quantiles <- torch::torch_tensor(sort(quantiles))$unsqueeze(1)$unsqueeze(1)
   },
-  forward = function(y_true, y_pred) {
+  forward = function(y_pred, y_true) {
     low_res <- torch::torch_max(y_true - y_pred, other = torch::torch_zeros_like(y_pred))
     up_res <- torch::torch_max(y_pred - y_true, other = torch::torch_zeros_like(y_pred))
 
