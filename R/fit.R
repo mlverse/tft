@@ -15,16 +15,18 @@ tft.default <- function(x, ...) {
 #' @export
 tft.data.frame <- function(x, y, ...) {
   processed <- hardhat::mold(x, y)
-  tft_bridge(processed)
+  config <- tft_config(...)
+  tft_bridge(processed, config)
 }
 
 #' @export
 tft.recipe <- function(x, data, ...) {
-  processed <- hardhat::mold(x, data)
-  tft_bridge(processed)
+  config <- tft_config(...)
+  processed <- hardhat::mold(x, tibble::as_tibble(data))
+  tft_bridge(processed, config)
 }
 
-tft_bridge <- function(processed) {
+tft_bridge <- function(processed, config) {
 
   if (is.null(attr(processed$outcomes, "roles"))) {
     cli::cli_abort(c(
@@ -37,30 +39,33 @@ tft_bridge <- function(processed) {
 
   result <- tft_impl(
     x = data,
-    recipe = attr(processed$predictors, "recipe")
+    recipe = attr(processed$predictors, "recipe"),
+    config = config
   )
 
   new_tft(
     module = result$module,
-    future_data = result$future_data,
     past_data = result$past_data,
     normalization = result$normalization,
+    recipe = attr(processed$predictors, "recipe"),
+    config = config,
     blueprint = processed$blueprint
   )
 }
 
-new_tft <- function(module, future_data, past_data, normalization, blueprint) {
+new_tft <- function(module, past_data, normalization, recipe, config, blueprint) {
   hardhat::new_model(
     module = module,
-    future_data = future_data,
     past_data = past_data,
-    blueprint = blueprint,
     normalization = normalization,
+    recipe = recipe,
+    config = config,
+    blueprint = blueprint,
     class = "tft"
   )
 }
 
-tft_impl <- function(x, recipe) {
+tft_impl <- function(x, recipe, config) {
 
   normalization <- normalize_outcome(
     x = x,
@@ -71,17 +76,15 @@ tft_impl <- function(x, recipe) {
   x <- normalization$x
   normalization <- normalization$constant
 
-  dataset <- time_series_dataset(x, recipe$term_info, lookback = 120, assess_stop = 4)
+  dataset <- time_series_dataset(
+    x, recipe$term_info,
+    lookback = config$lookback,
+    assess_stop = config$horizon
+  )
 
   n_features <- get_n_features(dataset[1][[1]])
   hidden_state_size <- 16
   feature_sizes <- dataset$feature_sizes
-
-  future_data <- prepare_future_data(
-    df = dataset$df,
-    recipe = recipe,
-    horizon = 4
-  )
 
   result <- temporal_fusion_transformer %>%
     luz::setup(
@@ -99,60 +102,11 @@ tft_impl <- function(x, recipe) {
     luz::set_opt_hparams(
       lr = 0.03
     ) %>%
-    fit(dataset, epochs = 5, dataloader_options = list(
-      batch_size = 256, num_workers = 0
+    fit(dataset, epochs = config$epochs, verbose = config$verbose, dataloader_options = list(
+      batch_size = config$batch_size, num_workers = 0
     ))
 
-  list(future_data = future_data, past_data = dataset$df, module = result,
-       normalization = normalization)
-}
-
-prepare_future_data <- function(df, recipe, horizon = 4) {
-
-  if (is.null(recipe)) {
-    cli::cli_abort(c(
-      "The recipe describing data preprocessing must be use {.var step_include_roles()}",
-      "x" = "Use {.var step_include_roles()} as the last step of the recipe."
-    ))
-  }
-
-  new_obs <- tsibble::new_data(df, n = horizon)
-
-  var_info <- recipe$var_info
-  keys <- var_info$variable[var_info$role %in% c("key")]
-  index <- var_info$variable[var_info$role %in% c("index")]
-
-  if (!all(names(new_obs) %in% c(keys, index))) {
-    cli::cli_abort(c(
-      "New data does not include all the {.var keys} and {.var index}.",
-      "x" = "Missing {.var {setdiff(names(new_obs), c(keys, index))}}"
-    ))
-  }
-
-  # we now add all `predictors` to the new_obs dataset.
-  predictors <- var_info$variable[var_info$role == "predictor"]
-  for (var in predictors) {
-    new_obs[[var]] <- NA
-  }
-
-  # we should now `bake` the recipe for the `new_obs` dataset and make sure we
-  # could compute all `static` and `known` variables.
-  # We will make sure no `NA` is found in `static`, `keys` `index` and `known`.
-  new_obs <- recipes::bake(recipe, new_obs)
-
-  term_info <- recipe$term_info
-  known <- term_info$variable[term_info$tft_role %in% c("key", "index", "static", "known")]
-  for (var in known) {
-    if (any(is.na(new_obs[[var]]))) {
-      cli::cli_abort(c(
-        "Found missing values in at least opne known variable.",
-        "i" = "This kind of variables should be fully known for future inputs.",
-        "x" = "Check variable {.var {var}}."
-      ))
-    }
-  }
-
-  new_obs
+  list(past_data = dataset$df, module = result, normalization = normalization)
 }
 
 # by default we normalize the outcomes per group.
@@ -185,4 +139,15 @@ unnormalize_outcome <- function(x, constants, outcome) {
     dplyr::left_join(constants, by = keys) %>%
     dplyr::mutate({{outcome}} := {{outcome}} *..sd + ..mean) %>%
     dplyr::select(-..mean, -..sd)
+}
+
+tft_config <- function(lookback, horizon, batch_size = 256, epochs = 5,
+                       verbose = FALSE) {
+  list(
+    lookback = lookback,
+    horizon = horizon,
+    batch_size = batch_size,
+    epochs = epochs,
+    verbose = verbose
+  )
 }
