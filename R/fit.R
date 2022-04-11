@@ -36,12 +36,17 @@ tft.recipe <- function(x, data, ...) {
 
 tft_bridge <- function(processed, config) {
 
-  if (is.null(attr(processed$outcomes, "roles"))) {
+  if (is.null(attr(processed$predictors, "recipe"))) {
     cli::cli_abort(c(
-      "The provided {.cls {class(processed$outcomes)}} doesn't include role information.",
+      "The provided {.cls {class(processed$predictors)}} doesn't include role information.",
       "i" = "You should use {.var step_include_roles} in the {.cls recipe} so the role information is correctly passed to the model."
     ))
   }
+
+  names(processed$outcomes) <- get_variables_with_role(
+    attr(processed$predictors, "recipe")$term_info,
+    "outcome"
+  )
 
   data <- dplyr::bind_cols(processed$predictors, processed$outcomes)
 
@@ -107,7 +112,7 @@ tft_impl <- function(x, recipe, config) {
     )
   }
 
-  result <- temporal_fusion_transformer %>%
+  result <- temporal_fusion_transformer_model %>%
     luz::setup(
       loss = quantile_loss(quantiles = c(0.1, 0.5, 0.9)),
       optimizer = config$optimizer

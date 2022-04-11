@@ -16,7 +16,7 @@
 #' @param num_heads Number of heads in the attention layer.
 #' @param num_lstm_layers Number of LSTM layers used in the Locality Enhancement
 #'   Layer. Usually 2 is good enough.
-temporal_fusion_transformer <- torch::nn_module(
+temporal_fusion_transformer_model <- torch::nn_module(
   "temporal_fusion_transformer",
   initialize = function(num_features, feature_sizes, hidden_state_size = 100,
                         dropout = 0.1, num_heads = 4, num_lstm_layers = 2,
