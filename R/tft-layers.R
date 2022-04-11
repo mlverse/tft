@@ -12,12 +12,15 @@
 #'        variable in the dataset.
 #' @param hidden_state_size The size of the model shared accross multiple parts
 #'        of the architecture.
-#' @param dropout the dropout rate used in many different places in the network
-#' @param num_heads the number of heads in the attention layer.
+#' @param dropout Dropout rate used in many different places in the network
+#' @param num_heads Number of heads in the attention layer.
+#' @param num_lstm_layers Number of LSTM layers used in the Locality Enhancement
+#'   Layer. Usually 2 is good enough.
 temporal_fusion_transformer <- torch::nn_module(
   "temporal_fusion_transformer",
   initialize = function(num_features, feature_sizes, hidden_state_size = 100,
-                        dropout = 0.1, num_heads = 4, num_quantiles = 3) {
+                        dropout = 0.1, num_heads = 4, num_lstm_layers = 2,
+                        num_quantiles = 3) {
     self$preprocessing <- preprocessing(
       n_features = num_features,
       feature_sizes = feature_sizes,
@@ -33,7 +36,7 @@ temporal_fusion_transformer <- torch::nn_module(
     )
     self$locality_enhancement <- locality_enhancement_layer(
       hidden_state_size = hidden_state_size,
-      num_layers =  1,
+      num_layers =  num_lstm_layers,
       dropout = dropout
     )
     self$temporal_attn <- temporal_self_attention(

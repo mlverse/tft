@@ -10,6 +10,7 @@ temporal_fusion_transformer(
   hidden_state_size = 100,
   dropout = 0.1,
   num_heads = 4,
+  num_lstm_layers = 2,
   num_quantiles = 3
 )
 }
@@ -20,9 +21,12 @@ variable in the dataset.}
 \item{hidden_state_size}{The size of the model shared accross multiple parts
 of the architecture.}
 
-\item{dropout}{the dropout rate used in many different places in the network}
+\item{dropout}{Dropout rate used in many different places in the network}
 
-\item{num_heads}{the number of heads in the attention layer.}
+\item{num_heads}{Number of heads in the attention layer.}
+
+\item{num_lstm_layers}{Number of LSTM layers used in the Locality Enhancement
+Layer. Usually 2 is good enough.}
 
 \item{n_features}{a list containing the shapes for all necessary information
 to define the size of layers, including:
