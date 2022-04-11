@@ -20,14 +20,15 @@ walmart_data <- function() {
 }
 
 walmart_recipe <- function() {
+  df <- walmart_data()
   recipe <- recipes::recipe(Weekly_Sales ~ ., data = df) %>%
     recipes::update_role(!!!tsibble::key_vars(df), new_role = "key") %>%
     recipes::update_role(!!!tsibble::index_var(df), new_role = "index") %>%
     recipes::step_date(Date, role = "known", features = c("year", "month", "doy")) %>%
     recipes::update_role(IsHoliday, new_role = "unused") %>%
-    recipes::step_normalize(all_numeric_predictors()) %>%
-    recipes::step_indicate_na(starts_with("MarkDown")) %>%
-    recipes::step_impute_mean(starts_with("Markdown")) %>%
+    recipes::step_normalize(recipes::all_numeric_predictors()) %>%
+    recipes::step_indicate_na(dplyr::starts_with("MarkDown")) %>%
+    recipes::step_impute_mean(dplyr::starts_with("Markdown")) %>%
     step_include_roles()
   recipe
 }

@@ -1,5 +1,5 @@
 test_that("group normalize", {
-  x <- tibble(
+  x <- tibble::tibble(
     g = c(rep("a", 5), rep("b", 5)),
     h = rep(c("a", "b"), 5),
     v1 = runif(10),
@@ -20,7 +20,7 @@ test_that("group normalize", {
   expect_equal(out$v1[6:10], as.numeric(scale(x$v1[6:10])))
   expect_equal(out$v2[6:10], as.numeric(scale(x$v2[6:10])))
 
-  out <- bake(rec, x)
+  out <- recipes::bake(rec, x)
 
   expect_equal(out$v1[1:5], as.numeric(scale(x$v1[1:5])))
   expect_equal(out$v2[1:5], as.numeric(scale(x$v2[1:5])))

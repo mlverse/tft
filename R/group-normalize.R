@@ -61,7 +61,7 @@ prep.step_group_normalize <- function(x, training, info = NULL, ...) {
 
   stats <- training %>%
     dplyr::group_by(!!!rlang::syms(groups)) %>%
-    dplyr::summarise(dplyr::across(col_names, c(mean = mean, sd = sd))) %>%
+    dplyr::summarise(dplyr::across(dplyr::all_of(col_names), c(mean = mean, sd = sd))) %>%
     tidyr::pivot_longer(
       cols = c(dplyr::ends_with("_mean"), dplyr::ends_with("_sd")),
       names_to = c(".column", ".stat"),
@@ -103,7 +103,7 @@ bake.step_group_normalize <- function(object, new_data, ...) {
     dplyr::left_join(object$stats, by = keys) %>%
     dplyr::rowwise() %>%
     dplyr::mutate(dplyr::across(
-      .cols = columns,
+      .cols = dplyr::all_of(columns),
       ~normalize(.x, .stats)
     )) %>%
     dplyr::select(-.stats) %>%

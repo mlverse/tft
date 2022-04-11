@@ -19,13 +19,13 @@ test_that("simple test for time series dataset", {
     tidyr::fill(Size, Temperature, Fuel_Price, CPI, Unemployment, .direction = "down") %>%
     dplyr::select(-starts_with("MarkDown"), -IsHoliday)
 
-  recipe <- recipe(Weekly_Sales ~ ., data = sales) %>%
-    update_role(Store, Dept, Type, Size, new_role = "key") %>%
-    update_role(Date, new_role = "index") %>%
+  recipe <- recipes::recipe(Weekly_Sales ~ ., data = sales) %>%
+    recipes::update_role(Store, Dept, Type, Size, new_role = "key") %>%
+    recipes::update_role(Date, new_role = "index") %>%
     step_include_roles() %>%
     recipes::prep()
 
-  dataset <- time_series_dataset(juice(recipe), recipe$term_info,
+  dataset <- time_series_dataset(recipes::juice(recipe), recipe$term_info,
                                  lookback = 6, assess_stop = 4)
 
   counts <- sales %>%
@@ -66,13 +66,13 @@ test_that("works for validation mode", {
     tidyr::fill(Size, Temperature, Fuel_Price, CPI, Unemployment, .direction = "down") %>%
     dplyr::select(-starts_with("MarkDown"), -IsHoliday)
 
-  recipe <- recipe(Weekly_Sales ~ ., data = sales) %>%
-    update_role(Store, Dept, Type, Size, new_role = "key") %>%
-    update_role(Date, new_role = "index") %>%
+  recipe <- recipes::recipe(Weekly_Sales ~ ., data = sales) %>%
+    recipes::update_role(Store, Dept, Type, Size, new_role = "key") %>%
+    recipes::update_role(Date, new_role = "index") %>%
     step_include_roles() %>%
     recipes::prep()
 
-  dataset <- time_series_dataset(juice(recipe), recipe$term_info,
+  dataset <- time_series_dataset(recipes::juice(recipe), recipe$term_info,
                                  lookback = 6, assess_stop = 4,
                                  mode = "predict")
 

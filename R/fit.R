@@ -102,7 +102,7 @@ tft_impl <- function(x, recipe, config) {
     luz::set_opt_hparams(
       lr = 0.03
     ) %>%
-    fit(dataset, epochs = config$epochs, verbose = config$verbose, dataloader_options = list(
+    generics::fit(dataset, epochs = config$epochs, verbose = config$verbose, dataloader_options = list(
       batch_size = config$batch_size, num_workers = 0
     ))
 

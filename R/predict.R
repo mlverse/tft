@@ -104,7 +104,7 @@ verify_new_data <- function(new_data, object) {
     }
   }
 
-  possible_dates <- future_data(past_data, horizon = config$horizon)
+  possible_dates <- future_data(past_data, horizon = object$config$horizon)
   not_allowed <- new_data %>%
     dplyr::anti_join(
       possible_dates,

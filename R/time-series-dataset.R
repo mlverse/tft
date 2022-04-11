@@ -19,7 +19,7 @@ time_series_dataset <- torch::dataset(
     }
 
     self$df <- df <- df %>%
-      tsibble::as_tsibble(key = keys, index = index) %>%
+      tsibble::as_tsibble(key = dplyr::all_of(keys), index = dplyr::all_of(index)) %>%
       dplyr::arrange(!!!tsibble::index_var(.))
 
     # we create rsample `split` objects that don't materialize the data until
@@ -43,9 +43,11 @@ time_series_dataset <- torch::dataset(
           skip <- nrow(.x) - (lookback + assess_stop + 1)
         }
 
+        index <- tsibble::index_var(df)
+
         rsample::sliding_index(
-          dplyr::arrange(.x, !!!tsibble::index_var(df)),
-          index = tsibble::index_var(df),
+          dplyr::arrange(.x, !!!index),
+          index = !!index,
           lookback = lookback * lubridate::as.period(tsibble::interval(df)),
           assess_stop = assess_stop * lubridate::as.period(tsibble::interval(df)),
           assess_start = assess_start * lubridate::as.period(tsibble::interval(df)),

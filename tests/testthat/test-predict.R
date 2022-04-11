@@ -50,7 +50,7 @@ test_that("can predict", {
   expect_equal(nrow(new_data), nrow(pred))
 
   # expect that prediction is correctly reordered
-  new_data2 <- arrange(new_data, Dept)
+  new_data2 <- dplyr::arrange(new_data, Dept)
   pred2 <- predict(result, new_data2)
   out <- dplyr::bind_cols(new_data, pred) %>%
     dplyr::left_join(dplyr::bind_cols(new_data2, pred2), by = names(new_data))
