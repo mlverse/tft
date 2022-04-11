@@ -233,14 +233,16 @@ tft_config <- function(lookback, horizon, hidden_state_size = 16, num_attention_
     lookback = lookback,
     horizon = horizon,
     hidden_state_size = hidden_state_size,
-    num_heads = num_heads,
+    num_attention_heads = num_attention_heads,
     num_lstm_layers = num_lstm_layers,
     dropout = dropout,
     gradient_clip_norm = gradient_clip_norm,
+    optimizer = optimizer,
     learn_rate = learn_rate,
     learn_rate_decay = learn_rate_decay,
     batch_size = batch_size,
     epochs = epochs,
+    quantiles = quantiles,
     verbose = verbose
   )
 }
