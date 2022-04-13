@@ -30,54 +30,67 @@ data(walmart_sales, package = "walmartdata")
 dplyr::glimpse(walmart_sales)
 ```
 
-## Preparing the data
-
-tft uses the tsibble to specify time time columns and keys - when you want to create
-forecasts for multiple timeseries in a single model. So let's first, transform
-the `data.frame` into a `tbl_ts`.
-
-We have weekly observations for each Store and Department, but since Type and Size
-are informations that don't vary on time we have also added them as 'keys' for 
-`tsibble`. We specify the index column as the `Date` column.
+To make the example faster to run, we are going to create models for the first 2
+stores.
 
 ```{r}
-sales <- tsibble::tsibble(
-  walmart_sales, key = c(Store, Dept, Type, Size), 
-  index = Date
-)
-sales
+walmart_sales <- walmart_sales %>% 
+  filter(Store %in% c(1, 2), Dept %in% c(1,2))
 ```
 
-`tsibble` correctly identifies the weekly period (`[7D]`) and shows us that we
-have `r nrow(tsibble::key_data(sales))` different time series that we want to
-create predictions to.
 
-tft also uses the [recipes](https://github.com/tidymodels/recipes) ppackage to
-specify the response variables, the predictors and their types. We can
-also use recipes to specify transformations on the data that will be used by
-the model.
+## Preparing the data
 
-By default the keys of the the tsibble are considered as 'static' predictors, ie,
-they don't vary on time for each time series. You can remove the role 'predictor'
-from it if you don't want it to be used as a predictor.
+The first thing we need to make sure is that our dataset doesn't have [implicit missing observations](https://r4ds.hadley.nz/missing-values.html#missing-values). This happens when an observations is just not present in
+the data instead of being explicitly marked with a `NA`. We are going to use
+`tsibble` functionality to add the implicitly missing observations, but you could
+use whatever tool you prefer for the task.
 
-We can also have 'known' predictors: these vary on time but in a regular way thus 
-we can compute them for each time step, even for future ones - like the 'IsHoliday' 
-and information like the day of the week and other similar. We expect you to be
-able to specify them for every time point when using the `forecast` function.
+```{r}
+sales <- walmart_sales %>%
+    tsibble::tsibble(
+      key = c(Store, Dept, Type, Size),
+      index = Date
+    ) %>%
+    tsibble::group_by_key() %>%
+    tsibble::fill_gaps(
+      Weekly_Sales = 0,
+      IsHoliday = FALSE
+    ) %>%
+    tidyr::fill(Size, Temperature, Fuel_Price, CPI, Unemployment, .direction = "down")
+```
 
-The index variable is not used in the model, unless transformed. All other predictors
-are considered 'observed' predictors and thus only 'past' values will be used in the
-model. Past values of the response variable are also used as 'observed' values in
-the model.
+tft can treat columns in the dataset differently depending on their types. There
+are mainly 5 types of columns:
+
+- **'index'**: is a single date column that specifies at which point in time 
+  the observation refers to. This is not directly used by the model itself, but is
+  used internally to create rolling windows and order observations.
+- **'key'**: are groups of columns that identify a single time series. Keys
+  are necessary if you are creating predictions for multiple time series in a 
+  single model. By default, 'keys' are considered 'static' predictors by the model.
+- **'static'**: predictors are considered 'static' when they don't vary over time,
+  they are information from the time-series, like a region or a kind of product.
+- **'unknown'** are predictors that vary over time but we only know values observed
+  for past observations. For example, you can use the daily temperature as a predictor,
+  but you only know it for past observations.
+- **'known'** are predictors that vary over time and are known even for future observations.
+  For example, the day of the week can be used as a predictor for a daily time series,
+  and it's known for every time step, no matter if it's from past or future.
+
+The `recipes` package is used to specify how the model should treat each column
+of the dataset.
 
 ```{r}
 rec <- recipe(Weekly_Sales ~ ., data = sales) %>% 
-  add_role(IsHoliday, new_role = "known") %>% 
+  update_role(Date, new_role = "index") %>% 
+  update_role(Store, Dept, Type, Size, new_role = "key") %>% 
+  update_role(IsHoliday, new_role = "known") %>% 
   step_date(Date, role = "known", features = c("year", "month", "doy")) %>% 
   step_normalize(all_numeric_predictors()) %>% 
   step_indicate_na(starts_with("MarkDown")) %>% 
-  step_impute_mean(starts_with("Markdown"))
+  step_impute_mean(starts_with("Markdown")) %>% 
+  step_include_roles()
 ```
 
 It's recommended to include features that represent seasonality as known predictors
@@ -132,15 +145,25 @@ use this same value when specifying the horizon for the tft model.
 We can now tune the tft model and compute metrics using:
 
 ```{r, eval = FALSE}
+tft_model <- temporal_fusion_transformer(
+  horizon = 4, 
+  lookback = 100, 
+  hidden_state_size = tune()
+) %>% 
+  set_engine("torch", verbose = TRUE)
+
+
 model <- workflow() %>% 
   add_recipe(rec) %>% 
-  add_model(tft(horizon = 4))
+  add_model(tft_model)
 
-grid <- grid_regular(model, levels = 5)
+grid <- tibble::tibble(
+  hidden_state_size = c(4, 16, 32)
+)
 
 results <- tune_grid(
   model,
-  resamples,
+  train_splits,
   grid
 )
 

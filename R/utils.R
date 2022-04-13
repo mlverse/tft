@@ -16,3 +16,14 @@ input_types <- list(
   id = "id",
   time = "time"
 )
+
+
+get_n_features <- function(x) {
+  f <- function(x) {
+    if (inherits(x, "torch_tensor"))
+      tail(x$shape, 1)
+    else
+      lapply(x, f)
+  }
+  f(x)
+}

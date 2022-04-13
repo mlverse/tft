@@ -33,7 +33,14 @@ Imports:
     glue,
     progress,
     methods,
-    assertthat
+    assertthat,
+    generics,
+    zeallot,
+    parsnip,
+    luz,
+    stats,
+    utils,
+    dials
 Suggests:
     dplyr,
     padr,
@@ -48,16 +55,7 @@ Suggests:
     walmartdata,
     tidymodels
 Remotes:
-    dfalbel/walmartdata
-Collate: 
-    'batch.R'
-    'utils.R'
-    'dataset-electricity.R'
-    'hardhat.R'
-    'layers.R'
-    'roles.R'
-    'tft_loss.R'
-    'tft_network.R'
-    'utils-pipe.R'
+    dfalbel/walmartdata,
+    mlverse/luz
 Config/testthat/edition: 3
 URL: https://mlverse.github.io/tft/
