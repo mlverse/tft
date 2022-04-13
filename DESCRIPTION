@@ -33,7 +33,9 @@ Imports:
     glue,
     progress,
     methods,
-    assertthat
+    assertthat,
+    generics,
+    zeallot
 Suggests:
     dplyr,
     padr,
