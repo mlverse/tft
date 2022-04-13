@@ -57,6 +57,12 @@ time_series_dataset <- torch::dataset(
         )
       })
 
+    if (nrow(self$slices) == 0) {
+      cli::cli_abort(c(
+        "No group has enough observations to statisfy the requested {.var lookback}."
+      ))
+    }
+
     self$slices <- self$slices$splits %>% purrr::map(
       ~list(
         encoder = rsample::training(.x)$.row,

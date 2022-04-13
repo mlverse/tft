@@ -79,3 +79,16 @@ test_that("works for validation mode", {
   expect_equal(length(dataset), 4) # Store = c(1,2) Dept = c(1,2)
   dataset[1]
 })
+
+test_that("Good error message when no group has enough lookback", {
+
+  recipe <- walmart_recipe() %>%
+    recipes::prep()
+
+  expect_error(regexp = "No group", {
+    dataset <- time_series_dataset(recipes::juice(recipe),
+                                   recipe$term_info,
+                                   lookback = 500, assess_stop = 4)
+  })
+
+})
