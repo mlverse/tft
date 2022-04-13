@@ -39,7 +39,8 @@ Imports:
     parsnip,
     luz,
     stats,
-    utils
+    utils,
+    dials
 Suggests:
     dplyr,
     padr,

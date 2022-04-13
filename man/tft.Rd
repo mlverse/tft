@@ -73,10 +73,6 @@ point prediction and the thir as the upper bound.}
 
 \item{verbose}{Logical value stating if the model should produce status
 outputs, like a progress bar, during training.}
-
-\item{y}{A data.frame containing the response variable.}
-
-\item{data}{Dataset used for training the model.}
 }
 \value{
 A list with the configuration parameters.

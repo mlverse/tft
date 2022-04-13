@@ -15,6 +15,13 @@ temporal_fusion_transformer_model(
 )
 }
 \arguments{
+\item{num_features}{a list containing the shapes for all necessary information
+to define the size of layers, including:
+- \verb{$encoder$past$(num|cat)}: shape of past features
+- \verb{$encoder$static$(num|cat)}: shape of the static features
+- \verb{$decoder$target}: shape of the target variable
+We exclude the batch dimension.}
+
 \item{feature_sizes}{The number of unique elements for each categorical
 variable in the dataset.}
 
@@ -28,12 +35,7 @@ of the architecture.}
 \item{num_lstm_layers}{Number of LSTM layers used in the Locality Enhancement
 Layer. Usually 2 is good enough.}
 
-\item{n_features}{a list containing the shapes for all necessary information
-to define the size of layers, including:
-- \verb{$encoder$past$(num|cat)}: shape of past features
-- \verb{$encoder$static$(num|cat)}: shape of the static features
-- \verb{$decoder$target}: shape of the target variable
-We exclude the batch dimension.}
+\item{num_quantiles}{the number of quantiles we are predicting for.}
 }
 \description{
 Temporal Fusion Transformer Module

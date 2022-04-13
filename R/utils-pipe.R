@@ -12,3 +12,6 @@ NULL
 
 #' @importFrom zeallot %<-%
 NULL
+
+utils::globalVariables(c(".stats", ".", ".min_index", ":=", "..mean", "..sd",
+                         "type", "variable"))

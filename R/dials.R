@@ -11,7 +11,7 @@ NULL
 #' @describeIn dataprep_parameters lookback Lookback from the history
 #' @export
 lookback <- function(range = c(3L, 365L), trans = NULL) {
-  new_quant_param(
+  dials::new_quant_param(
     type = "integer",
     range = range,
     inclusive = c(TRUE, TRUE),
@@ -24,7 +24,7 @@ lookback <- function(range = c(3L, 365L), trans = NULL) {
 #' @describeIn dataprep_parameters horizon Number of steps in the multi-horizon forecast
 #' @export
 horizon <- function(range = c(1L, 365L), trans = NULL) {
-  new_quant_param(
+  dials::new_quant_param(
     type = "integer",
     range = range,
     inclusive = c(TRUE, TRUE),

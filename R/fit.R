@@ -5,8 +5,6 @@
 #'  also be a data.frame, but expect it to have a `recipe` attribute attribute
 #'  containing the `recipe` that generated it via [recipes::bake()] or
 #'  [recipes::juice()].
-#' @param y A data.frame containing the response variable.
-#' @param data Dataset used for training the model.
 #' @param ... Additional arguments passed to [tft_config()].
 #'
 #' @export

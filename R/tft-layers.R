@@ -2,7 +2,7 @@
 #' Temporal Fusion Transformer Module
 #'
 #'
-#' @param n_features a list containing the shapes for all necessary information
+#' @param num_features a list containing the shapes for all necessary information
 #'        to define the size of layers, including:
 #'                   - `$encoder$past$(num|cat)`: shape of past features
 #'                   - `$encoder$static$(num|cat)`: shape of the static features
@@ -16,6 +16,9 @@
 #' @param num_heads Number of heads in the attention layer.
 #' @param num_lstm_layers Number of LSTM layers used in the Locality Enhancement
 #'   Layer. Usually 2 is good enough.
+#' @param num_quantiles the number of quantiles we are predicting for.
+#'
+#' @export
 temporal_fusion_transformer_model <- torch::nn_module(
   "temporal_fusion_transformer",
   initialize = function(num_features, feature_sizes, hidden_state_size = 100,
