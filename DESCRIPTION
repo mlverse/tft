@@ -36,7 +36,8 @@ Imports:
     assertthat,
     generics,
     zeallot,
-    parsnip
+    parsnip,
+    luz
 Suggests:
     dplyr,
     padr,
@@ -51,6 +52,7 @@ Suggests:
     walmartdata,
     tidymodels
 Remotes:
-    dfalbel/walmartdata
+    dfalbel/walmartdata,
+    mlverse/luz
 Config/testthat/edition: 3
 URL: https://mlverse.github.io/tft/
