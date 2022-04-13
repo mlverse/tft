@@ -38,7 +38,8 @@ Imports:
     zeallot,
     parsnip,
     luz,
-    stats
+    stats,
+    utils
 Suggests:
     dplyr,
     padr,
