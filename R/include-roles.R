@@ -1,3 +1,16 @@
+#' Include roles
+#'
+#' A [recipes::recipe()] step that adds role information and the recipe itself
+#' as an attribute of the `bake`d or `juice`d output.
+#'
+#' @inheritParams recipes::step_arrange
+#' @param roles a data.frame with role information for each term created by the
+#'  recipe.
+#'
+#' @details This step must be used as the last step in a recipe.
+#'
+#'
+#' @export
 step_include_roles <- function(
     recipe,
     roles = NULL,

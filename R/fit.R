@@ -141,6 +141,8 @@ tft_impl <- function(x, recipe, config) {
 }
 
 # by default we normalize the outcomes per group.
+#' @importFrom stats sd
+#' @importFrom utils tail
 normalize_outcome <- function(x, keys, outcome) {
   outcome <- rlang::sym(outcome)
   constants <- x %>%
