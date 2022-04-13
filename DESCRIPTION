@@ -35,7 +35,8 @@ Imports:
     methods,
     assertthat,
     generics,
-    zeallot
+    zeallot,
+    parsnip
 Suggests:
     dplyr,
     padr,
