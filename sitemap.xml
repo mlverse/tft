@@ -25,7 +25,7 @@
     <loc>https://mlverse.github.io/tft/news/index.html</loc>
   </url>
   <url>
-    <loc>https://mlverse.github.io/tft/reference/batch_data.html</loc>
+    <loc>https://mlverse.github.io/tft/reference/dataprep_parameters.html</loc>
   </url>
   <url>
     <loc>https://mlverse.github.io/tft/reference/index.html</loc>
@@ -34,9 +34,15 @@
     <loc>https://mlverse.github.io/tft/reference/pipe.html</loc>
   </url>
   <url>
-    <loc>https://mlverse.github.io/tft/reference/tft_config.html</loc>
+    <loc>https://mlverse.github.io/tft/reference/step_group_normalize.html</loc>
   </url>
   <url>
-    <loc>https://mlverse.github.io/tft/reference/tft_fit.html</loc>
+    <loc>https://mlverse.github.io/tft/reference/step_include_roles.html</loc>
+  </url>
+  <url>
+    <loc>https://mlverse.github.io/tft/reference/temporal_fusion_transformer_model.html</loc>
+  </url>
+  <url>
+    <loc>https://mlverse.github.io/tft/reference/tft.html</loc>
   </url>
 </urlset>

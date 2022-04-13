@@ -100,66 +100,70 @@
 <span class="co">#&gt; $ CPI          <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 211.0964, 211.2422, 211.2891, 211.3196, 211.3501, 211.380…</span>
 <span class="co">#&gt; $ Unemployment <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 8.106, 8.106, 8.106, 8.106, 8.106, 8.106, 8.106, 8.106, 7…</span>
 <span class="co">#&gt; $ IsHoliday    <span style="color: #949494; font-style: italic;">&lt;lgl&gt;</span> FALSE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FA…</span></code></pre></div>
+<p>To make the example faster to run, we are going to create models for the first 2 stores.</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span class="va">walmart_sales</span> <span class="op">&lt;-</span> <span class="va">walmart_sales</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
+  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter</a></span><span class="op">(</span><span class="va">Store</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span><span class="op">)</span>, <span class="va">Dept</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>,<span class="fl">2</span><span class="op">)</span><span class="op">)</span></code></pre></div>
 <div class="section level2">
 <h2 id="preparing-the-data">Preparing the data<a class="anchor" aria-label="anchor" href="#preparing-the-data"></a>
 </h2>
-<p>tft uses the tsibble to specify time time columns and keys - when you want to create forecasts for multiple timeseries in a single model. So let’s first, transform the <code>data.frame</code> into a <code>tbl_ts</code>.</p>
-<p>We have weekly observations for each Store and Department, but since Type and Size are informations that don’t vary on time we have also added them as ‘keys’ for <code>tsibble</code>. We specify the index column as the <code>Date</code> column.</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span class="va">sales</span> <span class="op">&lt;-</span> <span class="fu">tsibble</span><span class="fu">::</span><span class="fu"><a href="https://tsibble.tidyverts.org/reference/tsibble.html" class="external-link">tsibble</a></span><span class="op">(</span>
-  <span class="va">walmart_sales</span>, key <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">Store</span>, <span class="va">Dept</span>, <span class="va">Type</span>, <span class="va">Size</span><span class="op">)</span>, 
-  index <span class="op">=</span> <span class="va">Date</span>
-<span class="op">)</span>
-<span class="va">sales</span>
-<span class="co">#&gt; <span style="color: #949494;"># A tsibble: 421,570 x 16 [7D]</span></span>
-<span class="co">#&gt; <span style="color: #949494;"># Key:       Store, Dept, Type, Size [3,331]</span></span>
-<span class="co">#&gt;    Store  Dept Date       Weekly_Sales Type    Size Temperature Fuel_Price</span>
-<span class="co">#&gt;    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;date&gt;</span>            <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>       <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>      <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span>     1     1 2010-02-05       <span style="text-decoration: underline;">24</span>924. A     <span style="text-decoration: underline;">151</span>315        42.3       2.57</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span>     1     1 2010-02-12       <span style="text-decoration: underline;">46</span>039. A     <span style="text-decoration: underline;">151</span>315        38.5       2.55</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span>     1     1 2010-02-19       <span style="text-decoration: underline;">41</span>596. A     <span style="text-decoration: underline;">151</span>315        39.9       2.51</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 4</span>     1     1 2010-02-26       <span style="text-decoration: underline;">19</span>404. A     <span style="text-decoration: underline;">151</span>315        46.6       2.56</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span>     1     1 2010-03-05       <span style="text-decoration: underline;">21</span>828. A     <span style="text-decoration: underline;">151</span>315        46.5       2.62</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 6</span>     1     1 2010-03-12       <span style="text-decoration: underline;">21</span>043. A     <span style="text-decoration: underline;">151</span>315        57.8       2.67</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span>     1     1 2010-03-19       <span style="text-decoration: underline;">22</span>137. A     <span style="text-decoration: underline;">151</span>315        54.6       2.72</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 8</span>     1     1 2010-03-26       <span style="text-decoration: underline;">26</span>229. A     <span style="text-decoration: underline;">151</span>315        51.4       2.73</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span>     1     1 2010-04-02       <span style="text-decoration: underline;">57</span>258. A     <span style="text-decoration: underline;">151</span>315        62.3       2.72</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;">10</span>     1     1 2010-04-09       <span style="text-decoration: underline;">42</span>961. A     <span style="text-decoration: underline;">151</span>315        65.9       2.77</span>
-<span class="co">#&gt; <span style="color: #949494;"># … with 421,560 more rows, and 8 more variables: MarkDown1 &lt;dbl&gt;,</span></span>
-<span class="co">#&gt; <span style="color: #949494;">#   MarkDown2 &lt;dbl&gt;, MarkDown3 &lt;dbl&gt;, MarkDown4 &lt;dbl&gt;, MarkDown5 &lt;dbl&gt;,</span></span>
-<span class="co">#&gt; <span style="color: #949494;">#   CPI &lt;dbl&gt;, Unemployment &lt;dbl&gt;, IsHoliday &lt;lgl&gt;</span></span></code></pre></div>
-<p><code>tsibble</code> correctly identifies the weekly period (<code>[7D]</code>) and shows us that we have 3331 different time series that we want to create predictions to.</p>
-<p>tft also uses the <a href="https://github.com/tidymodels/recipes" class="external-link">recipes</a> ppackage to specify the response variables, the predictors and their types. We can also use recipes to specify transformations on the data that will be used by the model.</p>
-<p>By default the keys of the the tsibble are considered as ‘static’ predictors, ie, they don’t vary on time for each time series. You can remove the role ‘predictor’ from it if you don’t want it to be used as a predictor.</p>
-<p>We can also have ‘known’ predictors: these vary on time but in a regular way thus we can compute them for each time step, even for future ones - like the ‘IsHoliday’ and information like the day of the week and other similar. We expect you to be able to specify them for every time point when using the <code>forecast</code> function.</p>
-<p>The index variable is not used in the model, unless transformed. All other predictors are considered ‘observed’ predictors and thus only ‘past’ values will be used in the model. Past values of the response variable are also used as ‘observed’ values in the model.</p>
+<p>The first thing we need to make sure is that our dataset doesn’t have <a href="https://r4ds.hadley.nz/missing-values.html#missing-values" class="external-link">implicit missing observations</a>. This happens when an observations is just not present in the data instead of being explicitly marked with a <code>NA</code>. We are going to use <code>tsibble</code> functionality to add the implicitly missing observations, but you could use whatever tool you prefer for the task.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span class="va">sales</span> <span class="op">&lt;-</span> <span class="va">walmart_sales</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span>
+    <span class="fu">tsibble</span><span class="fu">::</span><span class="fu"><a href="https://tsibble.tidyverts.org/reference/tsibble.html" class="external-link">tsibble</a></span><span class="op">(</span>
+      key <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">Store</span>, <span class="va">Dept</span>, <span class="va">Type</span>, <span class="va">Size</span><span class="op">)</span>,
+      index <span class="op">=</span> <span class="va">Date</span>
+    <span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span>
+    <span class="fu">tsibble</span><span class="fu">::</span><span class="fu"><a href="https://tsibble.tidyverts.org/reference/group_by_key.html" class="external-link">group_by_key</a></span><span class="op">(</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span>
+    <span class="fu">tsibble</span><span class="fu">::</span><span class="fu"><a href="https://tsibble.tidyverts.org/reference/fill_gaps.html" class="external-link">fill_gaps</a></span><span class="op">(</span>
+      Weekly_Sales <span class="op">=</span> <span class="fl">0</span>,
+      IsHoliday <span class="op">=</span> <span class="cn">FALSE</span>
+    <span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span>
+    <span class="fu">tidyr</span><span class="fu">::</span><span class="fu"><a href="https://tidyr.tidyverse.org/reference/fill.html" class="external-link">fill</a></span><span class="op">(</span><span class="va">Size</span>, <span class="va">Temperature</span>, <span class="va">Fuel_Price</span>, <span class="va">CPI</span>, <span class="va">Unemployment</span>, .direction <span class="op">=</span> <span class="st">"down"</span><span class="op">)</span></code></pre></div>
+<p>tft can treat columns in the dataset differently depending on their types. There are mainly 5 types of columns:</p>
+<ul>
+<li>
+<strong>‘index’</strong>: is a single date column that specifies at which point in time the observation refers to. This is not directly used by the model itself, but is used internally to create rolling windows and order observations.</li>
+<li>
+<strong>‘key’</strong>: are groups of columns that identify a single time series. Keys are necessary if you are creating predictions for multiple time series in a single model. By default, ‘keys’ are considered ‘static’ predictors by the model.</li>
+<li>
+<strong>‘static’</strong>: predictors are considered ‘static’ when they don’t vary over time, they are information from the time-series, like a region or a kind of product.</li>
+<li>
+<strong>‘unknown’</strong> are predictors that vary over time but we only know values observed for past observations. For example, you can use the daily temperature as a predictor, but you only know it for past observations.</li>
+<li>
+<strong>‘known’</strong> are predictors that vary over time and are known even for future observations. For example, the day of the week can be used as a predictor for a daily time series, and it’s known for every time step, no matter if it’s from past or future.</li>
+</ul>
+<p>The <code>recipes</code> package is used to specify how the model should treat each column of the dataset.</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="va">rec</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://recipes.tidymodels.org/reference/recipe.html" class="external-link">recipe</a></span><span class="op">(</span><span class="va">Weekly_Sales</span> <span class="op">~</span> <span class="va">.</span>, data <span class="op">=</span> <span class="va">sales</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
-  <span class="fu"><a href="https://recipes.tidymodels.org/reference/roles.html" class="external-link">add_role</a></span><span class="op">(</span><span class="va">IsHoliday</span>, new_role <span class="op">=</span> <span class="st">"known"</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
+  <span class="fu"><a href="https://recipes.tidymodels.org/reference/roles.html" class="external-link">update_role</a></span><span class="op">(</span><span class="va">Date</span>, new_role <span class="op">=</span> <span class="st">"index"</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
+  <span class="fu"><a href="https://recipes.tidymodels.org/reference/roles.html" class="external-link">update_role</a></span><span class="op">(</span><span class="va">Store</span>, <span class="va">Dept</span>, <span class="va">Type</span>, <span class="va">Size</span>, new_role <span class="op">=</span> <span class="st">"key"</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
+  <span class="fu"><a href="https://recipes.tidymodels.org/reference/roles.html" class="external-link">update_role</a></span><span class="op">(</span><span class="va">IsHoliday</span>, new_role <span class="op">=</span> <span class="st">"known"</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
   <span class="fu"><a href="https://recipes.tidymodels.org/reference/step_date.html" class="external-link">step_date</a></span><span class="op">(</span><span class="va">Date</span>, role <span class="op">=</span> <span class="st">"known"</span>, features <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"year"</span>, <span class="st">"month"</span>, <span class="st">"doy"</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
   <span class="fu"><a href="https://recipes.tidymodels.org/reference/step_normalize.html" class="external-link">step_normalize</a></span><span class="op">(</span><span class="fu"><a href="https://recipes.tidymodels.org/reference/has_role.html" class="external-link">all_numeric_predictors</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
   <span class="fu"><a href="https://recipes.tidymodels.org/reference/step_indicate_na.html" class="external-link">step_indicate_na</a></span><span class="op">(</span><span class="fu"><a href="https://tidyselect.r-lib.org/reference/starts_with.html" class="external-link">starts_with</a></span><span class="op">(</span><span class="st">"MarkDown"</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
-  <span class="fu"><a href="https://recipes.tidymodels.org/reference/step_impute_mean.html" class="external-link">step_impute_mean</a></span><span class="op">(</span><span class="fu"><a href="https://tidyselect.r-lib.org/reference/starts_with.html" class="external-link">starts_with</a></span><span class="op">(</span><span class="st">"Markdown"</span><span class="op">)</span><span class="op">)</span></code></pre></div>
+  <span class="fu"><a href="https://recipes.tidymodels.org/reference/step_impute_mean.html" class="external-link">step_impute_mean</a></span><span class="op">(</span><span class="fu"><a href="https://tidyselect.r-lib.org/reference/starts_with.html" class="external-link">starts_with</a></span><span class="op">(</span><span class="st">"Markdown"</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
+  <span class="fu"><a href="../reference/step_include_roles.html">step_include_roles</a></span><span class="op">(</span><span class="op">)</span></code></pre></div>
 <p>It’s recommended to include features that represent seasonality as known predictors in the TFT model, like mon, day of the week and etc. It’s also recommended to normalize the predictors and treat missing values as the model don’t treat them implicitly.</p>
 <p>You can bake <code>prep</code> and <code>juice</code> the recipe to see how the transformations are working:</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="va">rec</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> <span class="fu"><a href="https://recipes.tidymodels.org/reference/prep.html" class="external-link">prep</a></span><span class="op">(</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> <span class="fu"><a href="https://recipes.tidymodels.org/reference/juice.html" class="external-link">juice</a></span><span class="op">(</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/glimpse.html" class="external-link">glimpse</a></span><span class="op">(</span><span class="op">)</span>
-<span class="co">#&gt; Rows: 421,570</span>
+<span class="co">#&gt; Rows: 572</span>
 <span class="co">#&gt; Columns: 24</span>
-<span class="co">#&gt; $ Store            <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> -1.658197, -1.658197, -1.658197, -1.658197, -1.658197…</span>
-<span class="co">#&gt; $ Dept             <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> -1.418741, -1.418741, -1.418741, -1.418741, -1.418741…</span>
+<span class="co">#&gt; $ Store            <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,…</span>
+<span class="co">#&gt; $ Dept             <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,…</span>
 <span class="co">#&gt; $ Date             <span style="color: #949494; font-style: italic;">&lt;date&gt;</span> 2010-02-05, 2010-02-12, 2010-02-19, 2010-02-26, 2010…</span>
 <span class="co">#&gt; $ Type             <span style="color: #949494; font-style: italic;">&lt;fct&gt;</span> A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A,…</span>
-<span class="co">#&gt; $ Size             <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 0.2392087, 0.2392087, 0.2392087, 0.2392087, 0.2392087…</span>
-<span class="co">#&gt; $ Temperature      <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> -0.9637969, -1.1697821, -1.0928087, -0.7296243, -0.73…</span>
-<span class="co">#&gt; $ Fuel_Price       <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> -1.720832, -1.773175, -1.847328, -1.744823, -1.605241…</span>
-<span class="co">#&gt; $ MarkDown1        <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 1.401583e-17, 1.401583e-17, 1.401583e-17, 1.401583e-1…</span>
-<span class="co">#&gt; $ MarkDown2        <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> -1.457308e-17, -1.457308e-17, -1.457308e-17, -1.45730…</span>
-<span class="co">#&gt; $ MarkDown3        <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 9.280565e-19, 9.280565e-19, 9.280565e-19, 9.280565e-1…</span>
-<span class="co">#&gt; $ MarkDown4        <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 7.901976e-18, 7.901976e-18, 7.901976e-18, 7.901976e-1…</span>
-<span class="co">#&gt; $ MarkDown5        <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 6.785472e-17, 6.785472e-17, 6.785472e-17, 6.785472e-1…</span>
-<span class="co">#&gt; $ CPI              <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 1.0187730, 1.0224965, 1.0236961, 1.0244749, 1.0252538…</span>
-<span class="co">#&gt; $ Unemployment     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 0.07820083, 0.07820083, 0.07820083, 0.07820083, 0.078…</span>
+<span class="co">#&gt; $ Size             <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 151315, 151315, 151315, 151315, 151315, 151315, 15131…</span>
+<span class="co">#&gt; $ Temperature      <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> -1.74810944, -2.00407912, -1.90842730, -1.45711234, -…</span>
+<span class="co">#&gt; $ Fuel_Price       <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> -1.5197484, -1.5760615, -1.6558384, -1.5455586, -1.39…</span>
+<span class="co">#&gt; $ MarkDown1        <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 2.135878e-17, 2.135878e-17, 2.135878e-17, 2.135878e-1…</span>
+<span class="co">#&gt; $ MarkDown2        <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 7.530688e-18, 7.530688e-18, 7.530688e-18, 7.530688e-1…</span>
+<span class="co">#&gt; $ MarkDown3        <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> -2.445418e-17, -2.445418e-17, -2.445418e-17, -2.44541…</span>
+<span class="co">#&gt; $ MarkDown4        <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 8.185461e-18, 8.185461e-18, 8.185461e-18, 8.185461e-1…</span>
+<span class="co">#&gt; $ MarkDown5        <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 5.606176e-17, 5.606176e-17, 5.606176e-17, 5.606176e-1…</span>
+<span class="co">#&gt; $ CPI              <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> -1.089091, -1.055483, -1.044657, -1.037627, -1.030597…</span>
+<span class="co">#&gt; $ Unemployment     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 0.9556973, 0.9556973, 0.9556973, 0.9556973, 0.9556973…</span>
 <span class="co">#&gt; $ IsHoliday        <span style="color: #949494; font-style: italic;">&lt;lgl&gt;</span> FALSE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE…</span>
 <span class="co">#&gt; $ Weekly_Sales     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 24924.50, 46039.49, 41595.55, 19403.54, 21827.90, 210…</span>
 <span class="co">#&gt; $ Date_year        <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 2010, 2010, 2010, 2010, 2010, 2010, 2010, 2010, 2010,…</span>
@@ -176,7 +180,7 @@
 </h2>
 <p>Now we should think about the size of the horizon we want to create forecasts to. It could be a single week ahead or ten, and this will influence how we split our data for training, validation and testing. This is not really a data analysis decision but more of a business decision, ie: how many weeks ahead we want know so we can plan the demand and etc. Let’s say we want 4 weeks ahead, ie ~1 month.</p>
 <p>The <a href="https://github.com/tidymodels/rsample" class="external-link">rsample</a> package provides <code>sliding_*</code> functions that are very useful for the task of creating time splits.</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="va">resamples</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rsample.tidymodels.org/reference/slide-resampling.html" class="external-link">sliding_period</a></span><span class="op">(</span>
   <span class="fu"><a href="https://dplyr.tidyverse.org/reference/arrange.html" class="external-link">arrange</a></span><span class="op">(</span><span class="va">sales</span>, <span class="va">Date</span><span class="op">)</span>,
   index <span class="op">=</span> <span class="va">Date</span>,
@@ -187,7 +191,7 @@
   skip <span class="op">=</span> <span class="fl">104</span>
 <span class="op">)</span></code></pre></div>
 <p>Now we can separate the splits in, training and testing, ie: a few of them will be used for cross-validation and choosing the hyperparamerters, the others are used for testing the model. We are going to use the last 4 splits for testing and the first 5 to cross validate.</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="va">train_splits</span> <span class="op">&lt;-</span> <span class="va">resamples</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/slice.html" class="external-link">slice</a></span><span class="op">(</span><span class="fl">1</span><span class="op">:</span><span class="fl">5</span><span class="op">)</span>
 <span class="va">test_splits</span> <span class="op">&lt;-</span> <span class="va">resamples</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/slice.html" class="external-link">slice</a></span><span class="op">(</span><span class="op">-</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span><span class="op">:</span><span class="fl">5</span><span class="op">)</span><span class="op">)</span></code></pre></div>
 <p><strong>Note</strong>: we have selected 4 weeks as the horizon of our predictions. We need to use this same value when specifying the horizon for the tft model.</p>
@@ -196,30 +200,40 @@
 <h2 id="fitting-the-model">Fitting the model<a class="anchor" aria-label="anchor" href="#fitting-the-model"></a>
 </h2>
 <p>We can now tune the tft model and compute metrics using:</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu">workflow</span><span class="op">(</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
-  <span class="fu">add_recipe</span><span class="op">(</span><span class="va">rec</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
-  <span class="fu">add_model</span><span class="op">(</span><span class="fu">tft</span><span class="op">(</span>horizon <span class="op">=</span> <span class="fl">4</span><span class="op">)</span><span class="op">)</span>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span class="va">tft_model</span> <span class="op">&lt;-</span> <span class="fu">temporal_fusion_transformer</span><span class="op">(</span>
+  horizon <span class="op">=</span> <span class="fl">4</span>, 
+  lookback <span class="op">=</span> <span class="fl">100</span>, 
+  hidden_state_size <span class="op">=</span> <span class="fu">tune</span><span class="op">(</span><span class="op">)</span>
+<span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
+  <span class="fu">set_engine</span><span class="op">(</span><span class="st">"torch"</span>, verbose <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>
 
-<span class="va">grid</span> <span class="op">&lt;-</span> <span class="fu">grid_regular</span><span class="op">(</span><span class="va">model</span>, levels <span class="op">=</span> <span class="fl">5</span><span class="op">)</span>
+
+<span class="va">model</span> <span class="op">&lt;-</span> <span class="fu">workflow</span><span class="op">(</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
+  <span class="fu">add_recipe</span><span class="op">(</span><span class="va">rec</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
+  <span class="fu">add_model</span><span class="op">(</span><span class="va">tft_model</span><span class="op">)</span>
+
+<span class="va">grid</span> <span class="op">&lt;-</span> <span class="fu">tibble</span><span class="fu">::</span><span class="fu"><a href="https://tibble.tidyverse.org/reference/tibble.html" class="external-link">tibble</a></span><span class="op">(</span>
+  hidden_state_size <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">4</span>, <span class="fl">16</span>, <span class="fl">32</span><span class="op">)</span>
+<span class="op">)</span>
 
 <span class="va">results</span> <span class="op">&lt;-</span> <span class="fu">tune_grid</span><span class="op">(</span>
   <span class="va">model</span>,
-  <span class="va">resamples</span>,
+  <span class="va">train_splits</span>,
   <span class="va">grid</span>
 <span class="op">)</span>
 
 <span class="fu">collect_metrics</span><span class="op">(</span><span class="va">results</span><span class="op">)</span></code></pre></div>
 <pre><code><span class="co">#&gt; <span style="color: #949494;"># A tibble: 5 × 4</span></span>
-<span class="co">#&gt;   epochs hidden_layer_size training_tau   rmse</span>
-<span class="co">#&gt;    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>             <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>        <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span>
-<span class="co">#&gt; <span style="color: #BCBCBC;">1</span>      1               160        0.3   0.295 </span>
-<span class="co">#&gt; <span style="color: #BCBCBC;">2</span>      5               500        0.003 0.021<span style="text-decoration: underline;">8</span></span>
-<span class="co">#&gt; <span style="color: #BCBCBC;">3</span>      7               300        0.1   0.545 </span>
-<span class="co">#&gt; <span style="color: #BCBCBC;">4</span>      1               160        0.5   0.465 </span>
-<span class="co">#&gt; <span style="color: #BCBCBC;">5</span>      5               500        0.003 0.954</span></code></pre>
+<span class="co">#&gt;   epochs hidden_layer_size training_tau  rmse</span>
+<span class="co">#&gt;    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>             <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>        <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span>
+<span class="co">#&gt; <span style="color: #BCBCBC;">1</span>      1               160        0.3   0.443</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;">2</span>      5               500        0.003 0.197</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;">3</span>      7               300        0.1   0.911</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;">4</span>      1               160        0.5   0.469</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;">5</span>      5               500        0.003 0.682</span></code></pre>
 <p>Once you are happy with the tuning you can finalize the workflow and obtain the metrics for the test splits.</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="va">final_params</span> <span class="op">&lt;-</span> <span class="fu">select_best</span><span class="op">(</span><span class="va">results</span>, metric <span class="op">=</span> <span class="st">"rmse"</span><span class="op">)</span>
 <span class="va">workflow</span> <span class="op">&lt;-</span> <span class="fu">finalize_workflow</span><span class="op">(</span><span class="va">model</span>, <span class="va">final_params</span><span class="op">)</span>
 <span class="va">results</span> <span class="op">&lt;-</span> <span class="fu">fit_resamples</span><span class="op">(</span><span class="va">model</span>, <span class="va">test_splits</span><span class="op">)</span>
@@ -230,25 +244,32 @@
 <span class="co">#&gt; <span style="color: #BCBCBC;">1</span> rmse   0.001</span></code></pre>
 <p>To obtain predictions for future observations, first we need to load a data.frame that includes known predictors like the <code>IsHoliday</code> variable for all time steps in the future data frame. Then we can call <code>forecast</code> or <code>predict</code> to obtain the predictions for the future data.</p>
 <p>Note that <code>forecast</code> or <code>predict</code> currently can only predict for <code>horizon</code> time steps ahead. And don’t provide a away for doing rolling forecasts.</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="va">final_model</span> <span class="op">&lt;-</span> <span class="fu">fit</span><span class="op">(</span><span class="va">model</span>, <span class="va">sales</span><span class="op">)</span>
 <span class="va">final_predictions</span> <span class="op">&lt;-</span> <span class="fu">forecast</span><span class="op">(</span><span class="va">model</span>, new_data <span class="op">=</span> <span class="va">newdata</span><span class="op">)</span>
 <span class="va">final_predictions</span></code></pre></div>
-<pre><code><span class="co">#&gt; <span style="color: #949494;"># A tsibble: 13,324 x 6 [7D]</span></span>
-<span class="co">#&gt; <span style="color: #949494;"># Key:       Store, Dept, Type, Size [3,331]</span></span>
+<pre><code><span class="co">#&gt; Grouping structure is ignored.</span>
+<span class="co">#&gt; <span style="color: #0000BB;">ℹ</span> `ungroup()` to silence this message.</span>
+<span class="co">#&gt; <span style="color: #949494;"># A tsibble: 16 x 6 [7D]</span></span>
+<span class="co">#&gt; <span style="color: #949494;"># Key:       Store, Dept, Type, Size [4]</span></span>
 <span class="co">#&gt;    Store  Dept Date       Type    Size  .pred</span>
 <span class="co">#&gt;    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;date&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span>     1     1 2012-11-02 A     <span style="text-decoration: underline;">151</span>315   311.</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span>     1     1 2012-11-09 A     <span style="text-decoration: underline;">151</span>315  <span style="text-decoration: underline;">4</span>421.</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span>     1     1 2012-11-16 A     <span style="text-decoration: underline;">151</span>315 <span style="text-decoration: underline;">11</span>085.</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 4</span>     1     1 2012-11-23 A     <span style="text-decoration: underline;">151</span>315  <span style="text-decoration: underline;">7</span>216.</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span>     1     2 2012-11-02 A     <span style="text-decoration: underline;">151</span>315  <span style="text-decoration: underline;">1</span>474.</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 6</span>     1     2 2012-11-09 A     <span style="text-decoration: underline;">151</span>315 <span style="text-decoration: underline;">33</span>240.</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span>     1     2 2012-11-16 A     <span style="text-decoration: underline;">151</span>315  <span style="text-decoration: underline;">2</span>639.</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 8</span>     1     2 2012-11-23 A     <span style="text-decoration: underline;">151</span>315  <span style="text-decoration: underline;">1</span>472.</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span>     1     3 2012-11-02 A     <span style="text-decoration: underline;">151</span>315  <span style="text-decoration: underline;">4</span>877.</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;">10</span>     1     3 2012-11-09 A     <span style="text-decoration: underline;">151</span>315 <span style="text-decoration: underline;">27</span>584.</span>
-<span class="co">#&gt; <span style="color: #949494;"># … with 13,314 more rows</span></span></code></pre>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span>     1     1 2012-11-02 A     <span style="text-decoration: underline;">151</span>315 <span style="text-decoration: underline;">23</span>869.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span>     1     1 2012-11-09 A     <span style="text-decoration: underline;">151</span>315 <span style="text-decoration: underline;">48</span>466.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span>     1     1 2012-11-16 A     <span style="text-decoration: underline;">151</span>315 <span style="text-decoration: underline;">28</span>813.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 4</span>     1     1 2012-11-23 A     <span style="text-decoration: underline;">151</span>315 <span style="text-decoration: underline;">16</span>149.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span>     1     2 2012-11-02 A     <span style="text-decoration: underline;">151</span>315 <span style="text-decoration: underline;">67</span>755.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 6</span>     1     2 2012-11-09 A     <span style="text-decoration: underline;">151</span>315 <span style="text-decoration: underline;">66</span>452.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span>     1     2 2012-11-16 A     <span style="text-decoration: underline;">151</span>315 <span style="text-decoration: underline;">47</span>425.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 8</span>     1     2 2012-11-23 A     <span style="text-decoration: underline;">151</span>315 <span style="text-decoration: underline;">40</span>755.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span>     2     1 2012-11-02 A     <span style="text-decoration: underline;">202</span>307 <span style="text-decoration: underline;">16</span>216.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;">10</span>     2     1 2012-11-09 A     <span style="text-decoration: underline;">202</span>307 <span style="text-decoration: underline;">19</span>549.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;">11</span>     2     1 2012-11-16 A     <span style="text-decoration: underline;">202</span>307 <span style="text-decoration: underline;">21</span>325.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;">12</span>     2     1 2012-11-23 A     <span style="text-decoration: underline;">202</span>307 <span style="text-decoration: underline;">43</span>191.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;">13</span>     2     2 2012-11-02 A     <span style="text-decoration: underline;">202</span>307 <span style="text-decoration: underline;">22</span>367.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;">14</span>     2     2 2012-11-09 A     <span style="text-decoration: underline;">202</span>307 <span style="text-decoration: underline;">66</span>904.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;">15</span>     2     2 2012-11-16 A     <span style="text-decoration: underline;">202</span>307 <span style="text-decoration: underline;">46</span>718.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;">16</span>     2     2 2012-11-23 A     <span style="text-decoration: underline;">202</span>307 <span style="text-decoration: underline;">44</span>411.</span></code></pre>
 </div>
   </main><aside class="col-md-3"><nav id="toc"><h2>On this page</h2>
     </nav></aside>
