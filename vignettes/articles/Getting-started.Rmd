@@ -133,8 +133,12 @@ used for testing the model. We are going to use the last 4 splits for testing an
 the first 5 to cross validate.
 
 ```{r}
-train_splits <- resamples %>% slice(1:5)
-test_splits <- resamples %>% slice(-c(1:5))
+train_splits <- resamples %>% 
+  slice(1:5) %>% 
+  structure(class = "rset")
+test_splits <- resamples %>% 
+  slice(-c(1:5)) %>% 
+  structure(class = "rset")
 ```
 
 **Note**: we have selected 4 weeks as the horizon of our predictions. We need to
@@ -144,7 +148,7 @@ use this same value when specifying the horizon for the tft model.
 
 We can now tune the tft model and compute metrics using:
 
-```{r, eval = FALSE}
+```{r, eval = TRUE}
 tft_model <- temporal_fusion_transformer(
   horizon = 4, 
   lookback = 100, 
@@ -163,35 +167,22 @@ grid <- tibble::tibble(
 
 results <- tune_grid(
   model,
-  train_splits,
-  grid
+  resamples = train_splits,
+  grid = grid,
+  control = control_grid(verbose = TRUE)
 )
 
-collect_metrics(results)
-```
-
-```{r echo=FALSE}
-res <- tibble(
-  epochs = c(1, 5, 7, 1, 5),
-  hidden_layer_size = c(160, 500, 300, 160, 500),
-  training_tau = c(0.3, 0.003, 0.1, 0.5, 0.003)
-)
-res$rmse <- runif(5)
-res
+autoplot(results)
 ```
 
 Once you are happy with the tuning you can finalize the workflow and
 obtain the metrics for the test splits.
 
-```{r, eval = FALSE}
+```{r, eval = TRUE}
 final_params <- select_best(results, metric = "rmse")
-workflow <- finalize_workflow(model, final_params)
+model <- finalize_workflow(model, final_params)
 results <- fit_resamples(model, test_splits)
 collect_metrics(results)
-```
-
-```{r, echo = FALSE}
-tibble(metric = c("rmse"), value = 0.001)
 ```
 
 To obtain predictions for future observations, first we need to load a 
@@ -203,15 +194,12 @@ Note that `forecast` or `predict` currently can only predict for
 `horizon` time steps ahead. And don't provide a away for doing 
 rolling forecasts.
 
-```{r, eval = FALSE}
+```{r, eval = TRUE}
+new_data <- walmartdata::walmart_sales_test %>% 
+  filter(Store %in% c(1, 2), Dept %in% c(1,2)) %>% 
+  filter(Date <= lubridate::ymd("2012-11-23"))
+
 final_model <- fit(model, sales)
-final_predictions <- forecast(model, new_data = newdata)
+final_predictions <- predict(final_model, new_data = new_data)
 final_predictions
 ```
-
-```{r, echo = FALSE}
-pred <- sales %>% tsibble::new_data(n = 4)
-pred$.pred <- sample(sales$Weekly_Sales, size = nrow(pred))
-pred
-```
-
