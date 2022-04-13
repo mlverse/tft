@@ -28,7 +28,7 @@ set_tft_arg(
 
 set_tft_arg(
   name = "hidden_state_size",
-  func = list(pkg = "dials", fun = "hidden_units")
+  func = list(pkg = "tft", fun = "hidden_state_size")
 )
 
 set_tft_arg(
@@ -73,6 +73,41 @@ temporal_fusion_transformer <- function(mode = "regression", lookback = NULL,
     method   = NULL,
     engine   = NULL
   )
+}
+
+#' @export
+#' @importFrom stats update
+update.temporal_fusion_transformer <- function(object, parameters = NULL, lookback = NULL,
+                                               horizon = NULL, hidden_state_size = NULL,
+                                               dropout = NULL, learn_rate = NULL,
+                                               batch_size = NULL, epochs = NULL, ...) {
+  rlang::check_installed("parsnip")
+  eng_args <- parsnip::update_engine_parameters(object$eng_args, ...)
+  args <- list(
+    lookback = current_or_value(object$args$lookback, lookback),
+    horizon = current_or_value(object$args$horizon, horizon),
+    hidden_state_size = current_or_value(object$args$hidden_state_size, hidden_state_size),
+    dropout = current_or_value(object$args$dropout, dropout),
+    learn_rate = current_or_value(object$args$learn_rate, learn_rate),
+    batch_size = current_or_value(object$args$batch_size, batch_size),
+    epochs = current_or_value(object$args$epochs, epochs)
+  )
+  args <- parsnip::update_main_parameters(args, parameters)
+  parsnip::new_model_spec(
+    "temporal_fusion_transformer",
+    args = args,
+    eng_args = eng_args,
+    mode = object$mode,
+    method = NULL,
+    engine = object$engine
+  )
+}
+
+current_or_value <- function(x, y) {
+  if (is.null(y))
+    x
+  else
+    rlang::enquo(y)
 }
 
 parsnip::set_fit(

@@ -33,3 +33,16 @@ horizon <- function(range = c(1L, 365L), trans = NULL) {
     finalize = NULL
   )
 }
+
+#' @describeIn dataprep_parameters hidden_state_size Size of network.
+#' @export
+hidden_state_size <- function(range = c(2L, 128L), trans = NULL) {
+  dials::new_quant_param(
+    type = "integer",
+    range = range,
+    inclusive = c(TRUE, TRUE),
+    trans = trans,
+    label = c(window_size = "Hidden state size"),
+    finalize = NULL
+  )
+}
