@@ -28,7 +28,7 @@ set_tft_arg(
 
 set_tft_arg(
   name = "hidden_state_size",
-  func = list(pkg = "dials", fun = "hidden_size")
+  func = list(pkg = "dials", fun = "hidden_units")
 )
 
 set_tft_arg(

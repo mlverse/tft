@@ -19,7 +19,7 @@ predict_impl <- function(object, new_data) {
 
   dataset <- time_series_dataset(
     dplyr::bind_rows(past_data, new_data),
-    object$blueprint$recipe$term_info,
+    object$recipe$term_info,
     lookback = object$config$lookback,
     assess_stop = object$config$horizon,
     mode = "predict"
