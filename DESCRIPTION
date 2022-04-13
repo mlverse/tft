@@ -37,7 +37,8 @@ Imports:
     generics,
     zeallot,
     parsnip,
-    luz
+    luz,
+    stats
 Suggests:
     dplyr,
     padr,

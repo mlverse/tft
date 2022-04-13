@@ -1,3 +1,4 @@
+#' @importFrom stats predict
 #' @export
 predict.tft <- function(object, new_data, type = "numeric", ...) {
   new_data <- adjust_new_data(new_data, object$recipe)
