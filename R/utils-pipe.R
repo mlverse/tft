@@ -14,4 +14,4 @@ NULL
 NULL
 
 utils::globalVariables(c(".stats", ".", ".min_index", ":=", "..mean", "..sd",
-                         "type", "variable"))
+                         "type", "variable", "object", "new_data"))
