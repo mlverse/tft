@@ -154,7 +154,7 @@ tft_model <- temporal_fusion_transformer(
   lookback = 100, 
   hidden_state_size = tune()
 ) %>% 
-  set_engine("torch", verbose = TRUE) %>% 
+  set_engine("torch", verbose = FALSE) %>% 
   set_mode("regression")
 
 
