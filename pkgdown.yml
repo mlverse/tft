@@ -3,7 +3,7 @@ pkgdown: 2.0.2
 pkgdown_sha: ~
 articles:
   Getting-started: Getting-started.html
-last_built: 2022-04-14T15:19Z
+last_built: 2022-04-14T18:06Z
 urls:
   reference: https://mlverse.github.io/tft/reference
   article: https://mlverse.github.io/tft/articles

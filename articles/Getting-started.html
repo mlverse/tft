@@ -210,7 +210,7 @@
   lookback <span class="op">=</span> <span class="fl">100</span>, 
   hidden_state_size <span class="op">=</span> <span class="fu">tune</span><span class="op">(</span><span class="op">)</span>
 <span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
-  <span class="fu">set_engine</span><span class="op">(</span><span class="st">"torch"</span>, verbose <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
+  <span class="fu">set_engine</span><span class="op">(</span><span class="st">"torch"</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
   <span class="fu">set_mode</span><span class="op">(</span><span class="st">"regression"</span><span class="op">)</span>
 
 
@@ -231,258 +231,57 @@
 <span class="co">#&gt; <span style="color: #0000BB;">i</span> <span style="color: #000000;">Slice1: preprocessor 1/1</span></span>
 <span class="co">#&gt; <span style="color: #00BB00;">✓</span> <span style="color: #000000;">Slice1: preprocessor 1/1</span></span>
 <span class="co">#&gt; <span style="color: #0000BB;">i</span> <span style="color: #000000;">Slice1: preprocessor 1/1, model 1/3</span></span>
-<span class="co">#&gt; Epoch 1/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.3394</span>
-<span class="co">#&gt; Epoch 2/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2984</span>
-<span class="co">#&gt; Epoch 3/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.256</span>
-<span class="co">#&gt; Epoch 4/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2198</span>
-<span class="co">#&gt; Epoch 5/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.1966</span>
 <span class="co">#&gt; <span style="color: #00BB00;">✓</span> <span style="color: #000000;">Slice1: preprocessor 1/1, model 1/3</span></span>
-<span class="co">#&gt; </span>
 <span class="co">#&gt; <span style="color: #0000BB;">i</span> <span style="color: #000000;">Slice1: preprocessor 1/1, model 1/3 (predictions)</span></span>
-<span class="co">#&gt; </span>
 <span class="co">#&gt; <span style="color: #0000BB;">i</span> <span style="color: #000000;">Slice1: preprocessor 1/1, model 2/3</span></span>
-<span class="co">#&gt; </span>
-<span class="co">#&gt; Epoch 1/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.3712</span>
-<span class="co">#&gt; Epoch 2/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2614</span>
-<span class="co">#&gt; Epoch 3/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2205</span>
-<span class="co">#&gt; Epoch 4/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.1811</span>
-<span class="co">#&gt; Epoch 5/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.1704</span>
 <span class="co">#&gt; <span style="color: #00BB00;">✓</span> <span style="color: #000000;">Slice1: preprocessor 1/1, model 2/3</span></span>
-<span class="co">#&gt; </span>
 <span class="co">#&gt; <span style="color: #0000BB;">i</span> <span style="color: #000000;">Slice1: preprocessor 1/1, model 2/3 (predictions)</span></span>
-<span class="co">#&gt; </span>
 <span class="co">#&gt; <span style="color: #0000BB;">i</span> <span style="color: #000000;">Slice1: preprocessor 1/1, model 3/3</span></span>
-<span class="co">#&gt; </span>
-<span class="co">#&gt; Epoch 1/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.4673</span>
-<span class="co">#&gt; Epoch 2/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2535</span>
-<span class="co">#&gt; Epoch 3/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2119</span>
-<span class="co">#&gt; Epoch 4/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.1952</span>
-<span class="co">#&gt; Epoch 5/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2146</span>
 <span class="co">#&gt; <span style="color: #00BB00;">✓</span> <span style="color: #000000;">Slice1: preprocessor 1/1, model 3/3</span></span>
-<span class="co">#&gt; </span>
 <span class="co">#&gt; <span style="color: #0000BB;">i</span> <span style="color: #000000;">Slice1: preprocessor 1/1, model 3/3 (predictions)</span></span>
-<span class="co">#&gt; </span>
 <span class="co">#&gt; <span style="color: #0000BB;">i</span> <span style="color: #000000;">Slice2: preprocessor 1/1</span></span>
-<span class="co">#&gt; </span>
 <span class="co">#&gt; <span style="color: #00BB00;">✓</span> <span style="color: #000000;">Slice2: preprocessor 1/1</span></span>
-<span class="co">#&gt; </span>
 <span class="co">#&gt; <span style="color: #0000BB;">i</span> <span style="color: #000000;">Slice2: preprocessor 1/1, model 1/3</span></span>
-<span class="co">#&gt; </span>
-<span class="co">#&gt; Epoch 1/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.6455</span>
-<span class="co">#&gt; Epoch 2/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.5539</span>
-<span class="co">#&gt; Epoch 3/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.5157</span>
-<span class="co">#&gt; Epoch 4/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.5109</span>
-<span class="co">#&gt; Epoch 5/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.4617</span>
 <span class="co">#&gt; <span style="color: #00BB00;">✓</span> <span style="color: #000000;">Slice2: preprocessor 1/1, model 1/3</span></span>
-<span class="co">#&gt; </span>
 <span class="co">#&gt; <span style="color: #0000BB;">i</span> <span style="color: #000000;">Slice2: preprocessor 1/1, model 1/3 (predictions)</span></span>
-<span class="co">#&gt; </span>
 <span class="co">#&gt; <span style="color: #0000BB;">i</span> <span style="color: #000000;">Slice2: preprocessor 1/1, model 2/3</span></span>
-<span class="co">#&gt; </span>
-<span class="co">#&gt; Epoch 1/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.3669</span>
-<span class="co">#&gt; Epoch 2/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2617</span>
-<span class="co">#&gt; Epoch 3/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2337</span>
-<span class="co">#&gt; Epoch 4/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2165</span>
-<span class="co">#&gt; Epoch 5/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.209</span>
 <span class="co">#&gt; <span style="color: #00BB00;">✓</span> <span style="color: #000000;">Slice2: preprocessor 1/1, model 2/3</span></span>
-<span class="co">#&gt; </span>
 <span class="co">#&gt; <span style="color: #0000BB;">i</span> <span style="color: #000000;">Slice2: preprocessor 1/1, model 2/3 (predictions)</span></span>
-<span class="co">#&gt; </span>
 <span class="co">#&gt; <span style="color: #0000BB;">i</span> <span style="color: #000000;">Slice2: preprocessor 1/1, model 3/3</span></span>
-<span class="co">#&gt; </span>
-<span class="co">#&gt; Epoch 1/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.5252</span>
-<span class="co">#&gt; Epoch 2/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.338</span>
-<span class="co">#&gt; Epoch 3/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2659</span>
-<span class="co">#&gt; Epoch 4/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2216</span>
-<span class="co">#&gt; Epoch 5/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2185</span>
 <span class="co">#&gt; <span style="color: #00BB00;">✓</span> <span style="color: #000000;">Slice2: preprocessor 1/1, model 3/3</span></span>
-<span class="co">#&gt; </span>
 <span class="co">#&gt; <span style="color: #0000BB;">i</span> <span style="color: #000000;">Slice2: preprocessor 1/1, model 3/3 (predictions)</span></span>
-<span class="co">#&gt; </span>
 <span class="co">#&gt; <span style="color: #0000BB;">i</span> <span style="color: #000000;">Slice3: preprocessor 1/1</span></span>
-<span class="co">#&gt; </span>
 <span class="co">#&gt; <span style="color: #00BB00;">✓</span> <span style="color: #000000;">Slice3: preprocessor 1/1</span></span>
-<span class="co">#&gt; </span>
 <span class="co">#&gt; <span style="color: #0000BB;">i</span> <span style="color: #000000;">Slice3: preprocessor 1/1, model 1/3</span></span>
-<span class="co">#&gt; </span>
-<span class="co">#&gt; Epoch 1/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.3281</span>
-<span class="co">#&gt; Epoch 2/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.3051</span>
-<span class="co">#&gt; Epoch 3/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2865</span>
-<span class="co">#&gt; Epoch 4/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2734</span>
-<span class="co">#&gt; Epoch 5/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2655</span>
 <span class="co">#&gt; <span style="color: #00BB00;">✓</span> <span style="color: #000000;">Slice3: preprocessor 1/1, model 1/3</span></span>
-<span class="co">#&gt; </span>
 <span class="co">#&gt; <span style="color: #0000BB;">i</span> <span style="color: #000000;">Slice3: preprocessor 1/1, model 1/3 (predictions)</span></span>
-<span class="co">#&gt; </span>
 <span class="co">#&gt; <span style="color: #0000BB;">i</span> <span style="color: #000000;">Slice3: preprocessor 1/1, model 2/3</span></span>
-<span class="co">#&gt; </span>
-<span class="co">#&gt; Epoch 1/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.5321</span>
-<span class="co">#&gt; Epoch 2/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.3376</span>
-<span class="co">#&gt; Epoch 3/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2815</span>
-<span class="co">#&gt; Epoch 4/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.252</span>
-<span class="co">#&gt; Epoch 5/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2422</span>
 <span class="co">#&gt; <span style="color: #00BB00;">✓</span> <span style="color: #000000;">Slice3: preprocessor 1/1, model 2/3</span></span>
-<span class="co">#&gt; </span>
 <span class="co">#&gt; <span style="color: #0000BB;">i</span> <span style="color: #000000;">Slice3: preprocessor 1/1, model 2/3 (predictions)</span></span>
-<span class="co">#&gt; </span>
 <span class="co">#&gt; <span style="color: #0000BB;">i</span> <span style="color: #000000;">Slice3: preprocessor 1/1, model 3/3</span></span>
-<span class="co">#&gt; </span>
-<span class="co">#&gt; Epoch 1/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.3222</span>
-<span class="co">#&gt; Epoch 2/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2259</span>
-<span class="co">#&gt; Epoch 3/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.214</span>
-<span class="co">#&gt; Epoch 4/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.1974</span>
-<span class="co">#&gt; Epoch 5/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.1924</span>
 <span class="co">#&gt; <span style="color: #00BB00;">✓</span> <span style="color: #000000;">Slice3: preprocessor 1/1, model 3/3</span></span>
-<span class="co">#&gt; </span>
 <span class="co">#&gt; <span style="color: #0000BB;">i</span> <span style="color: #000000;">Slice3: preprocessor 1/1, model 3/3 (predictions)</span></span>
-<span class="co">#&gt; </span>
 <span class="co">#&gt; <span style="color: #0000BB;">i</span> <span style="color: #000000;">Slice4: preprocessor 1/1</span></span>
-<span class="co">#&gt; </span>
 <span class="co">#&gt; <span style="color: #00BB00;">✓</span> <span style="color: #000000;">Slice4: preprocessor 1/1</span></span>
-<span class="co">#&gt; </span>
 <span class="co">#&gt; <span style="color: #0000BB;">i</span> <span style="color: #000000;">Slice4: preprocessor 1/1, model 1/3</span></span>
-<span class="co">#&gt; </span>
-<span class="co">#&gt; Epoch 1/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.5503</span>
-<span class="co">#&gt; Epoch 2/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.5255</span>
-<span class="co">#&gt; Epoch 3/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.4951</span>
-<span class="co">#&gt; Epoch 4/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.471</span>
-<span class="co">#&gt; Epoch 5/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.4429</span>
 <span class="co">#&gt; <span style="color: #00BB00;">✓</span> <span style="color: #000000;">Slice4: preprocessor 1/1, model 1/3</span></span>
-<span class="co">#&gt; </span>
 <span class="co">#&gt; <span style="color: #0000BB;">i</span> <span style="color: #000000;">Slice4: preprocessor 1/1, model 1/3 (predictions)</span></span>
-<span class="co">#&gt; </span>
 <span class="co">#&gt; <span style="color: #0000BB;">i</span> <span style="color: #000000;">Slice4: preprocessor 1/1, model 2/3</span></span>
-<span class="co">#&gt; </span>
-<span class="co">#&gt; Epoch 1/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.3557</span>
-<span class="co">#&gt; Epoch 2/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.3001</span>
-<span class="co">#&gt; Epoch 3/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2747</span>
-<span class="co">#&gt; Epoch 4/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2624</span>
-<span class="co">#&gt; Epoch 5/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2559</span>
 <span class="co">#&gt; <span style="color: #00BB00;">✓</span> <span style="color: #000000;">Slice4: preprocessor 1/1, model 2/3</span></span>
-<span class="co">#&gt; </span>
 <span class="co">#&gt; <span style="color: #0000BB;">i</span> <span style="color: #000000;">Slice4: preprocessor 1/1, model 2/3 (predictions)</span></span>
-<span class="co">#&gt; </span>
 <span class="co">#&gt; <span style="color: #0000BB;">i</span> <span style="color: #000000;">Slice4: preprocessor 1/1, model 3/3</span></span>
-<span class="co">#&gt; </span>
-<span class="co">#&gt; Epoch 1/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.4342</span>
-<span class="co">#&gt; Epoch 2/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.3201</span>
-<span class="co">#&gt; Epoch 3/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.284</span>
-<span class="co">#&gt; Epoch 4/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2659</span>
-<span class="co">#&gt; Epoch 5/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2807</span>
 <span class="co">#&gt; <span style="color: #00BB00;">✓</span> <span style="color: #000000;">Slice4: preprocessor 1/1, model 3/3</span></span>
-<span class="co">#&gt; </span>
 <span class="co">#&gt; <span style="color: #0000BB;">i</span> <span style="color: #000000;">Slice4: preprocessor 1/1, model 3/3 (predictions)</span></span>
-<span class="co">#&gt; </span>
 <span class="co">#&gt; <span style="color: #0000BB;">i</span> <span style="color: #000000;">Slice5: preprocessor 1/1</span></span>
-<span class="co">#&gt; </span>
 <span class="co">#&gt; <span style="color: #00BB00;">✓</span> <span style="color: #000000;">Slice5: preprocessor 1/1</span></span>
-<span class="co">#&gt; </span>
 <span class="co">#&gt; <span style="color: #0000BB;">i</span> <span style="color: #000000;">Slice5: preprocessor 1/1, model 1/3</span></span>
-<span class="co">#&gt; </span>
-<span class="co">#&gt; Epoch 1/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.4845</span>
-<span class="co">#&gt; Epoch 2/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.452</span>
-<span class="co">#&gt; Epoch 3/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.4239</span>
-<span class="co">#&gt; Epoch 4/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.3959</span>
-<span class="co">#&gt; Epoch 5/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.3719</span>
 <span class="co">#&gt; <span style="color: #00BB00;">✓</span> <span style="color: #000000;">Slice5: preprocessor 1/1, model 1/3</span></span>
-<span class="co">#&gt; </span>
 <span class="co">#&gt; <span style="color: #0000BB;">i</span> <span style="color: #000000;">Slice5: preprocessor 1/1, model 1/3 (predictions)</span></span>
-<span class="co">#&gt; </span>
 <span class="co">#&gt; <span style="color: #0000BB;">i</span> <span style="color: #000000;">Slice5: preprocessor 1/1, model 2/3</span></span>
-<span class="co">#&gt; </span>
-<span class="co">#&gt; Epoch 1/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.388</span>
-<span class="co">#&gt; Epoch 2/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2742</span>
-<span class="co">#&gt; Epoch 3/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2488</span>
-<span class="co">#&gt; Epoch 4/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2395</span>
-<span class="co">#&gt; Epoch 5/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2421</span>
 <span class="co">#&gt; <span style="color: #00BB00;">✓</span> <span style="color: #000000;">Slice5: preprocessor 1/1, model 2/3</span></span>
-<span class="co">#&gt; </span>
 <span class="co">#&gt; <span style="color: #0000BB;">i</span> <span style="color: #000000;">Slice5: preprocessor 1/1, model 2/3 (predictions)</span></span>
-<span class="co">#&gt; </span>
 <span class="co">#&gt; <span style="color: #0000BB;">i</span> <span style="color: #000000;">Slice5: preprocessor 1/1, model 3/3</span></span>
-<span class="co">#&gt; </span>
-<span class="co">#&gt; Epoch 1/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.5543</span>
-<span class="co">#&gt; Epoch 2/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.3877</span>
-<span class="co">#&gt; Epoch 3/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2619</span>
-<span class="co">#&gt; Epoch 4/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2452</span>
-<span class="co">#&gt; Epoch 5/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2395</span>
 <span class="co">#&gt; <span style="color: #00BB00;">✓</span> <span style="color: #000000;">Slice5: preprocessor 1/1, model 3/3</span></span>
-<span class="co">#&gt; </span>
 <span class="co">#&gt; <span style="color: #0000BB;">i</span> <span style="color: #000000;">Slice5: preprocessor 1/1, model 3/3 (predictions)</span></span>
 
 <span class="fu">autoplot</span><span class="op">(</span><span class="va">results</span><span class="op">)</span></code></pre></div>
@@ -492,52 +291,12 @@
 <code class="sourceCode R"><span class="va">final_params</span> <span class="op">&lt;-</span> <span class="fu">select_best</span><span class="op">(</span><span class="va">results</span>, metric <span class="op">=</span> <span class="st">"rmse"</span><span class="op">)</span>
 <span class="va">model</span> <span class="op">&lt;-</span> <span class="fu">finalize_workflow</span><span class="op">(</span><span class="va">model</span>, <span class="va">final_params</span><span class="op">)</span>
 <span class="va">results</span> <span class="op">&lt;-</span> <span class="fu">fit_resamples</span><span class="op">(</span><span class="va">model</span>, <span class="va">test_splits</span><span class="op">)</span>
-<span class="co">#&gt; Epoch 1/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.5898</span>
-<span class="co">#&gt; Epoch 2/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.4057</span>
-<span class="co">#&gt; Epoch 3/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.3047</span>
-<span class="co">#&gt; Epoch 4/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2496</span>
-<span class="co">#&gt; Epoch 5/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2285</span>
-<span class="co">#&gt; Epoch 1/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.4087</span>
-<span class="co">#&gt; Epoch 2/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2865</span>
-<span class="co">#&gt; Epoch 3/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2534</span>
-<span class="co">#&gt; Epoch 4/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.229</span>
-<span class="co">#&gt; Epoch 5/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2226</span>
-<span class="co">#&gt; Epoch 1/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.3708</span>
-<span class="co">#&gt; Epoch 2/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2089</span>
-<span class="co">#&gt; Epoch 3/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2096</span>
-<span class="co">#&gt; Epoch 4/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2049</span>
-<span class="co">#&gt; Epoch 5/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2056</span>
-<span class="co">#&gt; Epoch 1/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.4214</span>
-<span class="co">#&gt; Epoch 2/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2987</span>
-<span class="co">#&gt; Epoch 3/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2283</span>
-<span class="co">#&gt; Epoch 4/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2185</span>
-<span class="co">#&gt; Epoch 5/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2039</span>
 <span class="fu">collect_metrics</span><span class="op">(</span><span class="va">results</span><span class="op">)</span>
 <span class="co">#&gt; <span style="color: #949494;"># A tibble: 2 × 6</span></span>
 <span class="co">#&gt;   .metric .estimator     mean     n   std_err .config             </span>
 <span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>         <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>               </span>
-<span class="co">#&gt; <span style="color: #BCBCBC;">1</span> rmse    standard   <span style="text-decoration: underline;">3</span>599.        4 193.      Preprocessor1_Model1</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;">2</span> rsq     standard      0.979     4   0.009<span style="text-decoration: underline;">34</span> Preprocessor1_Model1</span></code></pre></div>
+<span class="co">#&gt; <span style="color: #BCBCBC;">1</span> rmse    standard   <span style="text-decoration: underline;">3</span>579.        4 437.      Preprocessor1_Model1</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;">2</span> rsq     standard      0.985     4   0.004<span style="text-decoration: underline;">76</span> Preprocessor1_Model1</span></code></pre></div>
 <p>To obtain predictions for future observations, first we need to load a data.frame that includes known predictors like the <code>IsHoliday</code> variable for all time steps in the future data frame. Then we can call <code>forecast</code> or <code>predict</code> to obtain the predictions for the future data.</p>
 <p>Note that <code>forecast</code> or <code>predict</code> currently can only predict for <code>horizon</code> time steps ahead. And don’t provide a away for doing rolling forecasts.</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
@@ -546,37 +305,27 @@
   <span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter</a></span><span class="op">(</span><span class="va">Date</span> <span class="op">&lt;=</span> <span class="fu">lubridate</span><span class="fu">::</span><span class="fu"><a href="https://lubridate.tidyverse.org/reference/ymd.html" class="external-link">ymd</a></span><span class="op">(</span><span class="st">"2012-11-23"</span><span class="op">)</span><span class="op">)</span>
 
 <span class="va">final_model</span> <span class="op">&lt;-</span> <span class="fu">fit</span><span class="op">(</span><span class="va">model</span>, <span class="va">sales</span><span class="op">)</span>
-<span class="co">#&gt; Epoch 1/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2977</span>
-<span class="co">#&gt; Epoch 2/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2476</span>
-<span class="co">#&gt; Epoch 3/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2094</span>
-<span class="co">#&gt; Epoch 4/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.217</span>
-<span class="co">#&gt; Epoch 5/5</span>
-<span class="co">#&gt; Train metrics: Loss: 0.2013</span>
 <span class="va">final_predictions</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">final_model</span>, new_data <span class="op">=</span> <span class="va">new_data</span><span class="op">)</span>
 <span class="va">final_predictions</span>
 <span class="co">#&gt; <span style="color: #949494;"># A tibble: 16 × 3</span></span>
 <span class="co">#&gt;    .pred_lower  .pred .pred_upper</span>
 <span class="co">#&gt;          <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>       <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span>      <span style="text-decoration: underline;">14</span>374. <span style="text-decoration: underline;">20</span>668.      <span style="text-decoration: underline;">33</span>759.</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span>      <span style="text-decoration: underline;">14</span>403. <span style="text-decoration: underline;">20</span>730.      <span style="text-decoration: underline;">33</span>835.</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span>      <span style="text-decoration: underline;">14</span>408. <span style="text-decoration: underline;">20</span>763.      <span style="text-decoration: underline;">33</span>871.</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 4</span>      <span style="text-decoration: underline;">14</span>408. <span style="text-decoration: underline;">20</span>778.      <span style="text-decoration: underline;">33</span>887.</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span>      <span style="text-decoration: underline;">43</span>258. <span style="text-decoration: underline;">45</span>458.      <span style="text-decoration: underline;">50</span>024.</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 6</span>      <span style="text-decoration: underline;">43</span>269. <span style="text-decoration: underline;">45</span>481.      <span style="text-decoration: underline;">50</span>051.</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span>      <span style="text-decoration: underline;">43</span>271. <span style="text-decoration: underline;">45</span>492.      <span style="text-decoration: underline;">50</span>064.</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 8</span>      <span style="text-decoration: underline;">43</span>271. <span style="text-decoration: underline;">45</span>498.      <span style="text-decoration: underline;">50</span>071.</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span>      <span style="text-decoration: underline;">18</span>958. <span style="text-decoration: underline;">28</span>098.      <span style="text-decoration: underline;">47</span>123.</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;">10</span>      <span style="text-decoration: underline;">18</span>998. <span style="text-decoration: underline;">28</span>188.      <span style="text-decoration: underline;">47</span>232.</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;">11</span>      <span style="text-decoration: underline;">19</span>004. <span style="text-decoration: underline;">28</span>235.      <span style="text-decoration: underline;">47</span>284.</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;">12</span>      <span style="text-decoration: underline;">19</span>003. <span style="text-decoration: underline;">28</span>256.      <span style="text-decoration: underline;">47</span>308.</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;">13</span>      <span style="text-decoration: underline;">61</span>896. <span style="text-decoration: underline;">65</span>002.      <span style="text-decoration: underline;">71</span>457.</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;">14</span>      <span style="text-decoration: underline;">61</span>911. <span style="text-decoration: underline;">65</span>033.      <span style="text-decoration: underline;">71</span>494.</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;">15</span>      <span style="text-decoration: underline;">61</span>914. <span style="text-decoration: underline;">65</span>049.      <span style="text-decoration: underline;">71</span>513.</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;">16</span>      <span style="text-decoration: underline;">61</span>914. <span style="text-decoration: underline;">65</span>057.      <span style="text-decoration: underline;">71</span>522.</span></code></pre></div>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span>      <span style="text-decoration: underline;">13</span>292. <span style="text-decoration: underline;">19</span>869.      <span style="text-decoration: underline;">29</span>107.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span>      <span style="text-decoration: underline;">13</span>252. <span style="text-decoration: underline;">19</span>862.      <span style="text-decoration: underline;">29</span>201.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span>      <span style="text-decoration: underline;">13</span>245. <span style="text-decoration: underline;">19</span>869.      <span style="text-decoration: underline;">29</span>249.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 4</span>      <span style="text-decoration: underline;">13</span>246. <span style="text-decoration: underline;">19</span>876.      <span style="text-decoration: underline;">29</span>279.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span>      <span style="text-decoration: underline;">42</span>882. <span style="text-decoration: underline;">45</span>179.      <span style="text-decoration: underline;">48</span>404.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 6</span>      <span style="text-decoration: underline;">42</span>869. <span style="text-decoration: underline;">45</span>176.      <span style="text-decoration: underline;">48</span>437.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span>      <span style="text-decoration: underline;">42</span>866. <span style="text-decoration: underline;">45</span>179.      <span style="text-decoration: underline;">48</span>454.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 8</span>      <span style="text-decoration: underline;">42</span>866. <span style="text-decoration: underline;">45</span>181.      <span style="text-decoration: underline;">48</span>464.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span>      <span style="text-decoration: underline;">17</span>377. <span style="text-decoration: underline;">26</span>935.      <span style="text-decoration: underline;">40</span>364.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;">10</span>      <span style="text-decoration: underline;">17</span>320. <span style="text-decoration: underline;">26</span>925.      <span style="text-decoration: underline;">40</span>500.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;">11</span>      <span style="text-decoration: underline;">17</span>309. <span style="text-decoration: underline;">26</span>935.      <span style="text-decoration: underline;">40</span>568.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;">12</span>      <span style="text-decoration: underline;">17</span>310. <span style="text-decoration: underline;">26</span>946.      <span style="text-decoration: underline;">40</span>613.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;">13</span>      <span style="text-decoration: underline;">61</span>363. <span style="text-decoration: underline;">64</span>608.      <span style="text-decoration: underline;">69</span>168.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;">14</span>      <span style="text-decoration: underline;">61</span>344. <span style="text-decoration: underline;">64</span>605.      <span style="text-decoration: underline;">69</span>214.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;">15</span>      <span style="text-decoration: underline;">61</span>340. <span style="text-decoration: underline;">64</span>608.      <span style="text-decoration: underline;">69</span>237.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;">16</span>      <span style="text-decoration: underline;">61</span>340. <span style="text-decoration: underline;">64</span>612.      <span style="text-decoration: underline;">69</span>252.</span></code></pre></div>
 </div>
   </main><aside class="col-md-3"><nav id="toc"><h2>On this page</h2>
     </nav></aside>
