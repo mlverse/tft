@@ -53,7 +53,9 @@
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="fu">lookback</span><span class="op">(</span>range <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">3L</span>, <span class="fl">365L</span><span class="op">)</span>, trans <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span>
 
-<span class="fu">horizon</span><span class="op">(</span>range <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1L</span>, <span class="fl">365L</span><span class="op">)</span>, trans <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></code></pre></div>
+<span class="fu">horizon</span><span class="op">(</span>range <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1L</span>, <span class="fl">365L</span><span class="op">)</span>, trans <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span>
+
+<span class="fu">hidden_state_size</span><span class="op">(</span>range <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2L</span>, <span class="fl">128L</span><span class="op">)</span>, trans <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -72,6 +74,7 @@ transformation, <code>NULL</code>.</p></dd>
     
 <ul><li><p><code>lookback</code>: lookback Lookback from the history</p></li>
 <li><p><code>horizon</code>: horizon Number of steps in the multi-horizon forecast</p></li>
+<li><p><code>hidden_state_size</code>: hidden_state_size Size of network.</p></li>
 </ul></div>
 
     <div class="section level2">
