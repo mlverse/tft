@@ -51,6 +51,8 @@ set_tft_arg(
   func = list(pkg = "dials", fun = "epochs")
 )
 
+#' @describeIn tft Parsnip wrappers for TFT.
+#' @export
 temporal_fusion_transformer <- function(mode = "regression", lookback = NULL,
                                         horizon = NULL, hidden_state_size = NULL,
                                         dropout = NULL, learn_rate = NULL,
