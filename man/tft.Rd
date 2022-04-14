@@ -85,6 +85,9 @@ point prediction and the thir as the upper bound.}
 
 \item{verbose}{Logical value stating if the model should produce status
 outputs, like a progress bar, during training.}
+
+\item{mode}{A single character string for the type of model.
+The only possible value for this model is "regression".}
 }
 \value{
 A list with the configuration parameters.
