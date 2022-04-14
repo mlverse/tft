@@ -1,62 +1,17 @@
-
-set_tft_arg <- function(name, func, has_submodel = FALSE, original = name) {
-  parsnip::set_model_arg(
-    model        = "temporal_fusion_transformer",
-    eng          = "torch",
-    parsnip      = name,
-    original     = original,
-    func         = func,
-    has_submodel = FALSE
-  )
-}
-
-
-parsnip::set_new_model("temporal_fusion_transformer")
-parsnip::set_model_mode(model = "temporal_fusion_transformer", mode = "regression")
-parsnip::set_model_engine(model = "temporal_fusion_transformer", mode = "regression", eng = "torch")
-parsnip::set_dependency(model = "temporal_fusion_transformer", eng = "torch", pkg = "tft")
-
-set_tft_arg(
-  name = "lookback",
-  func = list(pkg = "tft", fun = "lookback")
-)
-
-set_tft_arg(
-  name = "horizon",
-  func = list(pkg = "tft", fun = "horizon")
-)
-
-set_tft_arg(
-  name = "hidden_state_size",
-  func = list(pkg = "tft", fun = "hidden_state_size")
-)
-
-set_tft_arg(
-  name = "dropout",
-  func = list(pkg = "dials", fun = "dropout")
-)
-
-set_tft_arg(
-  name = "learn_rate",
-  func = list(pkg = "dials", fun = "learn_rate")
-)
-
-set_tft_arg(
-  name = "batch_size",
-  func = list(pkg = "dials", fun = "batch_size")
-)
-
-set_tft_arg(
-  name = "epochs",
-  func = list(pkg = "dials", fun = "epochs")
-)
-
 #' @describeIn tft Parsnip wrappers for TFT.
 #' @export
 temporal_fusion_transformer <- function(mode = "regression", lookback = NULL,
                                         horizon = NULL, hidden_state_size = NULL,
                                         dropout = NULL, learn_rate = NULL,
                                         batch_size = NULL, epochs = NULL) {
+
+  rlang::check_installed(pkg = "parsnip")
+
+  if (!tft_env$parsnip_added) {
+    register_temporal_fusion_transformer()
+    tft_env$parsnip_added <- TRUE
+  }
+
   args <- list(
     lookback = rlang::enquo(lookback),
     horizon = rlang::enquo(horizon),
@@ -76,6 +31,9 @@ temporal_fusion_transformer <- function(mode = "regression", lookback = NULL,
     engine   = NULL
   )
 }
+
+tft_env <- new.env()
+tft_env$parsnip_added <- FALSE
 
 #' @export
 #' @importFrom stats update
@@ -105,6 +63,17 @@ update.temporal_fusion_transformer <- function(object, parameters = NULL, lookba
   )
 }
 
+set_tft_arg <- function(name, func, has_submodel = FALSE, original = name) {
+  parsnip::set_model_arg(
+    model        = "temporal_fusion_transformer",
+    eng          = "torch",
+    parsnip      = name,
+    original     = original,
+    func         = func,
+    has_submodel = FALSE
+  )
+}
+
 current_or_value <- function(x, y) {
   if (is.null(y))
     x
@@ -112,44 +81,86 @@ current_or_value <- function(x, y) {
     rlang::enquo(y)
 }
 
-parsnip::set_fit(
-  model  = "temporal_fusion_transformer",
-  eng    = "torch",
-  mode   = "regression",
-  value  = list(
-    interface = "data.frame",
-    protect   = c("x", "y"),
-    func      = c(fun = "tft"),
-    defaults  = list()
-  )
-)
+register_temporal_fusion_transformer <- function() {
+  parsnip::set_new_model("temporal_fusion_transformer")
+  parsnip::set_model_mode(model = "temporal_fusion_transformer", mode = "regression")
+  parsnip::set_model_engine(model = "temporal_fusion_transformer", mode = "regression", eng = "torch")
+  parsnip::set_dependency(model = "temporal_fusion_transformer", eng = "torch", pkg = "tft")
 
-parsnip::set_encoding(
-  model   = "temporal_fusion_transformer",
-  eng     = "torch",
-  mode    = "regression",
-  options = list(
-    predictor_indicators = "none",
-    compute_intercept = FALSE,
-    remove_intercept = FALSE,
-    allow_sparse_x = FALSE
+  set_tft_arg(
+    name = "lookback",
+    func = list(pkg = "tft", fun = "lookback")
   )
-)
 
-parsnip::set_pred(
-  model = "temporal_fusion_transformer",
-  eng  = "torch",
-  mode = "regression",
-  type = "numeric",
-  value = list(
-    pre  = NULL,
-    post = NULL,
-    func = c(fun = "predict"),
-    args =
-      list(
-        object   = rlang::expr(object$fit),
-        new_data = rlang::expr(new_data)
-      )
+  set_tft_arg(
+    name = "horizon",
+    func = list(pkg = "tft", fun = "horizon")
   )
-)
+
+  set_tft_arg(
+    name = "hidden_state_size",
+    func = list(pkg = "tft", fun = "hidden_state_size")
+  )
+
+  set_tft_arg(
+    name = "dropout",
+    func = list(pkg = "dials", fun = "dropout")
+  )
+
+  set_tft_arg(
+    name = "learn_rate",
+    func = list(pkg = "dials", fun = "learn_rate")
+  )
+
+  set_tft_arg(
+    name = "batch_size",
+    func = list(pkg = "dials", fun = "batch_size")
+  )
+
+  set_tft_arg(
+    name = "epochs",
+    func = list(pkg = "dials", fun = "epochs")
+  )
+
+  parsnip::set_fit(
+    model  = "temporal_fusion_transformer",
+    eng    = "torch",
+    mode   = "regression",
+    value  = list(
+      interface = "data.frame",
+      protect   = c("x", "y"),
+      func      = c(fun = "tft"),
+      defaults  = list()
+    )
+  )
+
+  parsnip::set_encoding(
+    model   = "temporal_fusion_transformer",
+    eng     = "torch",
+    mode    = "regression",
+    options = list(
+      predictor_indicators = "none",
+      compute_intercept = FALSE,
+      remove_intercept = FALSE,
+      allow_sparse_x = FALSE
+    )
+  )
+
+  parsnip::set_pred(
+    model = "temporal_fusion_transformer",
+    eng  = "torch",
+    mode = "regression",
+    type = "numeric",
+    value = list(
+      pre  = NULL,
+      post = NULL,
+      func = c(fun = "predict"),
+      args =
+        list(
+          object   = rlang::expr(object$fit),
+          new_data = rlang::expr(new_data)
+        )
+    )
+  )
+}
 
