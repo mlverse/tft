@@ -19,6 +19,8 @@ jobs:
       group: pkgdown-${{ github.event_name != 'pull_request' || github.run_id }}
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      TORCH_TEST: 1
+      TORCH_INSTALL: 1
     steps:
       - uses: actions/checkout@v2
 
