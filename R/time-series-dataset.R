@@ -37,38 +37,29 @@ time_series_dataset <- torch::dataset(
       dplyr::mutate(.row = dplyr::row_number()) %>%
       dplyr::group_split(!!!tsibble::key(df)) %>%
       purrr::discard(~nrow(.x) < (lookback + 1 + assess_stop)) %>%
-      purrr::map_dfr(function(.x) {
+      purrr::map(function(.x) {
 
         if (mode == "predict") {
-          skip <- nrow(.x) - (lookback + assess_stop + 1)
+          skip <- nrow(.x) - (lookback + assess_stop)
         }
 
-        index <- tsibble::index_var(df)
-
-        rsample::sliding_index(
-          dplyr::arrange(.x, !!!index),
-          index = !!index,
-          lookback = lookback * lubridate::as.period(tsibble::interval(df)),
-          assess_stop = assess_stop * lubridate::as.period(tsibble::interval(df)),
-          assess_start = assess_start * lubridate::as.period(tsibble::interval(df)),
-          skip = skip,
-          complete = complete,
-          step = step
+        make_slices(
+          .x$.row,
+          lookback = lookback,
+          horizon = assess_stop,
+          step = step,
+          skip = skip
         )
-      })
+      }) %>%
+      purrr::compact()
 
-    if (nrow(self$slices) == 0) {
+    if (length(self$slices) == 0) {
       cli::cli_abort(c(
         "No group has enough observations to statisfy the requested {.var lookback}."
       ))
     }
 
-    self$slices <- self$slices$splits %>% purrr::map(
-      ~list(
-        encoder = rsample::training(.x)$.row,
-        decoder = rsample::testing(.x)$.row
-      )
-    )
+    self$slices <- rlang::flatten_if(self$slices, function(.x) {!rlang::is_named(.x)})
 
     # figure out variables of each type
     terms <- self$roles
@@ -162,3 +153,39 @@ pull_term_names <- function(terms, ...) {
 get_variables_with_role <- function(roles, role) {
   roles$variable[roles$tft_role %in% role]
 }
+
+
+# Assumes that observations are ordered by date and that there are no implicit
+# missing obs.
+make_slices <- function(x, lookback, horizon, step = 1, skip = 0) {
+  len <- length(x)
+  if (len < (lookback + horizon + skip)) {
+    return(list())
+  }
+
+  start_lookback <- seq(
+    from = 1 + skip,
+    to = len - (lookback + horizon - 1),
+    by = step
+  )
+  end_lookback <- start_lookback + lookback - 1
+  start_horizon <- end_lookback + 1
+  end_horizon <- start_horizon + horizon - 1
+
+  purrr::pmap(
+    list(
+      start_lookback,
+      end_lookback,
+      start_horizon,
+      end_horizon
+    ),
+    function(sl, el, sh, eh) {
+      list(
+        encoder = x[seq(from = sl, to = el)],
+        decoder = x[seq(from = sh, to = eh)]
+      )
+    }
+  )
+}
+
+

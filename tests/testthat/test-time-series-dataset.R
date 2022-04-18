@@ -34,7 +34,7 @@ test_that("simple test for time series dataset", {
     dplyr::group_by(Store, Dept, Type, Size) %>%
     dplyr::count() %>%
     dplyr::mutate(
-      n = n - (6 + 4),
+      n = n - (6 + 4 - 1),
       n = ifelse(n > 0, n, 0)
     )
 
