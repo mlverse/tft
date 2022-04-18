@@ -11,6 +11,7 @@ tft(x, ...)
 tft_config(
   lookback,
   horizon,
+  subsample = 1,
   hidden_state_size = 16,
   num_attention_heads = 4,
   num_lstm_layers = 2,
@@ -22,6 +23,7 @@ tft_config(
   learn_rate_decay = c(0.1, 5),
   gradient_clip_norm = 0.1,
   quantiles = c(0.1, 0.5, 0.9),
+  num_workers = 0,
   verbose = FALSE
 )
 
@@ -49,6 +51,9 @@ prediction.}
 
 \item{horizon}{Number of timesteps ahead that will be predicted by the
 model.}
+
+\item{subsample}{Subsample from all possible slices. An integer with the number
+of samples or a proportion.}
 
 \item{hidden_state_size}{Hidden size of network which is its main hyperparameter
 and can range from 8 to 512. It's also known as \code{d_model} across the paper.}
@@ -82,6 +87,8 @@ clipping is performed.}
 \item{quantiles}{A numeric vector with 3 quantiles for the quantile loss.
 The first is treated as lower bound of the interval, the second as the
 point prediction and the thir as the upper bound.}
+
+\item{num_workers}{Number of parallel workers for preprocessing data.}
 
 \item{verbose}{Logical value stating if the model should produce status
 outputs, like a progress bar, during training.}

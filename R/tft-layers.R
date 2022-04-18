@@ -314,7 +314,7 @@ locality_enhancement_layer <- torch::nn_module(
     )
   },
   expand_context = function(context) {
-    purrr::map(context, ~.x$expand(c(self$num_layers, -1, -1)))
+    purrr::map(context, ~.x$expand(c(self$num_layers, -1, -1))$contiguous())
   }
 )
 

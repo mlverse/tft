@@ -91,7 +91,8 @@ tft_impl <- function(x, recipe, config) {
   dataset <- time_series_dataset(
     x, recipe$term_info,
     lookback = config$lookback,
-    assess_stop = config$horizon
+    assess_stop = config$horizon,
+    subsample = config$subsample
   )
 
   n_features <- get_n_features(dataset[1][[1]])
@@ -132,7 +133,7 @@ tft_impl <- function(x, recipe, config) {
       dataset, epochs = config$epochs, verbose = config$verbose,
       callbacks = callbacks,
       dataloader_options = list(
-        batch_size = config$batch_size, num_workers = 0
+        batch_size = config$batch_size, num_workers = config$num_workers
       )
     )
 
@@ -181,6 +182,8 @@ unnormalize_outcome <- function(x, constants, outcome) {
 #'  prediction.
 #' @param horizon Number of timesteps ahead that will be predicted by the
 #'  model.
+#' @param subsample Subsample from all possible slices. An integer with the number
+#'  of samples or a proportion.
 #' @param hidden_state_size Hidden size of network which is its main hyperparameter
 #'   and can range from 8 to 512. It's also known as `d_model` across the paper.
 #' @param num_attention_heads Number of attention heads in the Multi-head attention layer.
@@ -203,17 +206,18 @@ unnormalize_outcome <- function(x, constants, outcome) {
 #' @param quantiles A numeric vector with 3 quantiles for the quantile loss.
 #'   The first is treated as lower bound of the interval, the second as the
 #'   point prediction and the thir as the upper bound.
+#' @param num_workers Number of parallel workers for preprocessing data.
 #' @param verbose Logical value stating if the model should produce status
 #'   outputs, like a progress bar, during training.
 #'
 #' @describeIn tft Configuration configuration options for tft.
 #'
 #' @export
-tft_config <- function(lookback, horizon, hidden_state_size = 16, num_attention_heads = 4,
+tft_config <- function(lookback, horizon, subsample = 1, hidden_state_size = 16, num_attention_heads = 4,
                        num_lstm_layers = 2, dropout = 0.1, batch_size = 256,
                        epochs = 5, optimizer = "adam", learn_rate = 0.01,
                        learn_rate_decay = c(0.1, 5), gradient_clip_norm = 0.1,
-                       quantiles = c(0.1, 0.5, 0.9), verbose = FALSE) {
+                       quantiles = c(0.1, 0.5, 0.9), num_workers = 0, verbose = FALSE) {
 
   if (rlang::is_false(learn_rate_decay)) {
     learn_rate_decay <- -1
@@ -238,6 +242,7 @@ tft_config <- function(lookback, horizon, hidden_state_size = 16, num_attention_
   list(
     lookback = lookback,
     horizon = horizon,
+    subsample = subsample,
     hidden_state_size = hidden_state_size,
     num_attention_heads = num_attention_heads,
     num_lstm_layers = num_lstm_layers,
@@ -249,6 +254,7 @@ tft_config <- function(lookback, horizon, hidden_state_size = 16, num_attention_
     batch_size = batch_size,
     epochs = epochs,
     quantiles = quantiles,
+    num_workers = num_workers,
     verbose = verbose
   )
 }

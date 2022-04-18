@@ -1,9 +1,10 @@
 
 time_series_dataset <- torch::dataset(
   "time_series_dataset",
-  initialize = function(df, roles, lookback = 2L, assess_start = 1L,
-                        assess_stop = 1L, complete = TRUE, step = 1L,
-                        skip = 0L, mode = c("train", "predict")) {
+  initialize = function(df, roles, lookback = 2L,
+                        assess_stop = 1L, step = 1L, skip = 0L,
+                        mode = c("train", "predict"),
+                        subsample = 1) {
 
     mode <- rlang::arg_match(mode)
     self$roles <- roles
@@ -27,10 +28,6 @@ time_series_dataset <- torch::dataset(
     # we are able to create.
     # since data is already split between future and past values it's also easier
     # to reason when implementing the network.
-
-    p_lookback <- lookback * lubridate::as.period(tsibble::interval(df))
-    p_assess_stop <- assess_stop * lubridate::as.period(tsibble::interval(df))
-    p_assess_start <- assess_start * lubridate::as.period(tsibble::interval(df))
 
     self$slices <- self$df %>%
       dplyr::ungroup() %>%
@@ -60,6 +57,12 @@ time_series_dataset <- torch::dataset(
     }
 
     self$slices <- rlang::flatten_if(self$slices, function(.x) {!rlang::is_named(.x)})
+
+    if (subsample < 1) {
+      self$slices <- self$slices[sample.int(length(self$slices), size = subsample*length(self$slices))]
+    } else if (subsample > 1) {
+      self$slices <- self$slices[sample.int(length(self$slices), size = subsample)]
+    }
 
     # figure out variables of each type
     terms <- self$roles
