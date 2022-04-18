@@ -1,0 +1,56 @@
+---
+title: "Electricity dataset"
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE
+)
+```
+
+```{r setup}
+library(tft)
+library(tidymodels)
+library(tidyverse)
+```
+
+```{r}
+dplyr::glimpse(electricity::electricity_hourly)
+```
+
+```{r}
+rec <- recipe(consumption ~ ., data = electricity::electricity_hourly) %>% 
+  update_role(date_hour, new_role = "index") %>% 
+  update_role(client, new_role = "key") %>% 
+  step_date(date_hour, role = "known", features = c("year", "month", "doy", "dow")) %>% 
+  step_mutate(date_hour_hour = lubridate::hour(date_hour), role = "known") %>% 
+  step_mutate(
+    time_since_begining = as.numeric(difftime(
+      time1 = date_hour, 
+      time2 = lubridate::ymd("2011-01-01"), 
+      units = "hour"
+    ))
+  ) %>% 
+  step_include_roles()
+```
+
+```{r}
+rec %>% prep() %>% juice() %>% glimpse()
+```
+
+```{r}
+model <- tft(
+  rec, 
+  electricity::electricity_hourly, 
+  lookback = 168, 
+  horizon = 24, 
+  hidden_state_size = 160, 
+  batch_size = 64, 
+  learn_rate = 0.001, 
+  gradient_clip_norm = 0.01,
+  verbose = TRUE
+)
+```
+
