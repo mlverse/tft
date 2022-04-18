@@ -41,6 +41,7 @@
 <li class="active nav-item dropdown">
   <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" role="button" aria-expanded="false" aria-haspopup="true" id="dropdown-articles">Articles</a>
   <div class="dropdown-menu" aria-labelledby="dropdown-articles">
+    <a class="dropdown-item" href="../articles/Electricity-dataset.html">Electricity dataset</a>
     <a class="dropdown-item" href="../articles/Getting-started.html">Getting started</a>
   </div>
 </li>
@@ -293,10 +294,10 @@
 <span class="va">results</span> <span class="op">&lt;-</span> <span class="fu">fit_resamples</span><span class="op">(</span><span class="va">model</span>, <span class="va">test_splits</span><span class="op">)</span>
 <span class="fu">collect_metrics</span><span class="op">(</span><span class="va">results</span><span class="op">)</span>
 <span class="co">#&gt; <span style="color: #949494;"># A tibble: 2 × 6</span></span>
-<span class="co">#&gt;   .metric .estimator     mean     n  std_err .config             </span>
-<span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>         <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>               </span>
-<span class="co">#&gt; <span style="color: #BCBCBC;">1</span> rmse    standard   <span style="text-decoration: underline;">3</span>991.        4 839.     Preprocessor1_Model1</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;">2</span> rsq     standard      0.972     4   0.013<span style="text-decoration: underline;">0</span> Preprocessor1_Model1</span></code></pre></div>
+<span class="co">#&gt;   .metric .estimator     mean     n   std_err .config             </span>
+<span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>         <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>               </span>
+<span class="co">#&gt; <span style="color: #BCBCBC;">1</span> rmse    standard   <span style="text-decoration: underline;">4</span>312.        4 390.      Preprocessor1_Model1</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;">2</span> rsq     standard      0.983     4   0.003<span style="text-decoration: underline;">32</span> Preprocessor1_Model1</span></code></pre></div>
 <p>To obtain predictions for future observations, first we need to load a data.frame that includes known predictors like the <code>IsHoliday</code> variable for all time steps in the future data frame. Then we can call <code>forecast</code> or <code>predict</code> to obtain the predictions for the future data.</p>
 <p>Note that <code>forecast</code> or <code>predict</code> currently can only predict for <code>horizon</code> time steps ahead. And don’t provide a away for doing rolling forecasts.</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
@@ -310,22 +311,22 @@
 <span class="co">#&gt; <span style="color: #949494;"># A tibble: 16 × 3</span></span>
 <span class="co">#&gt;    .pred_lower  .pred .pred_upper</span>
 <span class="co">#&gt;          <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>       <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span>      <span style="text-decoration: underline;">28</span>178. <span style="text-decoration: underline;">25</span>594.      <span style="text-decoration: underline;">16</span>844.</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span>      <span style="text-decoration: underline;">28</span>242. <span style="text-decoration: underline;">25</span>613.      <span style="text-decoration: underline;">16</span>862.</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span>      <span style="text-decoration: underline;">28</span>271. <span style="text-decoration: underline;">25</span>628.      <span style="text-decoration: underline;">16</span>868.</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 4</span>      <span style="text-decoration: underline;">28</span>287. <span style="text-decoration: underline;">25</span>640.      <span style="text-decoration: underline;">16</span>870.</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span>      <span style="text-decoration: underline;">48</span>080. <span style="text-decoration: underline;">47</span>178.      <span style="text-decoration: underline;">44</span>123.</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 6</span>      <span style="text-decoration: underline;">48</span>102. <span style="text-decoration: underline;">47</span>184.      <span style="text-decoration: underline;">44</span>129.</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span>      <span style="text-decoration: underline;">48</span>112. <span style="text-decoration: underline;">47</span>190.      <span style="text-decoration: underline;">44</span>131.</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 8</span>      <span style="text-decoration: underline;">48</span>118. <span style="text-decoration: underline;">47</span>194.      <span style="text-decoration: underline;">44</span>132.</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span>      <span style="text-decoration: underline;">39</span>008. <span style="text-decoration: underline;">35</span>255.      <span style="text-decoration: underline;">22</span>538.</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;">10</span>      <span style="text-decoration: underline;">39</span>103. <span style="text-decoration: underline;">35</span>282.      <span style="text-decoration: underline;">22</span>566.</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;">11</span>      <span style="text-decoration: underline;">39</span>145. <span style="text-decoration: underline;">35</span>305.      <span style="text-decoration: underline;">22</span>574.</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;">12</span>      <span style="text-decoration: underline;">39</span>169. <span style="text-decoration: underline;">35</span>322.      <span style="text-decoration: underline;">22</span>577.</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;">13</span>      <span style="text-decoration: underline;">68</span>707. <span style="text-decoration: underline;">67</span>433.      <span style="text-decoration: underline;">63</span>115.</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;">14</span>      <span style="text-decoration: underline;">68</span>739. <span style="text-decoration: underline;">67</span>442.      <span style="text-decoration: underline;">63</span>125.</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;">15</span>      <span style="text-decoration: underline;">68</span>754. <span style="text-decoration: underline;">67</span>450.      <span style="text-decoration: underline;">63</span>128.</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;">16</span>      <span style="text-decoration: underline;">68</span>762. <span style="text-decoration: underline;">67</span>456.      <span style="text-decoration: underline;">63</span>129.</span></code></pre></div>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span>      <span style="text-decoration: underline;">19</span>996. <span style="text-decoration: underline;">19</span>581.      <span style="text-decoration: underline;">33</span>815.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span>      <span style="text-decoration: underline;">19</span>946. <span style="text-decoration: underline;">19</span>567.      <span style="text-decoration: underline;">33</span>743.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span>      <span style="text-decoration: underline;">19</span>909. <span style="text-decoration: underline;">19</span>566.      <span style="text-decoration: underline;">33</span>696.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 4</span>      <span style="text-decoration: underline;">19</span>885. <span style="text-decoration: underline;">19</span>567.      <span style="text-decoration: underline;">33</span>668.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span>      <span style="text-decoration: underline;">45</span>224. <span style="text-decoration: underline;">45</span>077.      <span style="text-decoration: underline;">50</span>048.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 6</span>      <span style="text-decoration: underline;">45</span>206. <span style="text-decoration: underline;">45</span>073.      <span style="text-decoration: underline;">50</span>023.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span>      <span style="text-decoration: underline;">45</span>193. <span style="text-decoration: underline;">45</span>073.      <span style="text-decoration: underline;">50</span>006.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 8</span>      <span style="text-decoration: underline;">45</span>184. <span style="text-decoration: underline;">45</span>073.      <span style="text-decoration: underline;">49</span>997.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span>      <span style="text-decoration: underline;">27</span>121. <span style="text-decoration: underline;">26</span>519.      <span style="text-decoration: underline;">47</span>209.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;">10</span>      <span style="text-decoration: underline;">27</span>048. <span style="text-decoration: underline;">26</span>498.      <span style="text-decoration: underline;">47</span>104.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;">11</span>      <span style="text-decoration: underline;">26</span>994. <span style="text-decoration: underline;">26</span>495.      <span style="text-decoration: underline;">47</span>035.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;">12</span>      <span style="text-decoration: underline;">26</span>959. <span style="text-decoration: underline;">26</span>496.      <span style="text-decoration: underline;">46</span>995.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;">13</span>      <span style="text-decoration: underline;">64</span>672. <span style="text-decoration: underline;">64</span>466.      <span style="text-decoration: underline;">71</span>491.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;">14</span>      <span style="text-decoration: underline;">64</span>647. <span style="text-decoration: underline;">64</span>460.      <span style="text-decoration: underline;">71</span>456.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;">15</span>      <span style="text-decoration: underline;">64</span>629. <span style="text-decoration: underline;">64</span>459.      <span style="text-decoration: underline;">71</span>433.</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;">16</span>      <span style="text-decoration: underline;">64</span>617. <span style="text-decoration: underline;">64</span>459.      <span style="text-decoration: underline;">71</span>419.</span></code></pre></div>
 </div>
   </main><aside class="col-md-3"><nav id="toc"><h2>On this page</h2>
     </nav></aside>
