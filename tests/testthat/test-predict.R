@@ -80,4 +80,20 @@ test_that("forecast works", {
 
 })
 
+test_that("can make full predictions", {
+
+  result <- tft(walmart_recipe(), walmart_data(), lookback = 120, horizon = 4,
+                epochs = 1)
+
+  pred <- predict(
+    result,
+    mode = "full",
+    new_data = walmart_data() %>% dplyr::filter(Store == 1)
+  )
+
+  expect_equal(nrow(pred), 200)
+  expect_equal(ncol(pred), 28)
+  expect_true(!is.null(pred$.pred_at))
+})
+
 

@@ -1,15 +1,17 @@
 #' @importFrom stats predict
 #' @export
-predict.tft <- function(object, new_data, type = "numeric", ...) {
+predict.tft <- function(object, new_data, type = "numeric",
+                        mode = "horizon", ...) {
   new_data <- adjust_new_data(new_data, object$recipe)
   new_data <- recipes::bake(object$recipe, new_data)
-  verify_new_data(new_data, object)
-  out <- predict_impl(object, new_data)
+  verify_new_data(new_data, object, mode)
+  out <- predict_impl(object, new_data, mode)
   out
 }
 
-predict_impl <- function(object, new_data) {
+predict_impl <- function(object, new_data, mode) {
 
+  # only grab past data for keys that exist in the new data
   past_data <- new_data %>%
     dplyr::select(!!!tsibble::key(object$past_data)) %>%
     dplyr::distinct() %>%
@@ -18,12 +20,38 @@ predict_impl <- function(object, new_data) {
       by = tsibble::key_vars(object$past_data)
     )
 
+  index_col <- get_variables_with_role(object$recipe$term_info, "index")
+  if (mode == "full") {
+    # In the full mode we generate multi horizon forecasts starting from multiple
+    # steps.
+    # We need to figure if new_data is right after past data or not, to decide
+    # if we can bind them together or not.
+    interval <- lubridate::as.period(tsibble::interval(object$past_data))
+    min_new_date <- min(new_data[[index_col]])
+    max_old_date <- max(object$past_data[[index_col]])
+
+    dataset_mode <- "train"
+    if (min_new_date != (max_old_date + interval)) {
+      data <- new_data
+      skip <- 0
+    } else {
+      data <- dplyr::bind_rows(past_data, new_data)
+      skip <- length(unique(past_data[[index_col]]))
+    }
+
+  } else {
+    data <- dplyr::bind_rows(past_data, new_data)
+    skip <- 0
+    dataset_mode <- "predict"
+  }
+
   dataset <- time_series_dataset(
-    dplyr::bind_rows(past_data, new_data),
+    data,
     object$recipe$term_info,
     lookback = object$config$lookback,
     assess_stop = object$config$horizon,
-    mode = "predict"
+    skip = skip,
+    mode = dataset_mode
   )
 
   res <- predict(object$module, dataset)
@@ -36,7 +64,17 @@ predict_impl <- function(object, new_data) {
     rlang::set_names(c(".pred_lower", ".pred", ".pred_upper"))
 
   obs <- dataset$slices %>%
-    purrr::map_dfr(~dataset$df[.x$decoder,])
+    purrr::map_dfr(function(.x) {
+      res <- tibble::as_tibble(dataset$df[.x$decoder,]) %>%
+        dplyr::select(dplyr::all_of(
+          get_variables_with_role(
+            object$recipe$term_info, c("key", "index")
+          )
+        ))
+      res[[".pred_at"]] <-
+        max(tibble::as_tibble(dataset$df[.x$encoder,])[[index_col]])
+      res
+    })
 
   out <- dplyr::bind_cols(predictions, tibble::as_tibble(obs))
   out <- new_data %>%
@@ -48,7 +86,12 @@ predict_impl <- function(object, new_data) {
   for (var in names(predictions)) {
     out <- unnormalize_outcome(out, object$normalization, outcome = var)
   }
-  dplyr::select(out, dplyr::starts_with(".pred"))
+
+  if (mode == "horizon") {
+    dplyr::select(out, dplyr::starts_with(".pred"))
+  } else {
+    out
+  }
 }
 
 adjust_new_data <- function(new_data, recipe) {
@@ -80,13 +123,15 @@ adjust_new_data <- function(new_data, recipe) {
   # we now add all `predictors` to the new_obs dataset
   predictors <- var_info$variable[var_info$role == "predictor"]
   for (var in predictors) {
-    new_data[[var]] <- NA
+    if (is.null(new_data[[var]])) {
+      new_data[[var]] <- NA
+    }
   }
 
   new_data
 }
 
-verify_new_data <- function(new_data, object) {
+verify_new_data <- function(new_data, object, mode) {
 
   past_data <- object$past_data
   recipe <- object$recipe
@@ -105,34 +150,36 @@ verify_new_data <- function(new_data, object) {
     }
   }
 
-  possible_dates <- future_data(past_data, horizon = object$config$horizon)
-  not_allowed <- new_data %>%
-    dplyr::anti_join(
-      possible_dates,
-      by = c(tsibble::index_var(possible_dates), tsibble::key_vars(possible_dates))
-    )
-  if (nrow(not_allowed) > 0) {
-    cli::cli_abort(c(
-      "{.var new_data} includes obs that we can't generate predictions.",
-      "x" = "Found {.var {nrow(not_allowed)}} observations."
-    ))
+  if (mode == "horizon") {
+    possible_dates <- future_data(past_data, horizon = object$config$horizon)
+    not_allowed <- new_data %>%
+      dplyr::anti_join(
+        possible_dates,
+        by = c(tsibble::index_var(possible_dates), tsibble::key_vars(possible_dates))
+      )
+    if (nrow(not_allowed) > 0) {
+      cli::cli_abort(c(
+        "{.var new_data} includes obs that we can't generate predictions.",
+        "x" = "Found {.var {nrow(not_allowed)}} observations."
+      ))
+    }
   }
 
-  # we verify that al groups have the entire prediction range
-  counts <- new_data %>%
-    dplyr::group_by(!!!tsibble::key(past_data)) %>%
-    dplyr::count()
+  # we verify that all groups have the entire prediction range
+  if (mode == "horizon") {
+    counts <- new_data %>%
+      dplyr::group_by(!!!tsibble::key(past_data)) %>%
+      dplyr::count()
 
-  if (any(counts$n != object$config$horizon)) {
-    n_groups <- sum(counts$n != object$config$horizon)
-    h <- object$config$horizon
-    cli::cli_abort(c(
-      "At least one group doesn't have an entire range for prediction.",
-      "x" = "Found {.var {n_groups}} group that don't have {.var {h}} dates."
-    ))
+    if (any(counts$n != object$config$horizon)) {
+      n_groups <- sum(counts$n != object$config$horizon)
+      h <- object$config$horizon
+      cli::cli_abort(c(
+        "At least one group doesn't have an entire range for prediction.",
+        "x" = "Found {.var {n_groups}} group that don't have {.var {h}} dates."
+      ))
+    }
   }
-
-
 
   invisible(NULL)
 }
