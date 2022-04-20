@@ -111,3 +111,6 @@ Configuration for the Temporal Fusion Transformer network
 \item \code{temporal_fusion_transformer}: Parsnip wrappers for TFT.
 }}
 
+\seealso{
+\code{\link[=predict.tft]{predict.tft()}} for how to create predictions.
+}

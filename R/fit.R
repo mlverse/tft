@@ -8,6 +8,8 @@
 #' @inheritParams parsnip::linear_reg
 #' @param ... Additional arguments passed to [tft_config()].
 #'
+#' @seealso [predict.tft()] for how to create predictions.
+#'
 #' @export
 tft <- function(x, ...) {
   UseMethod("tft")
