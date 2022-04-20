@@ -76,7 +76,7 @@ test_that("forecast works", {
   preds <- forecast(result)
   expect_s3_class(preds, "tft_forecast")
   expect_equal(nrow(preds), 16)
-  expect_equal(ncol(preds), 8)
+  expect_equal(ncol(preds), 9)
 
 })
 
@@ -91,7 +91,7 @@ test_that("can make full predictions", {
     new_data = walmart_data() %>% dplyr::filter(Store == 1)
   )
 
-  expect_equal(nrow(pred), 200)
+  expect_equal(nrow(pred), 400)
   expect_equal(ncol(pred), 28)
   expect_true(!is.null(pred$.pred_at))
 })

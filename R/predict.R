@@ -1,15 +1,34 @@
+
+#' Create predictions for TFT models
+#'
 #' @importFrom stats predict
+#' @inheritParams stats::predict
+#' @param new_data A [data.frame()] containing a dataset to generate predictions
+#'   for. In general it's used to pass static and known information to generate
+#'   forecasts.
+#' @param type Currently only `'numeric'` is accepted but this might change in
+#'  the future if we end up supporting classification.
+#' @param mode Prediction mode. If `'horizon'` predict will generate a single
+#'  multi-horizon prediction. This is mostly sueful when creating forecasts for
+#'  the time frame right after the model has been trained. If `'full'` then
+#'  predictions are created for every possible time step (with a possible `step`)
+#'  argument.
+#'  When `mode='horizon'` (default) only the prediction columns are returned.
+#'  When `mode='full'` all columns from `new_data` are returned as the result
+#'  might have more lines than in `new_data` because it's potentially possible
+#'  to generate different predictions for the same time-step.
+#' @param step Step for predictions when using `mode='full'`.
 #' @export
 predict.tft <- function(object, new_data, type = "numeric",
-                        mode = "horizon", ...) {
+                        mode = "horizon", step = NULL, ...) {
   new_data <- adjust_new_data(new_data, object$recipe)
   new_data <- recipes::bake(object$recipe, new_data)
   verify_new_data(new_data, object, mode)
-  out <- predict_impl(object, new_data, mode)
+  out <- predict_impl(object, new_data, mode, step)
   out
 }
 
-predict_impl <- function(object, new_data, mode) {
+predict_impl <- function(object, new_data, mode, step) {
 
   # only grab past data for keys that exist in the new data
   past_data <- new_data %>%
@@ -38,8 +57,16 @@ predict_impl <- function(object, new_data, mode) {
       data <- dplyr::bind_rows(past_data, new_data)
       skip <- length(unique(past_data[[index_col]]))
     }
+    if (is.null(step)){
+      step <- 1
+    }
 
   } else {
+    if (!is.null(step)) {
+      cli::cli_warn(c("Step is not {.var NULL} but won't be used."))
+    }
+    step <- 1
+
     data <- dplyr::bind_rows(past_data, new_data)
     skip <- 0
     dataset_mode <- "predict"
@@ -51,7 +78,8 @@ predict_impl <- function(object, new_data, mode) {
     lookback = object$config$lookback,
     assess_stop = object$config$horizon,
     skip = skip,
-    mode = dataset_mode
+    mode = dataset_mode,
+    step = step
   )
 
   res <- predict(object$module, dataset)
