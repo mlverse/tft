@@ -54,7 +54,7 @@ predict_impl <- function(object, new_data, mode, step) {
       data <- new_data
       skip <- 0
     } else {
-      data <- dplyr::bind_rows(past_data, new_data)
+      data <- dplyr::bind_rows(tibble::as_tibble(past_data), new_data)
       skip <- length(unique(past_data[[index_col]]))
     }
     if (is.null(step)){
