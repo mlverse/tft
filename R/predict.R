@@ -84,7 +84,7 @@ predict_impl <- function(object, new_data, mode, step) {
 
   res <- predict(object$module, dataset)
 
-  predictions <- res %>%
+  predictions <- (res$cpu()) %>%
     torch::torch_unbind(dim = 1) %>%
     torch::torch_cat(dim =  1) %>%
     as.matrix() %>%
