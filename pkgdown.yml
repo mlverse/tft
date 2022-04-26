@@ -1,10 +1,10 @@
 pandoc: 2.14.2
-pkgdown: 2.0.2
+pkgdown: 2.0.3
 pkgdown_sha: ~
 articles:
   Electricity-dataset: Electricity-dataset.html
   Getting-started: Getting-started.html
-last_built: 2022-04-20T19:44Z
+last_built: 2022-04-26T18:02Z
 urls:
   reference: https://mlverse.github.io/tft/reference
   article: https://mlverse.github.io/tft/articles

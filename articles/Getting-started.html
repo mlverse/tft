@@ -296,8 +296,8 @@
 <span class="co">#&gt; <span style="color: #949494;"># A tibble: 2 × 6</span></span>
 <span class="co">#&gt;   .metric .estimator     mean     n   std_err .config             </span>
 <span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>         <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>               </span>
-<span class="co">#&gt; <span style="color: #BCBCBC;">1</span> rmse    standard   <span style="text-decoration: underline;">4</span>897.        4 971.      Preprocessor1_Model1</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;">2</span> rsq     standard      0.973     4   0.005<span style="text-decoration: underline;">46</span> Preprocessor1_Model1</span></code></pre></div>
+<span class="co">#&gt; <span style="color: #BCBCBC;">1</span> rmse    standard   <span style="text-decoration: underline;">3</span>678.        4 289.      Preprocessor1_Model1</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;">2</span> rsq     standard      0.986     4   0.004<span style="text-decoration: underline;">84</span> Preprocessor1_Model1</span></code></pre></div>
 <p>To obtain predictions for future observations, first we need to load a data.frame that includes known predictors like the <code>IsHoliday</code> variable for all time steps in the future data frame. Then we can call <code>forecast</code> or <code>predict</code> to obtain the predictions for the future data.</p>
 <p>Note that <code>forecast</code> or <code>predict</code> currently can only predict for <code>horizon</code> time steps ahead. And don’t provide a away for doing rolling forecasts.</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
@@ -311,22 +311,22 @@
 <span class="co">#&gt; <span style="color: #949494;"># A tibble: 16 × 4</span></span>
 <span class="co">#&gt;    .pred_lower  .pred .pred_upper .pred_at  </span>
 <span class="co">#&gt;          <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>       <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;date&gt;</span>    </span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span>      <span style="text-decoration: underline;">14</span>417. <span style="text-decoration: underline;">20</span>631.      <span style="text-decoration: underline;">36</span>559. 2012-10-26</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span>      <span style="text-decoration: underline;">14</span>389. <span style="text-decoration: underline;">20</span>654.      <span style="text-decoration: underline;">36</span>593. 2012-10-26</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span>      <span style="text-decoration: underline;">14</span>372. <span style="text-decoration: underline;">20</span>686.      <span style="text-decoration: underline;">36</span>625. 2012-10-26</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 4</span>      <span style="text-decoration: underline;">14</span>361. <span style="text-decoration: underline;">20</span>715.      <span style="text-decoration: underline;">36</span>651. 2012-10-26</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span>      <span style="text-decoration: underline;">43</span>275. <span style="text-decoration: underline;">45</span>445.      <span style="text-decoration: underline;">51</span>006. 2012-10-26</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 6</span>      <span style="text-decoration: underline;">43</span>265. <span style="text-decoration: underline;">45</span>453.      <span style="text-decoration: underline;">51</span>018. 2012-10-26</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span>      <span style="text-decoration: underline;">43</span>259. <span style="text-decoration: underline;">45</span>464.      <span style="text-decoration: underline;">51</span>029. 2012-10-26</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 8</span>      <span style="text-decoration: underline;">43</span>255. <span style="text-decoration: underline;">45</span>474.      <span style="text-decoration: underline;">51</span>038. 2012-10-26</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span>      <span style="text-decoration: underline;">19</span>015. <span style="text-decoration: underline;">28</span>044.      <span style="text-decoration: underline;">51</span>194. 2012-10-26</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;">10</span>      <span style="text-decoration: underline;">18</span>974. <span style="text-decoration: underline;">28</span>077.      <span style="text-decoration: underline;">51</span>243. 2012-10-26</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;">11</span>      <span style="text-decoration: underline;">18</span>949. <span style="text-decoration: underline;">28</span>125.      <span style="text-decoration: underline;">51</span>291. 2012-10-26</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;">12</span>      <span style="text-decoration: underline;">18</span>934. <span style="text-decoration: underline;">28</span>166.      <span style="text-decoration: underline;">51</span>329. 2012-10-26</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;">13</span>      <span style="text-decoration: underline;">61</span>919. <span style="text-decoration: underline;">64</span>984.      <span style="text-decoration: underline;">72</span>844. 2012-10-26</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;">14</span>      <span style="text-decoration: underline;">61</span>905. <span style="text-decoration: underline;">64</span>996.      <span style="text-decoration: underline;">72</span>861. 2012-10-26</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;">15</span>      <span style="text-decoration: underline;">61</span>897. <span style="text-decoration: underline;">65</span>012.      <span style="text-decoration: underline;">72</span>877. 2012-10-26</span>
-<span class="co">#&gt; <span style="color: #BCBCBC;">16</span>      <span style="text-decoration: underline;">61</span>891. <span style="text-decoration: underline;">65</span>026.      <span style="text-decoration: underline;">72</span>890. 2012-10-26</span></code></pre></div>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span>      <span style="text-decoration: underline;">20</span>207. <span style="text-decoration: underline;">22</span>287.      <span style="text-decoration: underline;">21</span>151. 2012-10-26</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span>      <span style="text-decoration: underline;">20</span>207. <span style="text-decoration: underline;">22</span>236.      <span style="text-decoration: underline;">21</span>134. 2012-10-26</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span>      <span style="text-decoration: underline;">20</span>214. <span style="text-decoration: underline;">22</span>217.      <span style="text-decoration: underline;">21</span>127. 2012-10-26</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 4</span>      <span style="text-decoration: underline;">20</span>220. <span style="text-decoration: underline;">22</span>209.      <span style="text-decoration: underline;">21</span>124. 2012-10-26</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span>      <span style="text-decoration: underline;">45</span>296. <span style="text-decoration: underline;">46</span>024.      <span style="text-decoration: underline;">45</span>627. 2012-10-26</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 6</span>      <span style="text-decoration: underline;">45</span>297. <span style="text-decoration: underline;">46</span>006.      <span style="text-decoration: underline;">45</span>620. 2012-10-26</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span>      <span style="text-decoration: underline;">45</span>299. <span style="text-decoration: underline;">45</span>999.      <span style="text-decoration: underline;">45</span>618. 2012-10-26</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 8</span>      <span style="text-decoration: underline;">45</span>302. <span style="text-decoration: underline;">45</span>996.      <span style="text-decoration: underline;">45</span>617. 2012-10-26</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span>      <span style="text-decoration: underline;">27</span>425. <span style="text-decoration: underline;">30</span>449.      <span style="text-decoration: underline;">28</span>798. 2012-10-26</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;">10</span>      <span style="text-decoration: underline;">27</span>427. <span style="text-decoration: underline;">30</span>375.      <span style="text-decoration: underline;">28</span>773. 2012-10-26</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;">11</span>      <span style="text-decoration: underline;">27</span>437. <span style="text-decoration: underline;">30</span>347.      <span style="text-decoration: underline;">28</span>763. 2012-10-26</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;">12</span>      <span style="text-decoration: underline;">27</span>445. <span style="text-decoration: underline;">30</span>335.      <span style="text-decoration: underline;">28</span>759. 2012-10-26</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;">13</span>      <span style="text-decoration: underline;">64</span>774. <span style="text-decoration: underline;">65</span>802.      <span style="text-decoration: underline;">65</span>241. 2012-10-26</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;">14</span>      <span style="text-decoration: underline;">64</span>775. <span style="text-decoration: underline;">65</span>776.      <span style="text-decoration: underline;">65</span>232. 2012-10-26</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;">15</span>      <span style="text-decoration: underline;">64</span>778. <span style="text-decoration: underline;">65</span>767.      <span style="text-decoration: underline;">65</span>229. 2012-10-26</span>
+<span class="co">#&gt; <span style="color: #BCBCBC;">16</span>      <span style="text-decoration: underline;">64</span>782. <span style="text-decoration: underline;">65</span>763.      <span style="text-decoration: underline;">65</span>228. 2012-10-26</span></code></pre></div>
 </div>
   </main><aside class="col-md-3"><nav id="toc"><h2>On this page</h2>
     </nav></aside>
@@ -341,7 +341,7 @@
 
 <div class="pkgdown-footer-right">
   <p></p>
-<p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.2.</p>
+<p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.3.</p>
 </div>
 
     </footer>
