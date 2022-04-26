@@ -162,6 +162,14 @@ get_variables_with_role <- function(roles, role) {
 # missing obs.
 make_slices <- function(x, lookback, horizon, step = 1, skip = 0) {
   len <- length(x)
+
+  if (skip > 0) {
+    skip <- skip - lookback
+    if (skip < 0) {
+      skip <- 0
+    }
+  }
+
   if (len < (lookback + horizon + skip)) {
     return(list())
   }
