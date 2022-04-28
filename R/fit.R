@@ -145,16 +145,19 @@ tft_impl <- function(x, recipe, config) {
 # by default we normalize the outcomes per group.
 #' @importFrom stats sd
 #' @importFrom utils tail
-normalize_outcome <- function(x, keys, outcome) {
+normalize_outcome <- function(x, keys, outcome, constants = NULL) {
   outcome <- rlang::sym(outcome)
-  constants <- x %>%
-    tibble::as_tibble() %>%
-    dplyr::ungroup() %>%
-    dplyr::group_by(!!!rlang::syms(keys)) %>%
-    dplyr::summarise(.groups = "drop",
-      ..mean := mean({{outcome}}),
-      ..sd := sd({{outcome}})
-    )
+
+  if (is.null(constants)) {
+    constants <- x %>%
+      tibble::as_tibble() %>%
+      dplyr::ungroup() %>%
+      dplyr::group_by(!!!rlang::syms(keys)) %>%
+      dplyr::summarise(.groups = "drop",
+                       ..mean := mean({{outcome}}),
+                       ..sd := sd({{outcome}})
+      )
+  }
 
   x <- x %>%
     dplyr::left_join(constants, by = keys) %>%

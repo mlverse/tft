@@ -49,12 +49,21 @@ predict_impl <- function(object, new_data, mode, step) {
     min_new_date <- min(new_data[[index_col]])
     max_old_date <- max(object$past_data[[index_col]])
 
+    # in this scenario, new_data also contains the target, so we need to
+    # normalize it.
+    new_data_normalized <- normalize_outcome(
+      x = new_data,
+      keys = get_variables_with_role(object$recipe$term_info, "key"),
+      outcome = get_variables_with_role(object$recipe$term_info, "outcome"),
+      constants = object$normalization
+    )$x
+
     dataset_mode <- "train"
     if (min_new_date != (max_old_date + interval)) {
-      data <- new_data
+      data <- new_data_normalized
       skip <- 0
     } else {
-      data <- dplyr::bind_rows(tibble::as_tibble(past_data), new_data)
+      data <- dplyr::bind_rows(past_data, new_data_normalized)
       skip <- length(unique(past_data[[index_col]]))
     }
     if (is.null(step)){
