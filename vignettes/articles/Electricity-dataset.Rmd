@@ -24,8 +24,8 @@ dplyr::glimpse(electricity::electricity_hourly)
 rec <- recipe(consumption ~ ., data = electricity::electricity_hourly) %>% 
   update_role(date_hour, new_role = "index") %>% 
   update_role(client, new_role = "key") %>% 
-  step_date(date_hour, role = "known", features = c("year", "month", "doy", "dow")) %>% 
-  step_mutate(date_hour_hour = lubridate::hour(date_hour), role = "known") %>% 
+  step_date(date_hour, role = "known", features = c("month", "dow")) %>% 
+  step_mutate(date_hour_hour = as.factor(lubridate::hour(date_hour)), role = "known") %>% 
   step_mutate(
     time_since_begining = as.numeric(difftime(
       time1 = date_hour, 
@@ -33,6 +33,7 @@ rec <- recipe(consumption ~ ., data = electricity::electricity_hourly) %>%
       units = "hour"
     ))
   ) %>% 
+  step_normalize(time_since_begining) %>% 
   step_include_roles()
 ```
 
@@ -41,16 +42,54 @@ rec %>% prep() %>% juice() %>% glimpse()
 ```
 
 ```{r}
+elec <- electricity::electricity_hourly %>% 
+    dplyr::filter(client %in% c("MT_001", "MT_002"))
+
+elec_train <- elec %>% 
+  filter(date_hour <= (max(date_hour) - lubridate::days(7)))
+
+elec_test <- elec %>% 
+  filter(date_hour > (max(date_hour) - lubridate::days(7)))
+```
+
+
+```{r}
 model <- tft(
   rec, 
-  electricity::electricity_hourly, 
+  elec_train, 
   lookback = 168, 
   horizon = 24, 
+  subsample = 0.5,
   hidden_state_size = 160, 
   batch_size = 64, 
   learn_rate = 0.001, 
   gradient_clip_norm = 0.01,
+  num_workers = 4,
   verbose = TRUE
 )
+```
+```{r}
+predictions <- predict(model, elec_test, mode = "full")
+
+preds <- predictions %>% 
+  filter(.pred_at %in% (min(predictions$.pred_at) + lubridate::days(0:6))) %>% 
+  mutate(client = as.character(client))
+
+id <- 1
+
+bind_rows(
+  preds %>% filter(.pred_at == unique(preds$.pred_at)[id]), 
+  elec %>% filter(
+    date_hour >= (min(predictions$.pred_at) - lubridate::days(7)),
+    date_hour < unique(preds$.pred_at)[id]
+    )
+) %>% 
+  ggplot(aes(x = date_hour)) +
+  geom_line(aes(y = consumption)) +
+  geom_point(aes(y = consumption)) +
+  geom_line(aes(y = .pred), color = "red") +
+  geom_point(aes(y = .pred), color = "red") +
+  geom_ribbon(aes(ymin = .pred_lower, ymax = .pred_upper), alpha = 0.2) +
+  facet_wrap(~client, scales = "free_y", ncol = 1)
 ```
 
