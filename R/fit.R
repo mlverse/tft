@@ -117,7 +117,12 @@ tft_impl <- function(x, recipe, config) {
   result <- temporal_fusion_transformer_model %>%
     luz::setup(
       loss = quantile_loss(quantiles = c(0.1, 0.5, 0.9)),
-      optimizer = config$optimizer
+      optimizer = config$optimizer,
+      metrics = list(
+        luz_quantile_loss(quantile = 0.1,1),
+        luz_quantile_loss(quantile = 0.5,2),
+        luz_quantile_loss(quantile = 0.9,3)
+      )
     ) %>%
     luz::set_hparams(
       num_features = n_features,
