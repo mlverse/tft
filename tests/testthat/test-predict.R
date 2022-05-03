@@ -96,4 +96,27 @@ test_that("can make full predictions", {
   expect_true(!is.null(pred$.pred_at))
 })
 
+test_that("full prediction, passing only future data", {
+
+  init <- max(walmart_data()$Date) -lubridate::weeks(4)
+
+  train <- walmart_data() %>%
+    dplyr::filter(Date <= init)
+  test <- walmart_data() %>%
+    dplyr::filter(Date > init) %>%
+    dplyr::filter(Store == 1, Dept == 1)
+
+  result <- tft(walmart_recipe(), train, lookback = 120, horizon = 4,
+                epochs = 1)
+
+  pred <- predict(
+    result,
+    mode = "full",
+    new_data = test
+  )
+
+  expect_equal(nrow(pred), 4)
+})
+
+
 

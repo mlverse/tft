@@ -40,6 +40,16 @@ predict_impl <- function(object, new_data, mode, step) {
     )
 
   index_col <- get_variables_with_role(object$recipe$term_info, "index")
+
+  # we only need the last `lookback` interval from the past_data.
+  last_index <- max(past_data[[index_col]])
+  period <- lubridate::as.period(tsibble::interval(object$past_data))
+  last_index <- last_index - object$config$lookback*period
+
+  # now filter the past_data
+  past_data <- past_data %>%
+    dplyr::filter(.data[[index_col]] > last_index)
+
   if (mode == "full") {
     # In the full mode we generate multi horizon forecasts starting from multiple
     # steps.
@@ -58,13 +68,10 @@ predict_impl <- function(object, new_data, mode, step) {
       constants = object$normalization
     )$x
 
-    dataset_mode <- "train"
     if (min_new_date != (max_old_date + interval)) {
       data <- new_data_normalized
-      skip <- 0
     } else {
       data <- dplyr::bind_rows(past_data, new_data_normalized)
-      skip <- length(unique(past_data[[index_col]]))
     }
     if (is.null(step)){
       step <- 1
@@ -75,10 +82,7 @@ predict_impl <- function(object, new_data, mode, step) {
       cli::cli_warn(c("Step is not {.var NULL} but won't be used."))
     }
     step <- 1
-
     data <- dplyr::bind_rows(past_data, new_data)
-    skip <- 0
-    dataset_mode <- "predict"
   }
 
   dataset <- time_series_dataset(
@@ -86,8 +90,6 @@ predict_impl <- function(object, new_data, mode, step) {
     object$recipe$term_info,
     lookback = object$config$lookback,
     assess_stop = object$config$horizon,
-    skip = skip,
-    mode = dataset_mode,
     step = step
   )
 

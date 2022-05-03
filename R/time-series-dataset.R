@@ -2,11 +2,9 @@
 time_series_dataset <- torch::dataset(
   "time_series_dataset",
   initialize = function(df, roles, lookback = 2L,
-                        assess_stop = 1L, step = 1L, skip = 0L,
-                        mode = c("train", "predict"),
+                        assess_stop = 1L, step = 1L,
                         subsample = 1) {
 
-    mode <- rlang::arg_match(mode)
     self$roles <- roles
     # create a tsibble using information from the recipe
     keys <- get_variables_with_role(roles, "key")
@@ -33,26 +31,13 @@ time_series_dataset <- torch::dataset(
       dplyr::ungroup() %>%
       dplyr::mutate(.row = dplyr::row_number()) %>%
       dplyr::group_split(!!!tsibble::key(df)) %>%
-      purrr::discard(~nrow(.x) < (lookback + 1 + assess_stop)) %>%
+      purrr::discard(~nrow(.x) < (lookback + assess_stop)) %>%
       purrr::map(function(.x) {
-
-        if (mode == "predict") {
-          skip <- nrow(.x) - (lookback + assess_stop)
-        } else {
-          if (skip > 0) {
-            skip <- skip - lookback
-            if (skip < 0) {
-              skip <- 0
-            }
-          }
-        }
-
         make_slices(
           .x$.row,
           lookback = lookback,
           horizon = assess_stop,
-          step = step,
-          skip = skip
+          step = step
         )
       }) %>%
       purrr::compact()
@@ -167,15 +152,15 @@ get_variables_with_role <- function(roles, role) {
 
 # Assumes that observations are ordered by date and that there are no implicit
 # missing obs.
-make_slices <- function(x, lookback, horizon, step = 1, skip = 0) {
+make_slices <- function(x, lookback, horizon, step = 1) {
   len <- length(x)
 
-  if (len < (lookback + horizon + skip)) {
+  if (len < (lookback + horizon)) {
     return(list())
   }
 
   start_lookback <- seq(
-    from = 1 + skip,
+    from = 1,
     to = len - (lookback + horizon - 1),
     by = step
   )
