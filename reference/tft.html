@@ -73,6 +73,7 @@ Configuration for the Temporal Fusion Transformer network"><!-- mathjax --><scri
   gradient_clip_norm <span class="op">=</span> <span class="fl">0.1</span>,
   quantiles <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.1</span>, <span class="fl">0.5</span>, <span class="fl">0.9</span><span class="op">)</span>,
   num_workers <span class="op">=</span> <span class="fl">0</span>,
+  callbacks <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,
   verbose <span class="op">=</span> <span class="cn">FALSE</span>
 <span class="op">)</span>
 
@@ -141,6 +142,9 @@ The first is treated as lower bound of the interval, the second as the
 point prediction and the thir as the upper bound.</p></dd>
 <dt>num_workers</dt>
 <dd><p>Number of parallel workers for preprocessing data.</p></dd>
+<dt>callbacks</dt>
+<dd><p>Additional callbacks passed when fitting the module with
+luz.</p></dd>
 <dt>verbose</dt>
 <dd><p>Logical value stating if the model should produce status
 outputs, like a progress bar, during training.</p></dd>
