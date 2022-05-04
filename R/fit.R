@@ -100,7 +100,7 @@ tft_impl <- function(x, recipe, config) {
   n_features <- get_n_features(dataset[1][[1]])
   feature_sizes <- dataset$feature_sizes
 
-  callbacks <- list()
+  callbacks <- config$callbacks
   if (config$gradient_clip_norm > 0) {
     callbacks[["gradient_clip"]] <- luz::luz_callback_gradient_clip(
       max_norm = config$gradient_clip_norm
@@ -217,6 +217,8 @@ unnormalize_outcome <- function(x, constants, outcome) {
 #'   The first is treated as lower bound of the interval, the second as the
 #'   point prediction and the thir as the upper bound.
 #' @param num_workers Number of parallel workers for preprocessing data.
+#' @param callbacks Additional callbacks passed when fitting the module with
+#'   luz.
 #' @param verbose Logical value stating if the model should produce status
 #'   outputs, like a progress bar, during training.
 #'
@@ -227,7 +229,9 @@ tft_config <- function(lookback, horizon, subsample = 1, hidden_state_size = 16,
                        num_lstm_layers = 2, dropout = 0.1, batch_size = 256,
                        epochs = 5, optimizer = "adam", learn_rate = 0.01,
                        learn_rate_decay = c(0.1, 5), gradient_clip_norm = 0.1,
-                       quantiles = c(0.1, 0.5, 0.9), num_workers = 0, verbose = FALSE) {
+                       quantiles = c(0.1, 0.5, 0.9), num_workers = 0,
+                       callbacks = list(),
+                       verbose = FALSE) {
 
   if (rlang::is_false(learn_rate_decay)) {
     learn_rate_decay <- -1
@@ -265,6 +269,7 @@ tft_config <- function(lookback, horizon, subsample = 1, hidden_state_size = 16,
     epochs = epochs,
     quantiles = quantiles,
     num_workers = num_workers,
+    callbacks = callbacks,
     verbose = verbose
   )
 }
