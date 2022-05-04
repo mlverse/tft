@@ -24,6 +24,7 @@ tft_config(
   gradient_clip_norm = 0.1,
   quantiles = c(0.1, 0.5, 0.9),
   num_workers = 0,
+  callbacks = list(),
   verbose = FALSE
 )
 
@@ -89,6 +90,9 @@ The first is treated as lower bound of the interval, the second as the
 point prediction and the thir as the upper bound.}
 
 \item{num_workers}{Number of parallel workers for preprocessing data.}
+
+\item{callbacks}{Additional callbacks passed when fitting the module with
+luz.}
 
 \item{verbose}{Logical value stating if the model should produce status
 outputs, like a progress bar, during training.}
