@@ -24,6 +24,7 @@ temporal_fusion_transformer_model <- torch::nn_module(
   initialize = function(num_features, feature_sizes, hidden_state_size = 100,
                         dropout = 0.1, num_heads = 4, num_lstm_layers = 2,
                         num_quantiles = 3) {
+    self$.check <- torch::nn_parameter(torch::torch_tensor(1, requires_grad = TRUE))
     self$preprocessing <- preprocessing(
       n_features = num_features,
       feature_sizes = feature_sizes,

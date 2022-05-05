@@ -75,7 +75,8 @@ new_tft <- function(module, past_data, normalization, recipe, config, blueprint)
     recipe = recipe,
     config = config,
     blueprint = blueprint,
-    class = "tft"
+    class = "tft",
+    .serialized_model = model_to_raw(module)
   )
 }
 
@@ -272,4 +273,27 @@ tft_config <- function(lookback, horizon, subsample = 1, hidden_state_size = 16,
     callbacks = callbacks,
     verbose = verbose
   )
+}
+
+model_to_raw <- function(model) {
+  con <- rawConnection(raw(), open = "wr")
+  luz::luz_save(model, con)
+  on.exit({close(con)}, add = TRUE)
+  r <- rawConnectionValue(con)
+  r
+}
+
+is_null_external_pointer <- function(pointer) {
+  a <- attributes(pointer)
+  attributes(pointer) <- NULL
+  out <- identical(pointer, methods::new("externalptr"))
+  attributes(pointer) <- a
+  out
+}
+
+reload_model <- function(object) {
+  con <- rawConnection(object)
+  on.exit({close(con)}, add = TRUE)
+  module <- luz::luz_load(con)
+  module
 }

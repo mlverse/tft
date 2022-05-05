@@ -21,6 +21,11 @@
 #' @export
 predict.tft <- function(object, new_data, type = "numeric",
                         mode = "horizon", step = NULL, ...) {
+
+  if (is_null_external_pointer(object$module$model$.check)) {
+    object$module <- reload_model(object$.serialized_model)
+  }
+
   new_data <- adjust_new_data(new_data, object$recipe)
   new_data <- recipes::bake(object$recipe, new_data)
   verify_new_data(new_data, object, mode)

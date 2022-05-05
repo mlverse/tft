@@ -118,5 +118,20 @@ test_that("full prediction, passing only future data", {
   expect_equal(nrow(pred), 4)
 })
 
+test_that("can serialize and reload a model", {
+
+  result <- tft(walmart_recipe(), walmart_data(), lookback = 120, horizon = 4,
+                epochs = 1, subsample = 0.1)
+
+  preds1 <- forecast(result)
+  tmp <- tempfile(fileext = "rds")
+  saveRDS(result, tmp)
+  rm(result); gc();
+  result <- readRDS(tmp)
+  preds2 <- forecast(result)
+
+  expect_equal(preds1, preds2)
+})
+
 
 
