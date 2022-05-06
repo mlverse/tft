@@ -8,43 +8,41 @@
 #'   forecasts.
 #' @param type Currently only `'numeric'` is accepted but this might change in
 #'  the future if we end up supporting classification.
-#' @param mode Prediction mode. If `'horizon'` predict will generate a single
-#'  multi-horizon prediction. This is mostly sueful when creating forecasts for
-#'  the time frame right after the model has been trained. If `'full'` then
-#'  predictions are created for every possible time step (with a possible `step`)
-#'  argument.
-#'  When `mode='horizon'` (default) only the prediction columns are returned.
-#'  When `mode='full'` all columns from `new_data` are returned as the result
-#'  might have more lines than in `new_data` because it's potentially possible
-#'  to generate different predictions for the same time-step.
+#'
 #' @param step Step for predictions when using `mode='full'`.
 #' @export
-predict.tft <- function(object, new_data, type = "numeric",
-                        mode = "horizon", step = NULL, ...) {
+predict.tft <- function(object, new_data, type = "numeric", ...,
+                        step = NULL,
+                        past_data = object$past_data) {
 
   if (is_null_external_pointer(object$module$model$.check)) {
     object$module <- reload_model(object$.serialized_model)
   }
 
   new_data <- adjust_new_data(new_data, object$recipe)
+
   new_data <- recipes::bake(object$recipe, new_data)
-  verify_new_data(new_data, object, mode)
-  out <- predict_impl(object, new_data, mode, step)
+  past_data <- recipes::bake(object$recipe, past_data)
+
+  verify_new_data(new_data, object)
+  out <- predict_impl(object, new_data, past_data, step)
   out
 }
 
-predict_impl <- function(object, new_data, mode, step) {
+predict_impl <- function(object, new_data, past_data, step) {
+
+
+  key_cols <- get_variables_with_role(object$recipe$term_info, "key")
+  index_col <- get_variables_with_role(object$recipe$term_info, "index")
 
   # only grab past data for keys that exist in the new data
   past_data <- new_data %>%
-    dplyr::select(!!!tsibble::key(object$past_data)) %>%
+    dplyr::select(!!!rlang::syms(key_cols)) %>%
     dplyr::distinct() %>%
     dplyr::left_join(
-      tibble::as_tibble(object$past_data),
-      by = tsibble::key_vars(object$past_data)
+      tibble::as_tibble(past_data),
+      by = key_cols
     )
-
-  index_col <- get_variables_with_role(object$recipe$term_info, "index")
 
   # we only need the last `lookback` interval from the past_data.
   last_index <- max(past_data[[index_col]])
@@ -244,7 +242,8 @@ forecast.tft <- function(object, horizon = NULL) {
     ))
   }
 
-  future_data <- future_data(object$past_data, object$config$horizon)
+  future_data <- future_data(object$past_data, horizon = object$config$horizon,
+                             roles = object$recipe$term_info)
   pred <- dplyr::bind_cols(
     tibble::as_tibble(future_data),
     predict(object, new_data = future_data)
@@ -255,7 +254,10 @@ forecast.tft <- function(object, horizon = NULL) {
     structure(class = c("tft_forecast", class(.)))
 }
 
-future_data <- function(past_data, horizon) {
+future_data <- function(past_data, horizon, roles = NULL) {
+  if (!tsibble::is_tsibble(past_data))
+    past_data <- make_tsibble(past_data, roles)
+
   x <- tsibble::new_data(past_data, horizon)
   index <- tsibble::index(x)
   x %>%

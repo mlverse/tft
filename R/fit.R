@@ -31,11 +31,12 @@ tft.data.frame <- function(x, y, ...) {
 #' @export
 tft.recipe <- function(x, data, ...) {
   config <- tft_config(...)
-  processed <- hardhat::mold(x, tibble::as_tibble(data))
-  tft_bridge(processed, config)
+  data <- tibble::as_tibble(data)
+  processed <- hardhat::mold(x, data)
+  tft_bridge(processed, config, data)
 }
 
-tft_bridge <- function(processed, config) {
+tft_bridge <- function(processed, config, data) {
 
   if (is.null(attr(processed$predictors, "recipe"))) {
     cli::cli_abort(c(
@@ -49,17 +50,17 @@ tft_bridge <- function(processed, config) {
     "outcome"
   )
 
-  data <- dplyr::bind_cols(processed$predictors, processed$outcomes)
+  processed_data <- dplyr::bind_cols(processed$predictors, processed$outcomes)
 
   result <- tft_impl(
-    x = data,
+    x = processed_data,
     recipe = attr(processed$predictors, "recipe"),
     config = config
   )
 
   new_tft(
     module = result$module,
-    past_data = result$past_data,
+    past_data = data,
     normalization = result$normalization,
     recipe = attr(processed$predictors, "recipe"),
     config = config,
@@ -145,7 +146,7 @@ tft_impl <- function(x, recipe, config) {
       )
     )
 
-  list(past_data = dataset$df, module = result, normalization = normalization)
+  list(module = result, normalization = normalization)
 }
 
 # by default we normalize the outcomes per group.

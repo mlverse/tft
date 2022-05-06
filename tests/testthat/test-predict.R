@@ -44,7 +44,7 @@ test_that("can predict", {
   result <- tft(walmart_recipe(), walmart_data(), lookback = 120, horizon = 4,
                 epochs = 1)
 
-  new_data <- future_data(result$past_data, 4)
+  new_data <- future_data(result$past_data, 4, roles = result$recipe$term_info)
   pred <- predict(result, new_data)
 
   expect_equal(nrow(new_data), nrow(pred))
