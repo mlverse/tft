@@ -1,3 +1,21 @@
+# input data must be a single data frame with all time series: this makes it easier
+# to detect levels of categorical variables, etc. checks that should be done:
+# - data is contigous for all groups. We could relax this at some point, but, probably
+# is a mistake so we would at least need to warn people.
+# - the number of possible slices (step=1) is N + 1 - (lookback + horizon). it makes
+# sense to subsample this slices, otherwise there might be too many.
+
+# roles: should be a S3 object defining what's the role role of each column in `df`.
+# we should be able to create it from a recipe, but users should be able to specify
+# it manually.
+
+# lookback & horizon: should be in units of time. we currently rely on tsibble
+# auto-detecting the time interval. Series must have a constant time interval.
+
+# splits are generated per group, so groups can have different number of observations.
+# users should be able to provide the splits they want to use manually. Splits
+# can be represented as a tuple (ids_lookback, ids_horizon).
+
 
 time_series_dataset <- torch::dataset(
   "time_series_dataset",
@@ -17,9 +35,7 @@ time_series_dataset <- torch::dataset(
       ))
     }
 
-    self$df <- df <- df %>%
-      tsibble::as_tsibble(key = dplyr::all_of(keys), index = dplyr::all_of(index)) %>%
-      dplyr::arrange(!!!tsibble::index_var(.))
+    self$df <- df <- make_tsibble(df, roles)
 
     # we create rsample `split` objects that don't materialize the data until
     # `training` or `testing` allowing us to compute the number of slices that
@@ -31,7 +47,6 @@ time_series_dataset <- torch::dataset(
       dplyr::ungroup() %>%
       dplyr::mutate(.row = dplyr::row_number()) %>%
       dplyr::group_split(!!!tsibble::key(df)) %>%
-      purrr::discard(~nrow(.x) < (lookback + assess_stop)) %>%
       purrr::map(function(.x) {
         make_slices(
           .x$.row,
@@ -184,4 +199,11 @@ make_slices <- function(x, lookback, horizon, step = 1) {
   )
 }
 
+make_tsibble <- function(df, roles) {
+  keys <- get_variables_with_role(roles, "key")
+  index <- get_variables_with_role(roles, "index")
 
+  df %>%
+    tsibble::as_tsibble(key = dplyr::all_of(keys), index = dplyr::all_of(index)) %>%
+    dplyr::arrange(!!!tsibble::index_var(.))
+}
