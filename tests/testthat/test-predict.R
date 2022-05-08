@@ -42,7 +42,7 @@ test_that("future data correcty get's rid of obs that we can't make predictions"
 test_that("can predict", {
 
   result <- tft(walmart_recipe(), walmart_data(), lookback = 120, horizon = 4,
-                epochs = 1)
+                epochs = 1, subsample = 0.1)
 
   new_data <- future_data(result$past_data, 4, roles = result$recipe$term_info)
   pred <- predict(result, new_data)
@@ -80,22 +80,6 @@ test_that("forecast works", {
 
 })
 
-test_that("can make full predictions", {
-
-  result <- tft(walmart_recipe(), walmart_data(), lookback = 120, horizon = 4,
-                epochs = 1)
-
-  pred <- predict(
-    result,
-    mode = "full",
-    new_data = walmart_data() %>% dplyr::filter(Store == 1)
-  )
-
-  expect_equal(nrow(pred), 400)
-  expect_equal(ncol(pred), 28)
-  expect_true(!is.null(pred$.pred_at))
-})
-
 test_that("full prediction, passing only future data", {
 
   init <- max(walmart_data()$Date) -lubridate::weeks(4)
@@ -111,7 +95,6 @@ test_that("full prediction, passing only future data", {
 
   pred <- predict(
     result,
-    mode = "full",
     new_data = test
   )
 
