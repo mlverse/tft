@@ -38,11 +38,11 @@ predict.tft <- function(object, new_data, type = "numeric", ...,
   }
 
   verify_new_data(new_data, past_data, object)
-  out <- predict_impl(object, new_data, past_data, step)
+  out <- predict_impl(object, new_data, past_data)
   out
 }
 
-predict_impl <- function(object, new_data, past_data, step) {
+predict_impl <- function(object, new_data, past_data) {
 
   input_types <- object$config$input_types
   key_cols <- get_variables_with_role(input_types, "keys")
