@@ -18,7 +18,10 @@ the future if we end up supporting classification.}
 
 \item{...}{additional arguments affecting the predictions produced.}
 
-\item{step}{Step for predictions when using \code{mode='full'}.}
+\item{past_data}{A \code{\link[=data.frame]{data.frame()}} with past information for creating the
+predictions. It should include at least \code{lookback} values - but can be more.
+It's concatenated with \code{new_data} before passing forward. If \code{NULL}, the
+data used to train the model is used.}
 }
 \description{
 Create predictions for TFT models

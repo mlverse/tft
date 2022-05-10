@@ -123,6 +123,7 @@ test_that("full prediction, passing only future data", {
 
 test_that("can serialize and reload a model", {
 
+  init <- max(walmart_data()$Date) -lubridate::weeks(4)
   train <- walmart_data() %>%
     dplyr::filter(Date <= init)
   test <- walmart_data() %>%

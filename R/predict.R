@@ -8,8 +8,10 @@
 #'   forecasts.
 #' @param type Currently only `'numeric'` is accepted but this might change in
 #'  the future if we end up supporting classification.
-#'
-#' @param step Step for predictions when using `mode='full'`.
+#' @param past_data A [data.frame()] with past information for creating the
+#'  predictions. It should include at least `lookback` values - but can be more.
+#'  It's concatenated with `new_data` before passing forward. If `NULL`, the
+#'  data used to train the model is used.
 #' @export
 predict.tft <- function(object, new_data, type = "numeric", ...,
                         past_data = NULL) {
