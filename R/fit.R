@@ -179,6 +179,13 @@ unnormalize_outcome <- function(x, constants, outcome) {
 #'  prediction.
 #' @param horizon Number of timesteps ahead that will be predicted by the
 #'  model.
+#' @param input_types A list with the elements `index`, `keys`, `static`, `known` and
+#'  `unknown`. It's recommended to use [covariates_spec()] to create it. Each element
+#'  should be a character vector containing the names of
+#'  the columns that are used for each role in the TFT model. `index` must be a date
+#'  column and `keys` are columns that allow one to identidy each time-series.
+#'  `index` and `keys` must be specified. If a column that exists in the data.frame
+#'  doesn't appear in this list, then it's considered `unknown`.
 #' @param subsample Subsample from all possible slices. An integer with the number
 #'  of samples or a proportion.
 #' @param hidden_state_size Hidden size of network which is its main hyperparameter
@@ -212,7 +219,8 @@ unnormalize_outcome <- function(x, constants, outcome) {
 #' @describeIn tft Configuration configuration options for tft.
 #'
 #' @export
-tft_config <- function(lookback, horizon, input_types, subsample = 1, hidden_state_size = 16, num_attention_heads = 4,
+tft_config <- function(lookback, horizon, input_types, subsample = 1,
+                       hidden_state_size = 16, num_attention_heads = 4,
                        num_lstm_layers = 2, dropout = 0.1, batch_size = 256,
                        epochs = 5, optimizer = "adam", learn_rate = 0.01,
                        learn_rate_decay = c(0.1, 5), gradient_clip_norm = 0.1,
@@ -285,7 +293,32 @@ reload_model <- function(object) {
   module
 }
 
-make_input_types <- function(index, keys, static = NULL, known = NULL, unknown = NULL) {
+#' Create a specification of covariates types
+#'
+#' @param index A column that identifies the time variable. Usually a date column.
+#' @param keys A set of colums that uniquely identify each time series.
+#' @param static A set of colums that will be treated as static predictors by the
+#'  model. Ie, those are variables that don't vary in time.
+#' @param known A set of columns that are known for every possible input `index`.
+#'  Examples are 'day of the week' or 'is_holiday' flags that are always known even
+#'  for future timesteps.
+#' @param unknown A set of columns that are considered to be unknown variables.
+#'  By default, all columns that don't fit in any of the previous parameters are
+#'  considered unknown, so you don't need to specify it manually.
+#'
+#' @export
+covariates_spec <- function(index, keys, static = NULL, known = NULL, unknown = NULL) {
+  make_input_types(
+    index = index,
+    keys= keys,
+    static = static,
+    known = known,
+    unknown = unknown
+  )
+}
+
+make_input_types <- function(index, keys, static = NULL, known = NULL,
+                             unknown = NULL) {
   output <- list(
     index = rlang::enexpr(index),
     keys = rlang::enexpr(keys),
@@ -305,6 +338,3 @@ evaluate_types <- function(data, types) {
   types[["unknown"]] <- c(types[["unknown"]], unknown)
   types
 }
-
-# types <- make_input_types(c(Date), c(Store, Dept), unknown = starts_with("Markdown"))
-# evaluate_types(data, types)

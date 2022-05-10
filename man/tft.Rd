@@ -51,6 +51,14 @@ prediction.}
 \item{horizon}{Number of timesteps ahead that will be predicted by the
 model.}
 
+\item{input_types}{A list with the elements \code{index}, \code{keys}, \code{static}, \code{known} and
+\code{unknown}. It's recommended to use \code{\link[=covariates_spec]{covariates_spec()}} to create it. Each element
+should be a character vector containing the names of
+the columns that are used for each role in the TFT model. \code{index} must be a date
+column and \code{keys} are columns that allow one to identidy each time-series.
+\code{index} and \code{keys} must be specified. If a column that exists in the data.frame
+doesn't appear in this list, then it's considered \code{unknown}.}
+
 \item{subsample}{Subsample from all possible slices. An integer with the number
 of samples or a proportion.}
 
