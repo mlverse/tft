@@ -41,10 +41,7 @@ temporal_fusion_transformer(
 )
 }
 \arguments{
-\item{x}{A recipe containing \code{\link[=step_include_roles]{step_include_roles()}} as the last step. Can
-also be a data.frame, but expect it to have a \code{recipe} attribute attribute
-containing the \code{recipe} that generated it via \code{\link[recipes:bake]{recipes::bake()}} or
-\code{\link[recipes:juice]{recipes::juice()}}.}
+\item{x}{A recipe or data.frame that will be used to train the model.}
 
 \item{...}{Additional arguments passed to \code{\link[=tft_config]{tft_config()}}.}
 

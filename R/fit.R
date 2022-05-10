@@ -1,10 +1,7 @@
 
 #' Temporal Fusion Transformer
 #'
-#' @param x A recipe containing [step_include_roles()] as the last step. Can
-#'  also be a data.frame, but expect it to have a `recipe` attribute attribute
-#'  containing the `recipe` that generated it via [recipes::bake()] or
-#'  [recipes::juice()].
+#' @param x A recipe or data.frame that will be used to train the model.
 #' @inheritParams parsnip::linear_reg
 #' @param ... Additional arguments passed to [tft_config()].
 #'
