@@ -42,9 +42,25 @@ test_that("future data correcty get's rid of obs that we can't make predictions"
 test_that("can predict", {
 
   result <- tft(walmart_recipe(), walmart_data(), lookback = 120, horizon = 4,
-                epochs = 1, subsample = 0.1)
+                epochs = 1, subsample = 0.1, input_types = walmart_input_types())
 
-  new_data <- future_data(result$past_data, 4, roles = result$recipe$term_info)
+  new_data <- future_data(result$past_data, 4, input_types = result$config$input_types)
+
+  expect_error(pred <- predict(result, new_data))
+
+  new_data <- new_data %>%
+    tibble::as_tibble() %>%
+    dplyr::left_join(dplyr::distinct(walmart_data(), Store, Dept, Type, Size),
+                     by = c("Store", "Dept")) %>%
+    dplyr::left_join(
+      walmart_data() %>%
+        tibble::as_tibble() %>%
+        dplyr::ungroup() %>%
+        dplyr::select(Date, Store, Dept, starts_with("MarkDown")) ,
+      by = c("Date", "Store", "Dept")
+    ) %>%
+    dplyr::mutate(IsHoliday = FALSE)
+
   pred <- predict(result, new_data)
 
   expect_equal(nrow(new_data), nrow(pred))
@@ -70,13 +86,17 @@ test_that("can predict", {
 
 test_that("forecast works", {
 
-  result <- tft(walmart_recipe(), walmart_data(), lookback = 120, horizon = 4,
-                epochs = 1)
+  d <- walmart_data() %>%
+    tibble::as_tibble() %>%
+    dplyr::select(-IsHoliday, -Type, -Size)
+  result <- tft(walmart_recipe(d), d,
+                lookback = 120, horizon = 4, epochs = 1,
+                input_types = walmart_input_types_no_known())
 
   preds <- forecast(result)
   expect_s3_class(preds, "tft_forecast")
   expect_equal(nrow(preds), 16)
-  expect_equal(ncol(preds), 9)
+  expect_equal(ncol(preds), 6)
 
 })
 
@@ -91,7 +111,7 @@ test_that("full prediction, passing only future data", {
     dplyr::filter(Store == 1, Dept == 1)
 
   result <- tft(walmart_recipe(), train, lookback = 120, horizon = 4,
-                epochs = 1)
+                epochs = 1, input_types = walmart_input_types())
 
   pred <- predict(
     result,
@@ -103,15 +123,21 @@ test_that("full prediction, passing only future data", {
 
 test_that("can serialize and reload a model", {
 
-  result <- tft(walmart_recipe(), walmart_data(), lookback = 120, horizon = 4,
-                epochs = 1, subsample = 0.1)
+  train <- walmart_data() %>%
+    dplyr::filter(Date <= init)
+  test <- walmart_data() %>%
+    dplyr::filter(Date > init) %>%
+    dplyr::filter(Store == 1, Dept == 1)
 
-  preds1 <- forecast(result)
+  result <- tft(walmart_recipe(), train, lookback = 120, horizon = 4,
+                epochs = 1, input_types = walmart_input_types())
+
+  preds1 <- predict(result, new_data = test)
   tmp <- tempfile(fileext = "rds")
   saveRDS(result, tmp)
   rm(result); gc();
   result <- readRDS(tmp)
-  preds2 <- forecast(result)
+  preds2 <- predict(result, new_data = test)
 
   expect_equal(preds1, preds2)
 })

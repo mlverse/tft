@@ -12,17 +12,28 @@
 #' @param step Step for predictions when using `mode='full'`.
 #' @export
 predict.tft <- function(object, new_data, type = "numeric", ...,
-                        step = NULL,
-                        past_data = object$past_data) {
+                        past_data = NULL) {
 
   if (is_null_external_pointer(object$module$model$.check)) {
     object$module <- reload_model(object$.serialized_model)
   }
 
-  new_data <- adjust_new_data(new_data, object$recipe)
+  new_data <- adjust_new_data(
+    new_data,
+    object$config$input_types,
+    object$blueprint$ptypes
+  )
 
-  new_data <- recipes::bake(object$recipe, new_data)
-  past_data <- recipes::bake(object$recipe, past_data)
+  new_data <- hardhat::forge(new_data, object$blueprint)$predictors
+
+  # if past data includes a recipe, it means it has already been
+  # preprocessed, thus we don't need to reapply the preprocessing.
+  if (is.null(past_data)) {
+    past_data <- object$past_data
+  } else {
+    past_data <- hardhat::forge(past_data, object$blueprint)
+    past_data <- dplyr::bind_cols(past_data$predictors, past_data$outcome)
+  }
 
   verify_new_data(new_data, past_data, object)
   out <- predict_impl(object, new_data, past_data, step)
@@ -31,8 +42,9 @@ predict.tft <- function(object, new_data, type = "numeric", ...,
 
 predict_impl <- function(object, new_data, past_data, step) {
 
-  key_cols <- get_variables_with_role(object$recipe$term_info, "key")
-  index_col <- get_variables_with_role(object$recipe$term_info, "index")
+  input_types <- object$config$input_types
+  key_cols <- get_variables_with_role(input_types, "keys")
+  index_col <- get_variables_with_role(input_types, "index")
 
   # only grab past data for keys that exist in the new data
   past_data <- new_data %>%
@@ -45,7 +57,7 @@ predict_impl <- function(object, new_data, past_data, step) {
 
   # we only need the last `lookback` interval from the past_data.
   last_index <- max(past_data[[index_col]])
-  interval <- lubridate::as.period(tsibble::interval(make_tsibble(past_data, object$recipe$term_info)))
+  interval <- lubridate::as.period(tsibble::interval(make_tsibble(past_data, input_types)))
   last_index <- last_index - object$config$lookback*interval
 
   # now filter the past_data
@@ -54,14 +66,14 @@ predict_impl <- function(object, new_data, past_data, step) {
 
   past_data <- normalize_outcome(
     x = past_data,
-    keys = get_variables_with_role(object$recipe$term_info, "key"),
-    outcome = get_variables_with_role(object$recipe$term_info, "outcome"),
+    keys = get_variables_with_role(object$config$input_types, "keys"),
+    outcome = get_variables_with_role(object$config$input_types, "outcome"),
     constants = object$normalization
   )$x
 
   dataset <- time_series_dataset(
     dplyr::bind_rows(past_data, new_data),
-    object$recipe$term_info,
+    input_types,
     lookback = object$config$lookback,
     assess_stop = object$config$horizon,
     step = 1L
@@ -81,11 +93,9 @@ predict_impl <- function(object, new_data, past_data, step) {
       res <- tibble::as_tibble(dataset$df[.x$decoder,]) %>%
         dplyr::select(dplyr::all_of(
           get_variables_with_role(
-            object$recipe$term_info, c("key", "index")
+            object$config$input_types, c("keys", "index")
           )
         ))
-      res[[".pred_at"]] <-
-        max(tibble::as_tibble(dataset$df[.x$encoder,])[[index_col]])
       res
     })
 
@@ -93,7 +103,7 @@ predict_impl <- function(object, new_data, past_data, step) {
   out <- new_data %>%
     dplyr::left_join(
       out,
-      by = c(get_variables_with_role(object$recipe$term_info, c("key", "index")))
+      by = c(get_variables_with_role(object$config$input_types, c("keys", "index")))
     )
 
   for (var in names(predictions)) {
@@ -103,13 +113,12 @@ predict_impl <- function(object, new_data, past_data, step) {
   dplyr::select(out, dplyr::starts_with(".pred"))
 }
 
-adjust_new_data <- function(new_data, recipe) {
-  var_info <- recipe$var_info
+adjust_new_data <- function(new_data, input_types, ptypes) {
 
   new_data <- tibble::as_tibble(new_data)
 
-  keys <- var_info$variable[var_info$role %in% c("key")]
-  index <- var_info$variable[var_info$role %in% c("index")]
+  keys <- get_variables_with_role(input_types, "keys")
+  index <- get_variables_with_role(input_types, "index")
 
   # we make sure that new data includes at least all index and keys.
   if (!all(c(keys, index) %in% names(new_data))) {
@@ -119,7 +128,10 @@ adjust_new_data <- function(new_data, recipe) {
     ))
   }
 
-  known <- var_info$variable[var_info$role %in% c("static", "known")]
+  known <- dplyr::intersect(
+    get_variables_with_role(input_types, c("static", "known")),
+    colnames(ptypes$predictors)
+  )
   for (var in known) {
     if (is.null(new_data[[var]])) {
       cli::cli_abort(c(
@@ -130,7 +142,11 @@ adjust_new_data <- function(new_data, recipe) {
   }
 
   # we now add all `predictors` to the new_obs dataset
-  predictors <- var_info$variable[var_info$role == "predictor"]
+  predictors <- dplyr::intersect(
+    get_variables_with_role(input_types, c("unknown", "static", "known", "keys")),
+    colnames(ptypes$predictors)
+  )
+
   for (var in predictors) {
     if (is.null(new_data[[var]])) {
       new_data[[var]] <- NA
@@ -143,13 +159,13 @@ adjust_new_data <- function(new_data, recipe) {
 verify_new_data <- function(new_data, past_data, object) {
 
   data <- list(new_data = new_data, past_data = past_data)
-  recipe <- object$recipe
+  input_types <- object$config$input_types
 
   # we also have to make sure that all static and known predictors exist
   # in the new datatset
   #term_info <- recipe$term_info
-  known <- get_variables_with_role(recipe$term_info, role = c(c("key", "index", "static", "known")))
-  #known <- term_info$variable[term_info$tft_role %in% c("key", "index", "static", "known")]
+  known <- get_variables_with_role(input_types, c("keys", "index", "static", "known"))
+
   for (var in known) {
     for (d in c("new_data", "past_data")) {
       if (any(is.na(data[[d]][[var]]))) {
@@ -164,7 +180,7 @@ verify_new_data <- function(new_data, past_data, object) {
 
 
   possible_dates <- future_data(past_data, horizon = object$config$horizon,
-                                roles = recipe$term_info)
+                                input_types = input_types)
   not_allowed <- new_data %>%
     dplyr::anti_join(
       possible_dates,
@@ -180,7 +196,7 @@ verify_new_data <- function(new_data, past_data, object) {
   # we verify that all groups have the entire prediction range
 
   counts <- new_data %>%
-    dplyr::group_by(!!!rlang::syms(get_variables_with_role(recipe$term_info, "key"))) %>%
+    dplyr::group_by(!!!rlang::syms(get_variables_with_role(input_types, "keys"))) %>%
     dplyr::count()
 
   if (any(counts$n != object$config$horizon)) {
@@ -212,7 +228,7 @@ forecast.tft <- function(object, horizon = NULL) {
   }
 
   f_data <- future_data(object$past_data, horizon = object$config$horizon,
-                             roles = object$recipe$term_info)
+                        input_types = object$config$input_types)
   f_data <- tibble::as_tibble(f_data)
 
   pred <- dplyr::bind_cols(
@@ -221,14 +237,14 @@ forecast.tft <- function(object, horizon = NULL) {
   )
 
   future_data <- future_data(object$past_data, horizon = horizon,
-                             roles = object$recipe$term_info) %>%
+                             input_types = object$config$input_types) %>%
     dplyr::left_join(pred, by = names(.)) %>%
     structure(class = c("tft_forecast", class(.)))
 }
 
-future_data <- function(past_data, horizon, roles = NULL) {
+future_data <- function(past_data, horizon, input_types = NULL) {
   if (!tsibble::is_tsibble(past_data))
-    past_data <- make_tsibble(past_data, roles)
+    past_data <- make_tsibble(past_data, input_types)
 
   x <- tsibble::new_data(past_data, horizon)
   index <- tsibble::index(x)

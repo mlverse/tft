@@ -33,47 +33,35 @@ tft.recipe <- function(x, data, ...) {
   config <- tft_config(...)
   data <- tibble::as_tibble(data)
   processed <- hardhat::mold(x, data)
-  tft_bridge(processed, config, data)
+  tft_bridge(processed, config)
 }
 
-tft_bridge <- function(processed, config, data) {
+tft_bridge <- function(processed, config) {
 
-  if (is.null(attr(processed$predictors, "recipe"))) {
-    cli::cli_abort(c(
-      "The provided {.cls {class(processed$predictors)}} doesn't include role information.",
-      "i" = "You should use {.var step_include_roles} in the {.cls recipe} so the role information is correctly passed to the model."
-    ))
-  }
-
-  names(processed$outcomes) <- get_variables_with_role(
-    attr(processed$predictors, "recipe")$term_info,
-    "outcome"
-  )
+  config$input_types <- evaluate_types(processed$predictors, config$input_types)
+  config$input_types[["outcome"]] <- names(processed$outcome)
 
   processed_data <- dplyr::bind_cols(processed$predictors, processed$outcomes)
 
   result <- tft_impl(
     x = processed_data,
-    recipe = attr(processed$predictors, "recipe"),
     config = config
   )
 
   new_tft(
     module = result$module,
-    past_data = data,
+    past_data = processed_data,
     normalization = result$normalization,
-    recipe = attr(processed$predictors, "recipe"),
     config = config,
     blueprint = processed$blueprint
   )
 }
 
-new_tft <- function(module, past_data, normalization, recipe, config, blueprint) {
+new_tft <- function(module, past_data, normalization, config, blueprint) {
   hardhat::new_model(
     module = module,
     past_data = past_data,
     normalization = normalization,
-    recipe = recipe,
     config = config,
     blueprint = blueprint,
     class = "tft",
@@ -81,19 +69,19 @@ new_tft <- function(module, past_data, normalization, recipe, config, blueprint)
   )
 }
 
-tft_impl <- function(x, recipe, config) {
+tft_impl <- function(x, config) {
 
   normalization <- normalize_outcome(
     x = x,
-    keys = get_variables_with_role(recipe$term_info, "key"),
-    outcome = get_variables_with_role(recipe$term_info, "outcome")
+    keys = get_variables_with_role(config$input_types, "keys"),
+    outcome = get_variables_with_role(config$input_types, "outcome")
   )
 
   x <- normalization$x
   normalization <- normalization$constant
 
   dataset <- time_series_dataset(
-    x, recipe$term_info,
+    x, config$input_types,
     lookback = config$lookback,
     assess_stop = config$horizon,
     subsample = config$subsample
@@ -227,7 +215,7 @@ unnormalize_outcome <- function(x, constants, outcome) {
 #' @describeIn tft Configuration configuration options for tft.
 #'
 #' @export
-tft_config <- function(lookback, horizon, subsample = 1, hidden_state_size = 16, num_attention_heads = 4,
+tft_config <- function(lookback, horizon, input_types, subsample = 1, hidden_state_size = 16, num_attention_heads = 4,
                        num_lstm_layers = 2, dropout = 0.1, batch_size = 256,
                        epochs = 5, optimizer = "adam", learn_rate = 0.01,
                        learn_rate_decay = c(0.1, 5), gradient_clip_norm = 0.1,
@@ -272,7 +260,8 @@ tft_config <- function(lookback, horizon, subsample = 1, hidden_state_size = 16,
     quantiles = quantiles,
     num_workers = num_workers,
     callbacks = callbacks,
-    verbose = verbose
+    verbose = verbose,
+    input_types = input_types
   )
 }
 
@@ -298,3 +287,27 @@ reload_model <- function(object) {
   module <- luz::luz_load(con)
   module
 }
+
+make_input_types <- function(index, keys, static = NULL, known = NULL, unknown = NULL) {
+  output <- list(
+    index = rlang::enexpr(index),
+    keys = rlang::enexpr(keys),
+    static = rlang::enexpr(static),
+    known = rlang::enexpr(known),
+    unknown = rlang::enexpr(unknown)
+  )
+  output
+}
+
+evaluate_types <- function(data, types) {
+  types <- lapply(types, function(x) {
+    colnames(dplyr::select(data, !!x))
+  })
+  # Non-specified variables are considered unknown.
+  unknown <- names(data)[!names(data) %in% unlist(types)]
+  types[["unknown"]] <- c(types[["unknown"]], unknown)
+  types
+}
+
+# types <- make_input_types(c(Date), c(Store, Dept), unknown = starts_with("Markdown"))
+# evaluate_types(data, types)

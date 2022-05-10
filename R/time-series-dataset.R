@@ -25,7 +25,7 @@ time_series_dataset <- torch::dataset(
 
     self$roles <- roles
     # create a tsibble using information from the recipe
-    keys <- get_variables_with_role(roles, "key")
+    keys <- get_variables_with_role(roles, "keys")
     index <- get_variables_with_role(roles, "index")
 
     if (length(index) != 1) {
@@ -75,20 +75,22 @@ time_series_dataset <- torch::dataset(
     terms <- self$roles
 
     self$known <- terms %>%
-      pull_term_names(tft_role %in% c("known"), !(variable %in% tsibble::key_vars(df)))
+      pull_term_names(df, "known")
     self$observed <- terms %>%
-      pull_term_names(tft_role %in% c("predictor", "outcome"), !(variable %in% tsibble::key_vars(df)))
+      pull_term_names(df, c("unknown", "outcome"))
 
     self$past <- purrr::map2(self$known, self$observed, ~c(.x, .y))
 
     self$static <- terms %>%
-      pull_term_names(tft_role %in% c("static", "predictor", "key"), variable %in% tsibble::key_vars(df))
+      pull_term_names(df, c("static", "keys"))
 
     self$target <- terms %>%
-      pull_term_names(tft_role == "outcome")
+      pull_term_names(df, "outcome")
 
     # compute feature sizes
-    dictionary <- purrr::set_names(roles$size, roles$variable)
+    dictionary <- df %>%
+      purrr::keep(is.factor) %>%
+      purrr::map(~length(levels(.x)))
 
     self$feature_sizes <- list()
     self$feature_sizes$known <- dictionary[self$known$cat]
@@ -149,21 +151,22 @@ time_series_dataset <- torch::dataset(
   }
 )
 
-pull_term_names <- function(terms, ...) {
-  output <- list()
-  terms <- terms %>%
-    dplyr::filter(...)
+pull_term_names <- function(input_types, df, terms) {
+  factors <- names(purrr::keep(df, is.factor))
+  numerics <- names(purrr::discard(df, is.factor))
 
-  output$cat <- terms %>% dplyr::filter(type == "nominal") %>% dplyr::pull(variable)
-  output$num <- terms %>% dplyr::filter(type == "numeric") %>% dplyr::pull(variable)
+  vars <- get_variables_with_role(input_types, terms)
+
+  output <- list()
+  output$cat <- dplyr::intersect(vars, factors)
+  output$num <- dplyr::intersect(vars, numerics)
 
   lapply(output, unique)
 }
 
 get_variables_with_role <- function(roles, role) {
-  roles$variable[roles$tft_role %in% role]
+  unname(unlist(roles[role]))
 }
-
 
 # Assumes that observations are ordered by date and that there are no implicit
 # missing obs.
@@ -200,7 +203,7 @@ make_slices <- function(x, lookback, horizon, step = 1) {
 }
 
 make_tsibble <- function(df, roles) {
-  keys <- get_variables_with_role(roles, "key")
+  keys <- get_variables_with_role(roles, "keys")
   index <- get_variables_with_role(roles, "index")
 
   df %>%

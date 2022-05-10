@@ -20,13 +20,17 @@ test_that("simple test for time series dataset", {
     dplyr::select(-starts_with("MarkDown"), -IsHoliday)
 
   recipe <- recipes::recipe(Weekly_Sales ~ ., data = sales) %>%
-    recipes::update_role(Store, Dept, Type, Size, new_role = "key") %>%
-    recipes::update_role(Date, new_role = "index") %>%
-    step_include_roles() %>%
     recipes::prep()
 
-  dataset <- time_series_dataset(recipes::juice(recipe), recipe$term_info,
-                                 lookback = 6, assess_stop = 4)
+  dataset <- time_series_dataset(
+    recipes::juice(recipe),
+    evaluate_types(recipes::juice(recipe) %>% tibble::as_tibble(), make_input_types(
+      index = Date,
+      keys = c(Store, Dept),
+      static = c(Type, Size)
+    )),
+    lookback = 6, assess_stop = 4
+  )
 
   counts <- sales %>%
     tibble::as_tibble() %>%
@@ -49,9 +53,13 @@ test_that("Good error message when no group has enough lookback", {
     recipes::prep()
 
   expect_error(regexp = "No group", {
-    dataset <- time_series_dataset(recipes::juice(recipe),
-                                   recipe$term_info,
-                                   lookback = 500, assess_stop = 4)
+    dataset <- time_series_dataset(
+      recipes::juice(recipe),
+      evaluate_types(
+        recipes::juice(recipe) %>% tibble::as_tibble(),
+        walmart_input_types()
+      ),
+      lookback = 500, assess_stop = 4)
   })
 
 })

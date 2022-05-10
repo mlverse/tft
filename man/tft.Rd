@@ -11,6 +11,7 @@ tft(x, ...)
 tft_config(
   lookback,
   horizon,
+  input_types,
   subsample = 1,
   hidden_state_size = 16,
   num_attention_heads = 4,
