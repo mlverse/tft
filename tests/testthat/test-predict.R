@@ -143,5 +143,38 @@ test_that("can serialize and reload a model", {
   expect_equal(preds1, preds2)
 })
 
+test_that("can make rolling predictions", {
+
+  init <- max(walmart_data()$Date) -lubridate::weeks(8)
+  train <- walmart_data() %>%
+    dplyr::filter(Date <= init)
+  test <- walmart_data() %>%
+    dplyr::filter(Date > init) %>%
+    dplyr::filter(Store == 1, Dept == 1)
+
+  result <- tft(walmart_recipe(), train, lookback = 120, horizon = 4,
+                epochs = 1, input_types = walmart_input_types())
+
+  predictions <- rolling_predict(result, past_data = train, new_data = test)
+  expect_equal(nrow(predictions), 2)
+  expect_equal(ncol(predictions), 3)
+  for (p in predictions$.pred) {
+    expect_equal(nrow(p), 4)
+    expect_equal(ncol(p), 3)
+  }
+
+  test <- walmart_data() %>%
+    dplyr::filter(Date > init) %>%
+    dplyr::filter(Store %in% c(1,2), Dept == 1)
+
+  predictions <- rolling_predict(result, past_data = train, new_data = test)
+  expect_equal(nrow(predictions), 2)
+  expect_equal(ncol(predictions), 3)
+  for (p in predictions$.pred) {
+    expect_equal(nrow(p), 8)
+    expect_equal(ncol(p), 3)
+  }
+})
+
 
 

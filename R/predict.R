@@ -33,8 +33,8 @@ predict.tft <- function(object, new_data, type = "numeric", ...,
   if (is.null(past_data)) {
     past_data <- object$past_data
   } else {
-    past_data <- hardhat::forge(past_data, object$blueprint)
-    past_data <- dplyr::bind_cols(past_data$predictors, past_data$outcome)
+    past_data <- hardhat::forge(past_data, object$blueprint, outcomes = TRUE)
+    past_data <- dplyr::bind_cols(past_data$predictors, past_data$outcomes)
   }
 
   verify_new_data(new_data, past_data, object)
@@ -57,14 +57,12 @@ predict_impl <- function(object, new_data, past_data, step) {
       by = key_cols
     )
 
-  # we only need the last `lookback` interval from the past_data.
-  last_index <- max(past_data[[index_col]])
-  interval <- lubridate::as.period(tsibble::interval(make_tsibble(past_data, input_types)))
-  last_index <- last_index - object$config$lookback*interval
-
   # now filter the past_data
-  past_data <- past_data %>%
-    dplyr::filter(.data[[index_col]] > last_index)
+  past_data <- get_last_lookback_interval(
+    past_data,
+    lookback = object$config$lookback,
+    input_types = input_types
+  )
 
   past_data <- normalize_outcome(
     x = past_data,
@@ -258,4 +256,102 @@ future_data <- function(past_data, horizon, input_types = NULL) {
     dplyr::ungroup() %>%
     dplyr::filter(.min_index >= max(.min_index)) %>%
     dplyr::select(-.min_index)
+}
+
+#' Defines rolling slices
+#'
+#' Sometimes your validation or testing data has more values than the `horizon`
+#' of your model but you still want to create predictions for each time step on
+#' them.
+#'
+#' This function will combine your `past_data` (that can also include your training data)
+#' and create slices so you create predictions for each value in `new_data`.
+#'
+#' @inheritParams predict.tft
+#' @param step Default is the step to be the same as the horizon o the model,
+#'  that way we have one prediction per slice.
+#'
+#' @export
+rolling_predict <- function(object, past_data, new_data, step = NULL) {
+  if (is.null(step)) {
+    step <- object$config$horizon
+  }
+
+  # make sure past_data only includes groups that exist in `new_data`
+  past_data <- past_data %>%
+    tibble::as_tibble() %>%
+    dplyr::semi_join(
+      tibble::as_tibble(new_data),
+      by = get_variables_with_role(object$config$input_types, "keys")
+    )
+
+  past_data <- get_last_lookback_interval(
+    tibble::as_tibble(past_data),
+    lookback = object$config$lookback,
+    input_types = object$config$input_types
+  )
+
+  data <- dplyr::bind_rows(past_data, tibble::as_tibble(new_data))
+  index_col <- get_variables_with_role(object$config$input_types, "index")
+
+  slices <- rolling_slices(
+    data[[index_col]],
+    lookback = object$config$lookback,
+    horizon = object$config$horizon,
+    step = step,
+    start_date = min(new_data[[index_col]]),
+    period = get_period(past_data, input_types = object$config$input_types)
+  )
+
+  predictions <- list()
+  for (s in slices) {
+    p_data <- data[s$encoder,]
+    n_data <- data[s$decoder,]
+
+    nm <- as.character(max(p_data[[index_col]]))
+    pred <- predict(object, n_data, past_data = p_data)
+
+    predictions[[nm]] <- tibble::tibble(
+      past_data = list(p_data),
+      new_data = list(n_data),
+      .pred = list(pred)
+    )
+  }
+  dplyr::bind_rows(predictions)
+}
+
+get_last_lookback_interval <- function(past_data, lookback, input_types) {
+  index_col <- get_variables_with_role(input_types, "index")
+  # we only need the last `lookback` interval from the past_data.
+  last_index <- max(past_data[[index_col]])
+  interval <- get_period(past_data, input_types)
+  last_index <- last_index - lookback*interval
+
+  # now filter the past_data
+  past_data <- past_data %>%
+    dplyr::filter(.data[[index_col]] > last_index)
+}
+
+rolling_slices <- function(index, lookback, horizon, step, start_date,
+                           period) {
+  # list start and ending dates for past and pred
+  slices <- list()
+  max_date <- max(index)
+  while (!start_date > max_date) {
+    slices[[length(slices) + 1]] <- list(
+      encoder = which(index > (start_date - lookback*period - 1) &
+                        index < (start_date)),
+      decoder = which(index >= start_date &
+                        index < (start_date + horizon*period))
+    )
+    start_date <- start_date + step*period
+  }
+  slices
+}
+
+get_period <- function(data, input_types) {
+  data %>%
+    make_tsibble(input_types) %>%
+    tsibble::interval() %>%
+    lubridate::as.period()
 }

@@ -37,33 +37,15 @@ time_series_dataset <- torch::dataset(
 
     self$df <- df <- make_tsibble(df, roles)
 
-    # we create rsample `split` objects that don't materialize the data until
-    # `training` or `testing` allowing us to compute the number of slices that
-    # we are able to create.
-    # since data is already split between future and past values it's also easier
-    # to reason when implementing the network.
-
-    self$slices <- self$df %>%
-      dplyr::ungroup() %>%
-      dplyr::mutate(.row = dplyr::row_number()) %>%
-      dplyr::group_split(!!!tsibble::key(df)) %>%
-      purrr::map(function(.x) {
-        make_slices(
-          .x$.row,
-          lookback = lookback,
-          horizon = assess_stop,
-          step = step
-        )
-      }) %>%
-      purrr::compact()
-
-    if (length(self$slices) == 0) {
-      cli::cli_abort(c(
-        "No group has enough observations to statisfy the requested {.var lookback}."
-      ))
-    }
-
-    self$slices <- rlang::flatten_if(self$slices, function(.x) {!rlang::is_named(.x)})
+    # Slices are lists with 2 elements: encoder and decoder that are both indexes
+    # for rows of `df` to be used for a data frame.
+    self$slices <- slice_df(
+      df,
+      lookback = lookback,
+      horizon = assess_stop,
+      step = step,
+      keys = rlang::syms(keys)
+    )
 
     if (subsample < 1) {
       self$slices <- self$slices[sample.int(length(self$slices), size = subsample*length(self$slices))]
@@ -200,6 +182,30 @@ make_slices <- function(x, lookback, horizon, step = 1) {
       )
     }
   )
+}
+
+slice_df <- function(df, lookback, horizon, step, keys) {
+  slices <- df %>%
+    dplyr::ungroup() %>%
+    dplyr::mutate(.row = dplyr::row_number()) %>%
+    dplyr::group_split(!!!keys) %>%
+    purrr::map(function(.x) {
+      make_slices(
+        .x$.row,
+        lookback = lookback,
+        horizon = horizon,
+        step = step
+      )
+    }) %>%
+    purrr::compact()
+
+  if (length(slices) == 0) {
+    cli::cli_abort(c(
+      "No group has enough observations to statisfy the requested {.var lookback}."
+    ))
+  }
+
+  rlang::flatten_if(slices, function(.x) {!rlang::is_named(.x)})
 }
 
 make_tsibble <- function(df, roles) {
