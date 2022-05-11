@@ -1,10 +1,7 @@
 
 #' Temporal Fusion Transformer
 #'
-#' @param x A recipe containing [step_include_roles()] as the last step. Can
-#'  also be a data.frame, but expect it to have a `recipe` attribute attribute
-#'  containing the `recipe` that generated it via [recipes::bake()] or
-#'  [recipes::juice()].
+#' @param x A recipe or data.frame that will be used to train the model.
 #' @inheritParams parsnip::linear_reg
 #' @param ... Additional arguments passed to [tft_config()].
 #'
@@ -31,48 +28,37 @@ tft.data.frame <- function(x, y, ...) {
 #' @export
 tft.recipe <- function(x, data, ...) {
   config <- tft_config(...)
-  processed <- hardhat::mold(x, tibble::as_tibble(data))
+  data <- tibble::as_tibble(data)
+  processed <- hardhat::mold(x, data)
   tft_bridge(processed, config)
 }
 
 tft_bridge <- function(processed, config) {
 
-  if (is.null(attr(processed$predictors, "recipe"))) {
-    cli::cli_abort(c(
-      "The provided {.cls {class(processed$predictors)}} doesn't include role information.",
-      "i" = "You should use {.var step_include_roles} in the {.cls recipe} so the role information is correctly passed to the model."
-    ))
-  }
+  config$input_types <- evaluate_types(processed$predictors, config$input_types)
+  config$input_types[["outcome"]] <- names(processed$outcome)
 
-  names(processed$outcomes) <- get_variables_with_role(
-    attr(processed$predictors, "recipe")$term_info,
-    "outcome"
-  )
-
-  data <- dplyr::bind_cols(processed$predictors, processed$outcomes)
+  processed_data <- dplyr::bind_cols(processed$predictors, processed$outcomes)
 
   result <- tft_impl(
-    x = data,
-    recipe = attr(processed$predictors, "recipe"),
+    x = processed_data,
     config = config
   )
 
   new_tft(
     module = result$module,
-    past_data = result$past_data,
+    past_data = processed_data,
     normalization = result$normalization,
-    recipe = attr(processed$predictors, "recipe"),
     config = config,
     blueprint = processed$blueprint
   )
 }
 
-new_tft <- function(module, past_data, normalization, recipe, config, blueprint) {
+new_tft <- function(module, past_data, normalization, config, blueprint) {
   hardhat::new_model(
     module = module,
     past_data = past_data,
     normalization = normalization,
-    recipe = recipe,
     config = config,
     blueprint = blueprint,
     class = "tft",
@@ -80,19 +66,19 @@ new_tft <- function(module, past_data, normalization, recipe, config, blueprint)
   )
 }
 
-tft_impl <- function(x, recipe, config) {
+tft_impl <- function(x, config) {
 
   normalization <- normalize_outcome(
     x = x,
-    keys = get_variables_with_role(recipe$term_info, "key"),
-    outcome = get_variables_with_role(recipe$term_info, "outcome")
+    keys = get_variables_with_role(config$input_types, "keys"),
+    outcome = get_variables_with_role(config$input_types, "outcome")
   )
 
   x <- normalization$x
   normalization <- normalization$constant
 
   dataset <- time_series_dataset(
-    x, recipe$term_info,
+    x, config$input_types,
     lookback = config$lookback,
     assess_stop = config$horizon,
     subsample = config$subsample
@@ -145,7 +131,7 @@ tft_impl <- function(x, recipe, config) {
       )
     )
 
-  list(past_data = dataset$df, module = result, normalization = normalization)
+  list(module = result, normalization = normalization)
 }
 
 # by default we normalize the outcomes per group.
@@ -193,6 +179,13 @@ unnormalize_outcome <- function(x, constants, outcome) {
 #'  prediction.
 #' @param horizon Number of timesteps ahead that will be predicted by the
 #'  model.
+#' @param input_types A list with the elements `index`, `keys`, `static`, `known` and
+#'  `unknown`. It's recommended to use [covariates_spec()] to create it. Each element
+#'  should be a character vector containing the names of
+#'  the columns that are used for each role in the TFT model. `index` must be a date
+#'  column and `keys` are columns that allow one to identidy each time-series.
+#'  `index` and `keys` must be specified. If a column that exists in the data.frame
+#'  doesn't appear in this list, then it's considered `unknown`.
 #' @param subsample Subsample from all possible slices. An integer with the number
 #'  of samples or a proportion.
 #' @param hidden_state_size Hidden size of network which is its main hyperparameter
@@ -226,7 +219,8 @@ unnormalize_outcome <- function(x, constants, outcome) {
 #' @describeIn tft Configuration configuration options for tft.
 #'
 #' @export
-tft_config <- function(lookback, horizon, subsample = 1, hidden_state_size = 16, num_attention_heads = 4,
+tft_config <- function(lookback, horizon, input_types, subsample = 1,
+                       hidden_state_size = 16, num_attention_heads = 4,
                        num_lstm_layers = 2, dropout = 0.1, batch_size = 256,
                        epochs = 5, optimizer = "adam", learn_rate = 0.01,
                        learn_rate_decay = c(0.1, 5), gradient_clip_norm = 0.1,
@@ -271,7 +265,8 @@ tft_config <- function(lookback, horizon, subsample = 1, hidden_state_size = 16,
     quantiles = quantiles,
     num_workers = num_workers,
     callbacks = callbacks,
-    verbose = verbose
+    verbose = verbose,
+    input_types = input_types
   )
 }
 
@@ -296,4 +291,50 @@ reload_model <- function(object) {
   on.exit({close(con)}, add = TRUE)
   module <- luz::luz_load(con)
   module
+}
+
+#' Create a specification of covariates types
+#'
+#' @param index A column that identifies the time variable. Usually a date column.
+#' @param keys A set of colums that uniquely identify each time series.
+#' @param static A set of colums that will be treated as static predictors by the
+#'  model. Ie, those are variables that don't vary in time.
+#' @param known A set of columns that are known for every possible input `index`.
+#'  Examples are 'day of the week' or 'is_holiday' flags that are always known even
+#'  for future timesteps.
+#' @param unknown A set of columns that are considered to be unknown variables.
+#'  By default, all columns that don't fit in any of the previous parameters are
+#'  considered unknown, so you don't need to specify it manually.
+#'
+#' @export
+covariates_spec <- function(index, keys, static = NULL, known = NULL, unknown = NULL) {
+  make_input_types(
+    index = {{index}},
+    keys = {{keys}},
+    static = {{static}},
+    known = {{known}},
+    unknown = {{unknown}}
+  )
+}
+
+make_input_types <- function(index, keys, static = NULL, known = NULL,
+                             unknown = NULL) {
+  output <- list(
+    index = rlang::enexpr(index),
+    keys = rlang::enexpr(keys),
+    static = rlang::enexpr(static),
+    known = rlang::enexpr(known),
+    unknown = rlang::enexpr(unknown)
+  )
+  output
+}
+
+evaluate_types <- function(data, types) {
+  types <- lapply(types, function(x) {
+    colnames(dplyr::select(data, !!x))
+  })
+  # Non-specified variables are considered unknown.
+  unknown <- names(data)[!names(data) %in% unlist(types)]
+  types[["unknown"]] <- c(types[["unknown"]], unknown)
+  types
 }

@@ -35,7 +35,8 @@ stores.
 
 ```{r}
 walmart_sales <- walmart_sales %>% 
-  filter(Store %in% c(1, 2), Dept %in% c(1,2))
+  filter(Store %in% c(1, 2)) %>% 
+  mutate(Store = as.factor(Store), Dept = as.factor(Dept))
 ```
 
 
@@ -83,14 +84,18 @@ of the dataset.
 
 ```{r}
 rec <- recipe(Weekly_Sales ~ ., data = sales) %>% 
-  update_role(Date, new_role = "index") %>% 
-  update_role(Store, Dept, Type, Size, new_role = "key") %>% 
-  update_role(IsHoliday, new_role = "known") %>% 
-  step_date(Date, role = "known", features = c("year", "month", "doy")) %>% 
-  step_normalize(all_numeric_predictors()) %>% 
-  step_indicate_na(starts_with("MarkDown")) %>% 
-  step_impute_mean(starts_with("Markdown")) %>% 
-  step_include_roles()
+  step_mutate(
+    time_since_begining = as.numeric(difftime(
+      time1 = Date, 
+      time2 = lubridate::ymd(min(sales$Date)), 
+      units = "weeks"
+    )),
+    date_week = as.factor(lubridate::week(Date)),
+    date_month = as.factor(lubridate::month(Date)),
+    IsHoliday = as.factor(IsHoliday)
+  ) %>% 
+  step_impute_median(starts_with("MarkDown")) %>% 
+  step_normalize(all_numeric_predictors())
 ```
 
 It's recommended to include features that represent seasonality as known predictors
@@ -112,74 +117,89 @@ data for training, validation and testing. This is not really a data analysis
 decision but more of a business decision, ie: how many weeks ahead we want know
 so we can plan the demand and etc. Let's say we want 4 weeks ahead, ie ~1 month.
 
-The [rsample](https://github.com/tidymodels/rsample) package provides `sliding_*`
-functions that are very useful for the task of creating time splits.
+We are going to use the last 8 weeks for testing the model and the previous 8 weeks
+for validation. All the other data will be used for training. Let's create the
+datasets:
 
 ```{r}
-resamples <- sliding_period(
-  arrange(sales, Date),
-  index = Date,
-  period = "week",
-  lookback = Inf,
-  assess_stop = 4,
-  step = 4,
-  skip = 104
-)
+last_date <- max(sales$Date)
+sales_train <- sales %>% filter(Date <= (last_date - lubridate::weeks(16)))
+sales_valid <- sales %>% filter(Date > (last_date - lubridate::weeks(16)),
+                                Date <= (last_date - lubridate::weeks(8)))
+sales_test <- sales %>% filter(Date > (last_date - lubridate::weeks(8)))
 ```
-
-Now we can separate the splits in, training and testing, ie: a few of them will
-be used for cross-validation and choosing the hyperparamerters, the others are 
-used for testing the model. We are going to use the last 4 splits for testing and 
-the first 5 to cross validate.
-
-```{r}
-train_splits <- resamples %>% 
-  slice(1:5) %>% 
-  structure(class = "rset")
-test_splits <- resamples %>% 
-  slice(-c(1:5)) %>% 
-  structure(class = "rset")
-```
-
-**Note**: we have selected 4 weeks as the horizon of our predictions. We need to
-use this same value when specifying the horizon for the tft model.
 
 ## Fitting the model
 
-We can now tune the tft model and compute metrics using:
+We will now fit our model. The `horizon` parameters states how many weeks ahead 
+we want to generate predictions for. We discussed earlier that we want to predict 
+4 weeks ahead. The lookback parameter defines how many weeks we are looking to make
+predictions. We are going to use `100` in this example. Which is little more than 2
+years.
 
 ```{r, eval = TRUE}
-tft_model <- temporal_fusion_transformer(
+input_types <- covariates_spec(
+  index = Date,
+  keys = c(Store, Dept),
+  static = c(Type, Size),
+  known = c(starts_with("MarkDown"), time_since_begining, 
+            starts_with("date_"), IsHoliday),
+  unknown = c(Temperature, Fuel_Price)
+)
+
+model <- tft(
+  rec, 
+  sales_train,
+  input_types = input_types,
   horizon = 4, 
-  lookback = 100, 
-  hidden_state_size = tune()
-) %>% 
-  set_engine("torch", verbose = FALSE) %>% 
-  set_mode("regression")
-
-
-model <- workflow() %>% 
-  add_recipe(rec) %>% 
-  add_model(tft_model)
-
-grid <- tibble::tibble(
-  hidden_state_size = c(4, 16, 32)
+  lookback = 54, 
+  batch_size = 64,
+  hidden_state_size = 128,
+  verbose = TRUE,
+  learn_rate = 0.001,
+  epochs = 100,
+  learn_rate_decay = FALSE,
+  callbacks = list(
+    luz::luz_callback_keep_best_model(monitor = "train_loss"),
+    luz::luz_callback_early_stopping(
+      monitor = "train_loss", 
+      patience = 10, 
+      min_delta = 0.001
+    )
+  )
 )
-
-results <- tune_grid(
-  model,
-  resamples = train_splits,
-  grid = grid,
-  control = control_grid(verbose = TRUE)
-)
-
-autoplot(results)
 ```
 
-Once you are happy with the tuning you can finalize the workflow and
-obtain the metrics for the test splits.
+Once we are happy with the results of our model we can make predictions. 
+The model we have trained can make predictions for 4 weeks ahead, but our validation
+set has 8 weeks ahead. In order to validate the model, we are going to create 2 
+validation sets and then combine the metrics:
+
+```{r}
+preds <- rolling_predict(model, past_data = sales_train, new_data = sales_valid)
+
+p <- preds %>% 
+  rowwise() %>% 
+  summarise(
+    past_data %>% 
+      bind_rows(bind_cols(new_data, .pred)) %>% 
+      mutate(.pred_at = max(past_data$Date))
+  )
+
+ggplot(p, aes(x = Date)) +
+  geom_point(aes(y = Weekly_Sales)) +
+  geom_line(aes(y = Weekly_Sales)) +
+  geom_point(aes(y = .pred), color = "red") +
+  geom_line(aes(y = .pred), color = "red") +
+  facet_grid(Store + Dept ~ .pred_at, scales = "free_y")
+```
 
 ```{r, eval = TRUE}
+pred <- predict(fitted, new_data = sales_valid, past_data = sales_train)
+
+
+
+
 final_params <- select_best(results, metric = "rmse")
 model <- finalize_workflow(model, final_params)
 results <- fit_resamples(model, test_splits)

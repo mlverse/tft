@@ -11,6 +11,7 @@ tft(x, ...)
 tft_config(
   lookback,
   horizon,
+  input_types,
   subsample = 1,
   hidden_state_size = 16,
   num_attention_heads = 4,
@@ -40,10 +41,7 @@ temporal_fusion_transformer(
 )
 }
 \arguments{
-\item{x}{A recipe containing \code{\link[=step_include_roles]{step_include_roles()}} as the last step. Can
-also be a data.frame, but expect it to have a \code{recipe} attribute attribute
-containing the \code{recipe} that generated it via \code{\link[recipes:bake]{recipes::bake()}} or
-\code{\link[recipes:juice]{recipes::juice()}}.}
+\item{x}{A recipe or data.frame that will be used to train the model.}
 
 \item{...}{Additional arguments passed to \code{\link[=tft_config]{tft_config()}}.}
 
@@ -52,6 +50,14 @@ prediction.}
 
 \item{horizon}{Number of timesteps ahead that will be predicted by the
 model.}
+
+\item{input_types}{A list with the elements \code{index}, \code{keys}, \code{static}, \code{known} and
+\code{unknown}. It's recommended to use \code{\link[=covariates_spec]{covariates_spec()}} to create it. Each element
+should be a character vector containing the names of
+the columns that are used for each role in the TFT model. \code{index} must be a date
+column and \code{keys} are columns that allow one to identidy each time-series.
+\code{index} and \code{keys} must be specified. If a column that exists in the data.frame
+doesn't appear in this list, then it's considered \code{unknown}.}
 
 \item{subsample}{Subsample from all possible slices. An integer with the number
 of samples or a proportion.}

@@ -4,7 +4,7 @@
 \alias{predict.tft}
 \title{Create predictions for TFT models}
 \usage{
-\method{predict}{tft}(object, new_data, type = "numeric", mode = "horizon", step = NULL, ...)
+\method{predict}{tft}(object, new_data, type = "numeric", ..., past_data = NULL)
 }
 \arguments{
 \item{object}{a model object for which prediction is desired.}
@@ -16,19 +16,12 @@ forecasts.}
 \item{type}{Currently only \code{'numeric'} is accepted but this might change in
 the future if we end up supporting classification.}
 
-\item{mode}{Prediction mode. If \code{'horizon'} predict will generate a single
-multi-horizon prediction. This is mostly sueful when creating forecasts for
-the time frame right after the model has been trained. If \code{'full'} then
-predictions are created for every possible time step (with a possible \code{step})
-argument.
-When \code{mode='horizon'} (default) only the prediction columns are returned.
-When \code{mode='full'} all columns from \code{new_data} are returned as the result
-might have more lines than in \code{new_data} because it's potentially possible
-to generate different predictions for the same time-step.}
-
-\item{step}{Step for predictions when using \code{mode='full'}.}
-
 \item{...}{additional arguments affecting the predictions produced.}
+
+\item{past_data}{A \code{\link[=data.frame]{data.frame()}} with past information for creating the
+predictions. It should include at least \code{lookback} values - but can be more.
+It's concatenated with \code{new_data} before passing forward. If \code{NULL}, the
+data used to train the model is used.}
 }
 \description{
 Create predictions for TFT models
