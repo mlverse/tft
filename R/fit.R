@@ -40,6 +40,10 @@ tft_bridge <- function(processed, config) {
 
   processed_data <- dplyr::bind_cols(processed$predictors, processed$outcomes)
 
+  # handle preparation of the validation data
+  config$valid_data <- prepare_valid_data(config$valid_data, config$input_types,
+                                          processed$blueprint)
+
   result <- tft_impl(
     x = processed_data,
     config = config
@@ -82,6 +86,13 @@ tft_impl <- function(x, config) {
     lookback = config$lookback,
     assess_stop = config$horizon,
     subsample = config$subsample
+  )
+
+  valid_data <- make_valid_dataset(
+    valid_data = config$valid_data,
+    past_data = x,
+    config,
+    normalization
   )
 
   n_features <- get_n_features(dataset[1][[1]])
@@ -128,7 +139,8 @@ tft_impl <- function(x, config) {
       callbacks = callbacks,
       dataloader_options = list(
         batch_size = config$batch_size, num_workers = config$num_workers
-      )
+      ),
+      valid_data = valid_data
     )
 
   list(module = result, normalization = normalization)
@@ -225,7 +237,7 @@ tft_config <- function(lookback, horizon, input_types, subsample = 1,
                        epochs = 5, optimizer = "adam", learn_rate = 0.01,
                        learn_rate_decay = c(0.1, 5), gradient_clip_norm = 0.1,
                        quantiles = c(0.1, 0.5, 0.9), num_workers = 0,
-                       callbacks = list(),
+                       callbacks = list(), valid_data = NULL,
                        verbose = FALSE) {
 
   if (rlang::is_false(learn_rate_decay)) {
@@ -266,7 +278,8 @@ tft_config <- function(lookback, horizon, input_types, subsample = 1,
     num_workers = num_workers,
     callbacks = callbacks,
     verbose = verbose,
-    input_types = input_types
+    input_types = input_types,
+    valid_data = valid_data
   )
 }
 
@@ -337,4 +350,21 @@ evaluate_types <- function(data, types) {
   unknown <- names(data)[!names(data) %in% unlist(types)]
   types[["unknown"]] <- c(types[["unknown"]], unknown)
   types
+}
+
+prepare_valid_data <- function(valid_data, input_types, blueprint) {
+  if (is.null(valid_data)) return(NULL)
+  adjust_new_data(valid_data, input_types, blueprint, outcomes = TRUE)
+}
+
+make_valid_dataset <- function(valid_data, past_data, config, normalization) {
+  if (is.null(valid_data)) {
+    return(NULL)
+  }
+  make_prediction_dataset(
+    new_data = valid_data,
+    past_data = past_data,
+    config = config,
+    normalization = normalization
+  )
 }

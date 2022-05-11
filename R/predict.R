@@ -23,18 +23,15 @@ predict.tft <- function(object, new_data, type = "numeric", ...,
   new_data <- adjust_new_data(
     new_data,
     object$config$input_types,
-    object$blueprint$ptypes
+    object$blueprint
   )
-
-  new_data <- hardhat::forge(new_data, object$blueprint)$predictors
 
   # if past data includes a recipe, it means it has already been
   # preprocessed, thus we don't need to reapply the preprocessing.
   if (is.null(past_data)) {
     past_data <- object$past_data
   } else {
-    past_data <- hardhat::forge(past_data, object$blueprint, outcomes = TRUE)
-    past_data <- dplyr::bind_cols(past_data$predictors, past_data$outcomes)
+    past_data <- adjust_past_data(past_data, object$blueprint)
   }
 
   verify_new_data(new_data, past_data, object)
@@ -48,35 +45,11 @@ predict_impl <- function(object, new_data, past_data) {
   key_cols <- get_variables_with_role(input_types, "keys")
   index_col <- get_variables_with_role(input_types, "index")
 
-  # only grab past data for keys that exist in the new data
-  past_data <- new_data %>%
-    dplyr::select(!!!rlang::syms(key_cols)) %>%
-    dplyr::distinct() %>%
-    dplyr::left_join(
-      tibble::as_tibble(past_data),
-      by = key_cols
-    )
-
-  # now filter the past_data
-  past_data <- get_last_lookback_interval(
-    past_data,
-    lookback = object$config$lookback,
-    input_types = input_types
-  )
-
-  past_data <- normalize_outcome(
-    x = past_data,
-    keys = get_variables_with_role(object$config$input_types, "keys"),
-    outcome = get_variables_with_role(object$config$input_types, "outcome"),
-    constants = object$normalization
-  )$x
-
-  dataset <- time_series_dataset(
-    dplyr::bind_rows(past_data, new_data),
-    input_types,
-    lookback = object$config$lookback,
-    assess_stop = object$config$horizon,
-    step = 1L
+  dataset <- make_prediction_dataset(
+    new_data = new_data,
+    past_data = past_data,
+    config = object$config,
+    normalization = object$normalization
   )
 
   res <- predict(object$module, dataset)
@@ -113,8 +86,14 @@ predict_impl <- function(object, new_data, past_data) {
   dplyr::select(out, dplyr::starts_with(".pred"))
 }
 
-adjust_new_data <- function(new_data, input_types, ptypes) {
+adjust_past_data <- function(past_data, blueprint) {
+  past_data <- hardhat::forge(past_data, blueprint, outcomes = TRUE)
+  dplyr::bind_cols(past_data$predictors, past_data$outcomes)
+}
 
+adjust_new_data <- function(new_data, input_types, blueprint, outcomes = FALSE) {
+
+  ptypes <- blueprint$ptypes
   new_data <- tibble::as_tibble(new_data)
 
   keys <- get_variables_with_role(input_types, "keys")
@@ -153,7 +132,8 @@ adjust_new_data <- function(new_data, input_types, ptypes) {
     }
   }
 
-  new_data
+  out <- hardhat::forge(new_data, blueprint, outcomes = outcomes)
+  dplyr::bind_cols(out$predictors, out$outcomes)
 }
 
 verify_new_data <- function(new_data, past_data, object) {
@@ -354,4 +334,41 @@ get_period <- function(data, input_types) {
     make_tsibble(input_types) %>%
     tsibble::interval() %>%
     lubridate::as.period()
+}
+
+make_prediction_dataset <- function(new_data, past_data, config, normalization) {
+  input_types <- config$input_types
+  key_cols <- get_variables_with_role(input_types, "keys")
+  index_col <- get_variables_with_role(input_types, "index")
+
+  # only grab past data for keys that exist in the new data
+  past_data <- new_data %>%
+    dplyr::select(!!!rlang::syms(key_cols)) %>%
+    dplyr::distinct() %>%
+    dplyr::left_join(
+      tibble::as_tibble(past_data),
+      by = key_cols
+    )
+
+  # now filter the past_data
+  past_data <- get_last_lookback_interval(
+    past_data,
+    lookback = config$lookback,
+    input_types = input_types
+  )
+
+  past_data <- normalize_outcome(
+    x = past_data,
+    keys = get_variables_with_role(config$input_types, "keys"),
+    outcome = get_variables_with_role(config$input_types, "outcome"),
+    constants = normalization
+  )$x
+
+  time_series_dataset(
+    dplyr::bind_rows(past_data, new_data),
+    input_types,
+    lookback = config$lookback,
+    assess_stop = config$horizon,
+    step = 1L
+  )
 }
