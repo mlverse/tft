@@ -309,11 +309,11 @@ reload_model <- function(object) {
 #' @export
 covariates_spec <- function(index, keys, static = NULL, known = NULL, unknown = NULL) {
   make_input_types(
-    index = index,
-    keys= keys,
-    static = static,
-    known = known,
-    unknown = unknown
+    index = {{index}},
+    keys = {{keys}},
+    static = {{static}},
+    known = {{known}},
+    unknown = {{unknown}}
   )
 }
 
