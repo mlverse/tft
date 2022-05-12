@@ -26,6 +26,7 @@ tft_config(
   quantiles = c(0.1, 0.5, 0.9),
   num_workers = 0,
   callbacks = list(),
+  valid_data = NULL,
   verbose = FALSE
 )
 
@@ -99,6 +100,9 @@ point prediction and the thir as the upper bound.}
 
 \item{callbacks}{Additional callbacks passed when fitting the module with
 luz.}
+
+\item{valid_data}{Validation data used to report metrics during training.
+Can be a single tibble or a list containing past a new data.}
 
 \item{verbose}{Logical value stating if the model should produce status
 outputs, like a progress bar, during training.}

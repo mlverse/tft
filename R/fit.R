@@ -227,6 +227,8 @@ unnormalize_outcome <- function(x, constants, outcome) {
 #'   luz.
 #' @param verbose Logical value stating if the model should produce status
 #'   outputs, like a progress bar, during training.
+#' @param valid_data Validation data used to report metrics during training.
+#'   Can be a single tibble or a list containing past a new data.
 #'
 #' @describeIn tft Configuration configuration options for tft.
 #'
