@@ -40,19 +40,29 @@ tft_bridge <- function(processed, config) {
 
   processed_data <- dplyr::bind_cols(processed$predictors, processed$outcomes)
 
+  normalization <- normalize_outcome(
+    x = processed_data,
+    keys = get_variables_with_role(config$input_types, "keys"),
+    outcome = get_variables_with_role(config$input_types, "outcome")
+  )
+
   # handle preparation of the validation data
-  config$valid_data <- prepare_valid_data(config$valid_data, config$input_types,
-                                          processed$blueprint)
+  config$valid_data <- prepare_valid_data(
+    config$valid_data,
+    config$input_types,
+    processed$blueprint,
+    normalization$constant
+  )
 
   result <- tft_impl(
-    x = processed_data,
+    x = normalization$x,
     config = config
   )
 
   new_tft(
     module = result$module,
     past_data = processed_data,
-    normalization = result$normalization,
+    normalization = normalization$constant,
     config = config,
     blueprint = processed$blueprint
   )
@@ -72,15 +82,6 @@ new_tft <- function(module, past_data, normalization, config, blueprint) {
 
 tft_impl <- function(x, config) {
 
-  normalization <- normalize_outcome(
-    x = x,
-    keys = get_variables_with_role(config$input_types, "keys"),
-    outcome = get_variables_with_role(config$input_types, "outcome")
-  )
-
-  x <- normalization$x
-  normalization <- normalization$constant
-
   dataset <- time_series_dataset(
     x, config$input_types,
     lookback = config$lookback,
@@ -91,8 +92,7 @@ tft_impl <- function(x, config) {
   valid_data <- make_valid_dataset(
     valid_data = config$valid_data,
     past_data = x,
-    config,
-    normalization
+    config
   )
 
   n_features <- get_n_features(dataset[1][[1]])
@@ -143,7 +143,7 @@ tft_impl <- function(x, config) {
       valid_data = valid_data
     )
 
-  list(module = result, normalization = normalization)
+  list(module = result)
 }
 
 # by default we normalize the outcomes per group.
@@ -352,19 +352,24 @@ evaluate_types <- function(data, types) {
   types
 }
 
-prepare_valid_data <- function(valid_data, input_types, blueprint) {
+prepare_valid_data <- function(valid_data, input_types, blueprint, normalization) {
   if (is.null(valid_data)) return(NULL)
-  adjust_new_data(valid_data, input_types, blueprint, outcomes = TRUE)
+  valid_data <- adjust_new_data(valid_data, input_types, blueprint, outcomes = TRUE)
+  normalize_outcome(
+    x = valid_data,
+    keys = get_variables_with_role(input_types, "keys"),
+    outcome = get_variables_with_role(input_types, "outcome"),
+    constants = normalization
+  )$x
 }
 
-make_valid_dataset <- function(valid_data, past_data, config, normalization) {
+make_valid_dataset <- function(valid_data, past_data, config) {
   if (is.null(valid_data)) {
     return(NULL)
   }
   make_prediction_dataset(
     new_data = valid_data,
     past_data = past_data,
-    config = config,
-    normalization = normalization
+    config = config
   )
 }

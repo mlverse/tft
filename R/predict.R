@@ -34,6 +34,13 @@ predict.tft <- function(object, new_data, type = "numeric", ...,
     past_data <- adjust_past_data(past_data, object$blueprint)
   }
 
+  past_data <- normalize_outcome(
+    x = past_data,
+    keys = get_variables_with_role(object$config$input_types, "keys"),
+    outcome = get_variables_with_role(object$config$input_types, "outcome"),
+    constants = object$normalization
+  )$x
+
   verify_new_data(new_data, past_data, object)
   out <- predict_impl(object, new_data, past_data)
   out
@@ -48,8 +55,7 @@ predict_impl <- function(object, new_data, past_data) {
   dataset <- make_prediction_dataset(
     new_data = new_data,
     past_data = past_data,
-    config = object$config,
-    normalization = object$normalization
+    config = object$config
   )
 
   res <- predict(object$module, dataset)
@@ -88,7 +94,8 @@ predict_impl <- function(object, new_data, past_data) {
 
 adjust_past_data <- function(past_data, blueprint) {
   past_data <- hardhat::forge(past_data, blueprint, outcomes = TRUE)
-  dplyr::bind_cols(past_data$predictors, past_data$outcomes)
+  past_data <- dplyr::bind_cols(past_data$predictors, past_data$outcomes)
+  past_data
 }
 
 adjust_new_data <- function(new_data, input_types, blueprint, outcomes = FALSE) {
@@ -336,7 +343,7 @@ get_period <- function(data, input_types) {
     lubridate::as.period()
 }
 
-make_prediction_dataset <- function(new_data, past_data, config, normalization) {
+make_prediction_dataset <- function(new_data, past_data, config) {
   input_types <- config$input_types
   key_cols <- get_variables_with_role(input_types, "keys")
   index_col <- get_variables_with_role(input_types, "index")
@@ -356,13 +363,6 @@ make_prediction_dataset <- function(new_data, past_data, config, normalization) 
     lookback = config$lookback,
     input_types = input_types
   )
-
-  past_data <- normalize_outcome(
-    x = past_data,
-    keys = get_variables_with_role(config$input_types, "keys"),
-    outcome = get_variables_with_role(config$input_types, "outcome"),
-    constants = normalization
-  )$x
 
   time_series_dataset(
     dplyr::bind_rows(past_data, new_data),

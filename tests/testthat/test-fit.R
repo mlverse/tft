@@ -15,7 +15,10 @@ test_that("can pass validation data to fit", {
     dplyr::filter(Date > init) %>%
     dplyr::filter(Store == 1, Dept == 1)
 
-  result <- tft(walmart_recipe(), train, lookback = 120, horizon = 4,
-                epochs = 1, input_types = walmart_input_types(),
-                valid_data = test, verbose = TRUE)
+  expect_error({
+    result <- tft(walmart_recipe(), train, lookback = 120, horizon = 4,
+                  epochs = 1, input_types = walmart_input_types(),
+                  valid_data = test)
+  }, regexp = NA)
+
 })
