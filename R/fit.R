@@ -354,22 +354,76 @@ evaluate_types <- function(data, types) {
 
 prepare_valid_data <- function(valid_data, input_types, blueprint, normalization) {
   if (is.null(valid_data)) return(NULL)
-  valid_data <- adjust_new_data(valid_data, input_types, blueprint, outcomes = TRUE)
-  normalize_outcome(
-    x = valid_data,
-    keys = get_variables_with_role(input_types, "keys"),
-    outcome = get_variables_with_role(input_types, "outcome"),
-    constants = normalization
-  )$x
+
+  if (tibble::is_tibble(valid_data) || is.data.frame(valid_data)) {
+    valid_data <- adjust_new_data(valid_data, input_types, blueprint, outcomes = TRUE)
+    valid_data <- normalize_outcome(
+      x = valid_data,
+      keys = get_variables_with_role(input_types, "keys"),
+      outcome = get_variables_with_role(input_types, "outcome"),
+      constants = normalization
+    )$x
+    return(valid_data)
+  }
+
+  # the user provided a list (past_data, valid_data)
+  if (is.list(valid_data)) {
+    valid_data[[1]] <- adjust_past_data(
+      past_data = valid_data[[1]],
+      blueprint = blueprint
+    )
+
+    valid_data[[1]] <- normalize_outcome(
+      x = valid_data[[1]],
+      keys = get_variables_with_role(input_types, "keys"),
+      outcome = get_variables_with_role(input_types, "outcome"),
+      constants = normalization
+    )$x
+
+    valid_data[[2]] <- adjust_new_data(
+      valid_data[[2]],
+      input_types,
+      blueprint,
+      outcomes = TRUE
+    )
+
+    valid_data[[2]] <- normalize_outcome(
+      x = valid_data[[2]],
+      keys = get_variables_with_role(input_types, "keys"),
+      outcome = get_variables_with_role(input_types, "outcome"),
+      constants = normalization
+    )$x
+
+    return(valid_data)
+  }
+
+  cli::cli_abort(c(
+    "Wrong format for {.var valid_data}.",
+    i = "It should be {.var NULL}, a single {.cls data.frame} or a list.",
+    x = "Got a {.cls {class(valid_data)}}"
+  ))
 }
 
 make_valid_dataset <- function(valid_data, past_data, config) {
   if (is.null(valid_data)) {
     return(NULL)
   }
-  make_prediction_dataset(
-    new_data = valid_data,
-    past_data = past_data,
-    config = config
-  )
+
+  if (tibble::is_tibble(valid_data) || is.data.frame(valid_data)) {
+    dataset <- make_prediction_dataset(
+      new_data = valid_data,
+      past_data = past_data,
+      config = config
+    )
+    return(dataset)
+  }
+
+  if (is.list(valid_data)) {
+    dataset <- make_prediction_dataset(
+      new_data = valid_data[[2]],
+      past_data = valid_data[[1]],
+      config = config
+    )
+    return(dataset)
+  }
 }
