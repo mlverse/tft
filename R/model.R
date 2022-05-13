@@ -1,4 +1,14 @@
 
+#' Temporal Fusion transformer
+#'
+#' @param dataset A [torch::dataset()] created with [time_series_dataset()].
+#'  This is required because the model depends on some information that is
+#'  created/defined in the dataset.
+#'
+#' @describeIn tft Create the tft module
+#' @inheritParams tft
+#'
+#' @export
 temporal_fusion_transformer <- function(dataset, ...) {
 
   config <- tft_config(...)
@@ -33,6 +43,9 @@ temporal_fusion_transformer <- function(dataset, ...) {
         luz_quantile_loss(quantile = 0.5,2),
         luz_quantile_loss(quantile = 0.9,3)
       )
+    ) %>%
+    luz::set_opt_hparams(
+      lr = config$learn_rate
     )
 
   module
