@@ -357,6 +357,14 @@ make_prediction_dataset <- function(new_data, past_data, config) {
       by = key_cols
     )
 
+  if (sum(is.na(past_data[[index_col]]))) {
+    cli::cli_warn(c(
+      "No past information for a few groups in `new_data`. They will be dropped.",
+      i = "{{sum(is.na(past_data[[index_col]]))}} groups will be dropped."
+    ))
+    past_data <- past_data[!is.na(past_data[[index_col]]),]
+  }
+
   # now filter the past_data
   past_data <- get_last_lookback_interval(
     past_data,
