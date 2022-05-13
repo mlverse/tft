@@ -40,15 +40,29 @@ tft_bridge <- function(processed, config) {
 
   processed_data <- dplyr::bind_cols(processed$predictors, processed$outcomes)
 
-  result <- tft_impl(
+  normalization <- normalize_outcome(
     x = processed_data,
+    keys = get_variables_with_role(config$input_types, "keys"),
+    outcome = get_variables_with_role(config$input_types, "outcome")
+  )
+
+  # handle preparation of the validation data
+  config$valid_data <- prepare_valid_data(
+    config$valid_data,
+    config$input_types,
+    processed$blueprint,
+    normalization$constant
+  )
+
+  result <- tft_impl(
+    x = normalization$x,
     config = config
   )
 
   new_tft(
     module = result$module,
     past_data = processed_data,
-    normalization = result$normalization,
+    normalization = normalization$constant,
     config = config,
     blueprint = processed$blueprint
   )
@@ -68,20 +82,17 @@ new_tft <- function(module, past_data, normalization, config, blueprint) {
 
 tft_impl <- function(x, config) {
 
-  normalization <- normalize_outcome(
-    x = x,
-    keys = get_variables_with_role(config$input_types, "keys"),
-    outcome = get_variables_with_role(config$input_types, "outcome")
-  )
-
-  x <- normalization$x
-  normalization <- normalization$constant
-
   dataset <- time_series_dataset(
     x, config$input_types,
     lookback = config$lookback,
     assess_stop = config$horizon,
     subsample = config$subsample
+  )
+
+  valid_data <- make_valid_dataset(
+    valid_data = config$valid_data,
+    past_data = x,
+    config
   )
 
   n_features <- get_n_features(dataset[1][[1]])
@@ -128,10 +139,11 @@ tft_impl <- function(x, config) {
       callbacks = callbacks,
       dataloader_options = list(
         batch_size = config$batch_size, num_workers = config$num_workers
-      )
+      ),
+      valid_data = valid_data
     )
 
-  list(module = result, normalization = normalization)
+  list(module = result)
 }
 
 # by default we normalize the outcomes per group.
@@ -215,6 +227,8 @@ unnormalize_outcome <- function(x, constants, outcome) {
 #'   luz.
 #' @param verbose Logical value stating if the model should produce status
 #'   outputs, like a progress bar, during training.
+#' @param valid_data Validation data used to report metrics during training.
+#'   Can be a single tibble or a list containing past a new data.
 #'
 #' @describeIn tft Configuration configuration options for tft.
 #'
@@ -225,7 +239,7 @@ tft_config <- function(lookback, horizon, input_types, subsample = 1,
                        epochs = 5, optimizer = "adam", learn_rate = 0.01,
                        learn_rate_decay = c(0.1, 5), gradient_clip_norm = 0.1,
                        quantiles = c(0.1, 0.5, 0.9), num_workers = 0,
-                       callbacks = list(),
+                       callbacks = list(), valid_data = NULL,
                        verbose = FALSE) {
 
   if (rlang::is_false(learn_rate_decay)) {
@@ -266,7 +280,8 @@ tft_config <- function(lookback, horizon, input_types, subsample = 1,
     num_workers = num_workers,
     callbacks = callbacks,
     verbose = verbose,
-    input_types = input_types
+    input_types = input_types,
+    valid_data = valid_data
   )
 }
 
@@ -337,4 +352,80 @@ evaluate_types <- function(data, types) {
   unknown <- names(data)[!names(data) %in% unlist(types)]
   types[["unknown"]] <- c(types[["unknown"]], unknown)
   types
+}
+
+prepare_valid_data <- function(valid_data, input_types, blueprint, normalization) {
+  if (is.null(valid_data)) return(NULL)
+
+  if (tibble::is_tibble(valid_data) || is.data.frame(valid_data)) {
+    valid_data <- adjust_new_data(valid_data, input_types, blueprint, outcomes = TRUE)
+    valid_data <- normalize_outcome(
+      x = valid_data,
+      keys = get_variables_with_role(input_types, "keys"),
+      outcome = get_variables_with_role(input_types, "outcome"),
+      constants = normalization
+    )$x
+    return(valid_data)
+  }
+
+  # the user provided a list (past_data, valid_data)
+  if (is.list(valid_data)) {
+    valid_data[[1]] <- adjust_past_data(
+      past_data = valid_data[[1]],
+      blueprint = blueprint
+    )
+
+    valid_data[[1]] <- normalize_outcome(
+      x = valid_data[[1]],
+      keys = get_variables_with_role(input_types, "keys"),
+      outcome = get_variables_with_role(input_types, "outcome"),
+      constants = normalization
+    )$x
+
+    valid_data[[2]] <- adjust_new_data(
+      valid_data[[2]],
+      input_types,
+      blueprint,
+      outcomes = TRUE
+    )
+
+    valid_data[[2]] <- normalize_outcome(
+      x = valid_data[[2]],
+      keys = get_variables_with_role(input_types, "keys"),
+      outcome = get_variables_with_role(input_types, "outcome"),
+      constants = normalization
+    )$x
+
+    return(valid_data)
+  }
+
+  cli::cli_abort(c(
+    "Wrong format for {.var valid_data}.",
+    i = "It should be {.var NULL}, a single {.cls data.frame} or a list.",
+    x = "Got a {.cls {class(valid_data)}}"
+  ))
+}
+
+make_valid_dataset <- function(valid_data, past_data, config) {
+  if (is.null(valid_data)) {
+    return(NULL)
+  }
+
+  if (tibble::is_tibble(valid_data) || is.data.frame(valid_data)) {
+    dataset <- make_prediction_dataset(
+      new_data = valid_data,
+      past_data = past_data,
+      config = config
+    )
+    return(dataset)
+  }
+
+  if (is.list(valid_data)) {
+    dataset <- make_prediction_dataset(
+      new_data = valid_data[[2]],
+      past_data = valid_data[[1]],
+      config = config
+    )
+    return(dataset)
+  }
 }

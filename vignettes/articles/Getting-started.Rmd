@@ -35,7 +35,7 @@ stores.
 
 ```{r}
 walmart_sales <- walmart_sales %>% 
-  filter(Store %in% c(1, 2)) %>% 
+  filter(Store %in% c(1, 2, 3), Dept %in% c(1,2)) %>% 
   mutate(Store = as.factor(Store), Dept = as.factor(Dept))
 ```
 
@@ -106,7 +106,7 @@ the model don't treat them implicitly.
 You can bake `prep` and `juice` the recipe to see how the transformations are working:
 
 ```{r}
-rec %>% prep() %>% juice() %>% glimpse()
+rec %>% prep() %>% juice() %>% summary()
 ```
 
 ## Metrics and validation
@@ -123,8 +123,8 @@ datasets:
 
 ```{r}
 last_date <- max(sales$Date)
-sales_train <- sales %>% filter(Date <= (last_date - lubridate::weeks(16)))
-sales_valid <- sales %>% filter(Date > (last_date - lubridate::weeks(16)),
+sales_train <- sales %>% filter(Date <= (last_date - lubridate::weeks(24)))
+sales_valid <- sales %>% filter(Date > (last_date - lubridate::weeks(24)),
                                 Date <= (last_date - lubridate::weeks(8)))
 sales_test <- sales %>% filter(Date > (last_date - lubridate::weeks(8)))
 ```
@@ -160,13 +160,14 @@ model <- tft(
   epochs = 100,
   learn_rate_decay = FALSE,
   callbacks = list(
-    luz::luz_callback_keep_best_model(monitor = "train_loss"),
+    luz::luz_callback_keep_best_model(monitor = "valid_loss"),
     luz::luz_callback_early_stopping(
-      monitor = "train_loss", 
+      monitor = "valid_loss", 
       patience = 10, 
       min_delta = 0.001
     )
-  )
+  ),
+  valid_data = sales_valid
 )
 ```
 
@@ -195,15 +196,26 @@ ggplot(p, aes(x = Date)) +
 ```
 
 ```{r, eval = TRUE}
-pred <- predict(fitted, new_data = sales_valid, past_data = sales_train)
+test_pred <- rolling_predict(
+  model, 
+  new_data = sales_test, 
+  past_data = dplyr::bind_rows(tibble::as_tibble(sales_train), tibble::as_tibble(sales_valid))
+)
 
+p <- test_pred %>% 
+  rowwise() %>% 
+  summarise(
+    past_data %>% 
+      bind_rows(bind_cols(new_data, .pred)) %>% 
+      mutate(.pred_at = max(past_data$Date))
+  )
 
-
-
-final_params <- select_best(results, metric = "rmse")
-model <- finalize_workflow(model, final_params)
-results <- fit_resamples(model, test_splits)
-collect_metrics(results)
+ggplot(p, aes(x = Date)) +
+  geom_point(aes(y = Weekly_Sales)) +
+  geom_line(aes(y = Weekly_Sales)) +
+  geom_point(aes(y = .pred), color = "red") +
+  geom_line(aes(y = .pred), color = "red") +
+  facet_grid(Store + Dept ~ .pred_at, scales = "free_y")
 ```
 
 To obtain predictions for future observations, first we need to load a 
