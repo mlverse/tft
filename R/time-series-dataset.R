@@ -16,8 +16,152 @@
 # users should be able to provide the splits they want to use manually. Splits
 # can be represented as a tuple (ids_lookback, ids_horizon).
 
+#' @export
+time_series_dataset <- function(x, ...) {
+  UseMethod("time_series_dataset")
+}
 
-time_series_dataset <- torch::dataset(
+#' @export
+time_series_dataset.default <- function(x, ...) {
+  cli::cli_abort(
+    "{.var time_series_dataset} is not defined for objects with class {.cls {class(x)}}.")
+}
+
+#' @export
+time_series_dataset.data.frame <- function(x, y, ...) {
+  processed <- hardhat::mold(x, y)
+  config <- ts_dataset_config(...)
+  ts_dataset_bridge(processed, config)
+}
+
+#' @export
+time_series_dataset.recipe <- function(x, data, ...) {
+  config <- ts_dataset_config(...)
+  data <- tibble::as_tibble(data)
+  processed <- hardhat::mold(x, data)
+  ts_dataset_bridge(processed, config)
+}
+
+ts_dataset_bridge <- function(processed, config) {
+  config$input_types <- evaluate_types(processed$predictors, config$input_types)
+  config$input_types[["outcome"]] <- names(processed$outcome)
+
+  processed_data <- dplyr::bind_cols(processed$predictors, processed$outcomes)
+
+  normalization <- normalize_outcome(
+    x = processed_data,
+    keys = get_variables_with_role(config$input_types, "keys"),
+    outcome = get_variables_with_role(config$input_types, "outcome")
+  )
+
+  dataset <- time_series_dataset_generator(
+    normalization$x,
+    config$input_types,
+    lookback = config$lookback,
+    assess_stop = config$horizon,
+    subsample = config$subsample
+  )
+
+  hardhat::new_model(
+    past_data = processed_data,
+    dataset = dataset,
+    normalization = normalization$constants,
+    config = config,
+    blueprint = processed$blueprint,
+    class = "time_series_dataset"
+  )
+}
+
+#' @export
+transform.time_series_dataset <- function(`_data`, past_data = NULL, new_data = NULL, ...) {
+  object <- `_data`
+
+  if (is.null(past_data) && is.null(new_data))
+    return(object$dataset)
+
+  # here we apply the normalization and can create the dataset directly.
+  if (is.null(new_data)) {
+    past_data <- adjust_past_data(past_data, object$blueprint)
+    past_data <- normalize_outcome(
+      x = past_data,
+      keys = get_variables_with_role(object$config$input_types, "keys"),
+      outcome = get_variables_with_role(object$config$input_types, "outcome"),
+      constants = object$normalization
+    )$x
+    dataset <- time_series_dataset_generator(
+      past_data,
+      object$config$input_types,
+      lookback = object$config$lookback,
+      assess_stop = object$config$horizon,
+      subsample = object$config$subsample
+    )
+    return(dataset)
+  }
+
+  # when we also have a `new_data`, we will prepare a 'validation dataset'.
+  # it differs because only observations in `new_data` are iterated as targets.
+  config <- object$config
+  input_types <- object$config$input_types
+
+  if (is.null(past_data)) {
+    past_data <- object$past_data
+  } else {
+    past_data <- adjust_past_data(past_data, object$blueprint)
+  }
+  past_data <- normalize_outcome(
+    x = past_data,
+    keys = get_variables_with_role(input_types, "keys"),
+    outcome = get_variables_with_role(input_types, "outcome"),
+    constants = object$normalization
+  )$x
+
+  new_data <- adjust_new_data(
+    new_data,
+    input_types,
+    object$blueprint,
+    outcomes = TRUE
+  )
+  new_data <- normalize_outcome(
+    x = new_data,
+    keys = get_variables_with_role(input_types, "keys"),
+    outcome = get_variables_with_role(input_types, "outcome"),
+    constants = object$normalization
+  )$x
+
+  make_prediction_dataset(
+    new_data = new_data,
+    past_data = past_data,
+    config = config
+  )
+}
+
+ts_dataset_config <- function(...) {
+  args <- list(...)
+
+  if (is.null(args$input_types)) {
+    cli::cli_abort("Please provide {.var input_types}.")
+  }
+
+  if (is.null(args$lookback)) {
+    cli::cli_abort("Please provide a {.var lookback}.")
+  }
+
+  if (is.null(args$horizon)) {
+    cli::cli_abort("Please provide a {.var horizon}.")
+  }
+
+  if (is.null(args$step)) {
+    args$step <- 1
+  }
+
+  if (is.null(args$subsample)) {
+    args$subsample <- 1
+  }
+
+  args
+}
+
+time_series_dataset_generator <- torch::dataset(
   "time_series_dataset",
   initialize = function(df, roles, lookback = 2L,
                         assess_stop = 1L, step = 1L,

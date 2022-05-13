@@ -372,7 +372,7 @@ make_prediction_dataset <- function(new_data, past_data, config) {
     input_types = input_types
   )
 
-  time_series_dataset(
+  time_series_dataset_generator(
     dplyr::bind_rows(past_data, new_data),
     input_types,
     lookback = config$lookback,

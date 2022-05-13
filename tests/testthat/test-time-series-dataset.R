@@ -22,7 +22,7 @@ test_that("simple test for time series dataset", {
   recipe <- recipes::recipe(Weekly_Sales ~ ., data = sales) %>%
     recipes::prep()
 
-  dataset <- time_series_dataset(
+  dataset <- time_series_dataset_generator(
     recipes::juice(recipe),
     evaluate_types(recipes::juice(recipe) %>% tibble::as_tibble(), make_input_types(
       index = Date,
@@ -53,7 +53,7 @@ test_that("Good error message when no group has enough lookback", {
     recipes::prep()
 
   expect_error(regexp = "No group", {
-    dataset <- time_series_dataset(
+    dataset <- time_series_dataset_generator(
       recipes::juice(recipe),
       evaluate_types(
         recipes::juice(recipe) %>% tibble::as_tibble(),
@@ -62,5 +62,24 @@ test_that("Good error message when no group has enough lookback", {
       lookback = 500, assess_stop = 4)
   })
 
+})
+
+test_that("Time series dataset creators", {
+
+  dataset <- time_series_dataset(
+    walmart_recipe(),
+    walmart_data(),
+    input_types = walmart_input_types(),
+    lookback = 120,
+    horizon = 4
+  )
+
+  expect_true(inherits(dataset, "time_series_dataset"))
+  expect_true(inherits(dataset, "hardhat_model"))
+
+  dt <- transform(dataset)
+
+  expect_true(inherits(dt, "time_series_dataset"))
+  expect_true(inherits(dt, "dataset"))
 })
 
