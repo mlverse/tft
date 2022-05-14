@@ -13,5 +13,8 @@ NULL
 #' @importFrom zeallot %<-%
 NULL
 
+#' @importFrom generics fit
+NULL
+
 utils::globalVariables(c(".stats", ".", ".min_index", ":=", "..mean", "..sd",
                          "type", "variable", "object", "new_data"))
