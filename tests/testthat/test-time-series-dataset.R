@@ -83,3 +83,26 @@ test_that("Time series dataset creators", {
   expect_true(inherits(dt, "dataset"))
 })
 
+test_that("time_series_dataset with past_data and new data", {
+  init <- max(walmart_data()$Date) -lubridate::weeks(8)
+  train <- walmart_data() %>%
+    dplyr::filter(Date <= init)
+  test <- walmart_data() %>%
+    dplyr::filter(Date > init) %>%
+    dplyr::filter(Store == 1, Dept == 1)
+
+  dataset <- time_series_dataset(
+    walmart_recipe(),
+    train,
+    input_types = walmart_input_types(),
+    lookback = 120,
+    horizon = 4
+  )
+
+  ds_test <- transform(dataset, new_data = test)
+  expect_equal(length(ds_test), 5)
+
+  ds_test2 <- transform(dataset, new_data = test, past_data = train)
+  expect_equal(length(ds_test), 5)
+})
+
