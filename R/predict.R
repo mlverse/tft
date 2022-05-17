@@ -57,101 +57,6 @@ predict.tft_result <- function(object, new_data = NULL, ..., past_data = NULL) {
   dplyr::select(out, dplyr::starts_with(".pred"))
 }
 
-
-
-#' Create predictions for TFT models
-#'
-#' @importFrom stats predict
-#' @inheritParams stats::predict
-#' @param new_data A [data.frame()] containing a dataset to generate predictions
-#'   for. In general it's used to pass static and known information to generate
-#'   forecasts.
-#' @param type Currently only `'numeric'` is accepted but this might change in
-#'  the future if we end up supporting classification.
-#' @param past_data A [data.frame()] with past information for creating the
-#'  predictions. It should include at least `lookback` values - but can be more.
-#'  It's concatenated with `new_data` before passing forward. If `NULL`, the
-#'  data used to train the model is used.
-#' @export
-predict.tft <- function(object, new_data, type = "numeric", ...,
-                        past_data = NULL) {
-
-  if (is_null_external_pointer(object$module$model$.check)) {
-    object$module <- reload_model(object$.serialized_model)
-  }
-
-  new_data <- adjust_new_data(
-    new_data,
-    object$config$input_types,
-    object$blueprint
-  )
-
-  # if past data includes a recipe, it means it has already been
-  # preprocessed, thus we don't need to reapply the preprocessing.
-  if (is.null(past_data)) {
-    past_data <- object$past_data
-  } else {
-    past_data <- adjust_past_data(past_data, object$blueprint)
-  }
-
-  past_data <- normalize_outcome(
-    x = past_data,
-    keys = get_variables_with_role(object$config$input_types, "keys"),
-    outcome = get_variables_with_role(object$config$input_types, "outcome"),
-    constants = object$normalization
-  )$x
-
-  verify_new_data(new_data, past_data, object)
-  out <- predict_impl(object, new_data, past_data)
-  out
-}
-
-predict_impl <- function(object, new_data, past_data) {
-
-  input_types <- object$config$input_types
-  key_cols <- get_variables_with_role(input_types, "keys")
-  index_col <- get_variables_with_role(input_types, "index")
-
-  dataset <- make_prediction_dataset(
-    new_data = new_data,
-    past_data = past_data,
-    config = object$config
-  )
-
-  res <- predict(object$module, dataset)
-
-  predictions <- (res$cpu()) %>%
-    torch::torch_unbind(dim = 1) %>%
-    torch::torch_cat(dim =  1) %>%
-    as.matrix() %>%
-    tibble::as_tibble(.name_repair = "minimal") %>%
-    rlang::set_names(c(".pred_lower", ".pred", ".pred_upper"))
-
-  obs <- dataset$slices %>%
-    purrr::map_dfr(function(.x) {
-      res <- tibble::as_tibble(dataset$df[.x$decoder,]) %>%
-        dplyr::select(dplyr::all_of(
-          get_variables_with_role(
-            object$config$input_types, c("keys", "index")
-          )
-        ))
-      res
-    })
-
-  out <- dplyr::bind_cols(predictions, tibble::as_tibble(obs))
-  out <- new_data %>%
-    dplyr::left_join(
-      out,
-      by = c(get_variables_with_role(object$config$input_types, c("keys", "index")))
-    )
-
-  for (var in names(predictions)) {
-    out <- unnormalize_outcome(out, object$normalization, outcome = var)
-  }
-
-  dplyr::select(out, dplyr::starts_with(".pred"))
-}
-
 adjust_past_data <- function(past_data, blueprint) {
   past_data <- hardhat::forge(past_data, blueprint, outcomes = TRUE)
   past_data <- dplyr::bind_cols(past_data$predictors, past_data$outcomes)
@@ -314,7 +219,7 @@ future_data <- function(past_data, horizon, input_types = NULL) {
 #' This function will combine your `past_data` (that can also include your training data)
 #' and create slices so you create predictions for each value in `new_data`.
 #'
-#' @inheritParams predict.tft
+#' @inheritParams predict.tft_result
 #' @param step Default is the step to be the same as the horizon o the model,
 #'  that way we have one prediction per slice.
 #'
