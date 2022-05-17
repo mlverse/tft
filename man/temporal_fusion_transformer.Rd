@@ -2,12 +2,12 @@
 % Please edit documentation in R/model.R
 \name{temporal_fusion_transformer}
 \alias{temporal_fusion_transformer}
-\alias{tft_config2}
+\alias{tft_config}
 \title{Temporal Fusion transformer}
 \usage{
 temporal_fusion_transformer(spec, ...)
 
-tft_config2(
+tft_config(
   hidden_state_size = 16,
   num_attention_heads = 4,
   num_lstm_layers = 2,
@@ -53,6 +53,6 @@ Configuration for the tft model
 \itemize{
 \item \code{temporal_fusion_transformer}: Create the tft module
 
-\item \code{tft_config2}: Configuration for the Temporal Fusion Transformer
+\item \code{tft_config}: Configuration for the Temporal Fusion Transformer
 }}
 

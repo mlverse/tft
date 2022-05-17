@@ -18,7 +18,7 @@ temporal_fusion_transformer <- function(spec, ...) {
   }
 
   dataset <- spec$dataset
-  config <- tft_config2(...)
+  config <- tft_config(...)
 
   n_features <- get_n_features(dataset[1][[1]])
   feature_sizes <- dataset$feature_sizes
@@ -82,7 +82,7 @@ fit.tft_module <- function(object, ...) {
 #'
 #' @describeIn temporal_fusion_transformer Configuration for the Temporal Fusion Transformer
 #' @export
-tft_config2 <- function(hidden_state_size = 16,
+tft_config <- function(hidden_state_size = 16,
                         num_attention_heads = 4,
                         num_lstm_layers = 2, dropout = 0.1,
                         optimizer = "adam",
