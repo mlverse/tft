@@ -16,6 +16,175 @@
 # users should be able to provide the splits they want to use manually. Splits
 # can be represented as a tuple (ids_lookback, ids_horizon).
 
+#' Creates a TFT data specification
+#'
+#'
+#' @export
+tft_dataset_spec <- function(x, ...) {
+  UseMethod("tft_dataset_spec")
+}
+
+#' @export
+tft_dataset_spec.data.frame <- function(x, y) {
+  if (is.data.frame(x) && is.data.frame(y)) {
+    cli::cli_abort(c(
+      "{.var x} and {.var y} must be {.cls data.frame}s.",
+      "x" = "{.var x} is {.cls {class(x)}} and {.var y} is {.cls {class(y)}}."
+    ))
+  }
+
+  new_tft_dataset_spec(inputs = list(x, y))
+}
+
+#' @export
+tft_dataset_spec.recipe <- function(x, data) {
+  if (!is.data.frame(data)) {
+    cli::cli_abort(c(
+      "{.var data} must be a {.cls data.frame}.",
+      x = "Got a {.cls {class(data}}"
+    ))
+  }
+  new_tft_dataset_spec(inputs = list(x, data))
+}
+
+
+#' @importFrom recipes prep
+#' @export
+prep.tft_dataset_spec <- function(x, ...) {
+  ellipsis::check_dots_empty()
+  inputs <- append(x$inputs, x["input_types"])
+  inputs <- append(inputs, x[c("lookback", "horizon", "subsample")])
+  do.call(time_series_dataset, inputs)
+}
+
+#' @export
+print.tft_dataset_spec <- function(x, ...) {
+  cat(sep="\n", cli::cli_format_method({
+    cli::cli_text("A {.cls tft_dataset_spec} with:")
+    cli::cat_line()
+
+    if (is.null(x$lookback) || is.null(x$horizon)) {
+      cli::cli_alert_danger(
+        "{.var lookback} and {.var horizon} are not set. Use {.var spec_time_splits()} ",
+        "to set them."
+      )
+    } else {
+      cli::cli_alert_success(
+        "lookback = {x$lookback} and horizon = {x$horizon}."
+      )
+    }
+
+    cli::cli_h3("Covariates:")
+    for (name in c("index", "keys", "static", "known", "unknown")) {
+      cat_covariates_set(x$input_types, name)
+    }
+
+    cli::cat_line()
+
+    cli::cli_alert_info("Call {.var prep()} to prepare the specification.")
+  }))
+  invisible(x)
+}
+
+#' @export
+print.prepared_tft_dataset_spec <- function(x, ...) {
+  config <- x$config
+  cat(sep="\n", cli::cli_format_method({
+    cli::cli_text("A {.cls prepared_tft_dataset_spec} with:")
+    cli::cat_line()
+
+    cli::cli_alert_success(
+      "lookback = {config$lookback} and horizon = {config$horizon}."
+    )
+    cli::cli_alert_success(
+      "The number of possible slices is {scales::comma(length(dataset))}"
+    )
+
+    cli::cli_h3("Covariates:")
+    for (name in c("index", "keys", "static", "known", "unknown")) {
+      cat_covariates_prepared(config$input_types, name)
+    }
+    cli::cli_alert_info("Variables that are not specified in other types are considered {.var unknown}.")
+
+    cli::cat_line()
+
+    cli::cli_alert_info("Call {.var transform()} to apply this spec to a different dataset.")
+  }))
+  invisible(x)
+}
+
+cat_covariates_prepared <- function(input_types, name) {
+  cli::cli_alert_success(
+    "{.var {name}}: {input_types[[name]]}"
+  )
+}
+
+cat_covariates_set <- function(input_types, name) {
+  if (is.null(input_types[[name]])) {
+    if (name != "unknown") {
+      alert <- if(name %in% c("index", "keys")) cli::cli_alert_danger else cli::cli_alert_warning
+      alert(
+        "{.var {name}} is not set. Use {.var {paste0('spec_covariate_', name, '()')}} to set it."
+      )
+    } else {
+      cli::cli_alert_warning(
+        "{.var unknown} is not set. Covariates that are not listed as other types are considered {.var unknown}."
+      )
+    }
+  } else {
+    cli::cli_alert_success(
+      "{.var {name}}: {rlang::expr_deparse(input_types[[name]])}"
+    )
+  }
+}
+
+new_tft_dataset_spec <- function(inputs) {
+  structure(list(
+    inputs = inputs,
+    input_types = list(),
+    lookback = NULL,
+    horizon = NULL,
+    subsample = 1
+  ), class = "tft_dataset_spec")
+}
+
+#' @export
+spec_time_splits <- function(spec, lookback, horizon) {
+  spec$lookback <- lookback
+  spec$horizon <- horizon
+  spec
+}
+
+#' @export
+spec_covariate_index <- function(spec, x) {
+  spec$input_types$index <- rlang::enexpr(x)
+  spec
+}
+
+#' @export
+spec_covariate_keys <- function(spec, ...) {
+  spec$input_types$keys <- rlang::enexprs(...)
+  spec
+}
+
+#' @export
+spec_covariate_known <- function(spec, ...) {
+  spec$input_types$known <- rlang::enexprs(...)
+  spec
+}
+
+#' @export
+spec_covariate_unknown <- function(spec, ...) {
+  spec$input_types$unknown <- rlang::enexprs(...)
+  spec
+}
+
+#' @export
+spec_covariate_static <- function(spec, ...) {
+  spec$input_types$static <- rlang::enexprs(...)
+  spec
+}
+
 #' @export
 time_series_dataset <- function(x, ...) {
   UseMethod("time_series_dataset")
@@ -68,12 +237,13 @@ ts_dataset_bridge <- function(processed, config) {
     normalization = normalization$constants,
     config = config,
     blueprint = processed$blueprint,
-    class = "time_series_dataset"
+    class = "prepared_tft_dataset_spec"
   )
 }
 
 #' @export
-transform.time_series_dataset <- function(`_data`, past_data = NULL, new_data = NULL, ...) {
+transform.prepared_tft_dataset_spec <- function(`_data`, past_data = NULL, ...,
+                                                new_data = NULL) {
   object <- `_data`
 
   if (is.null(past_data) && is.null(new_data))

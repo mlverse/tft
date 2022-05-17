@@ -346,7 +346,7 @@ make_input_types <- function(index, keys, static = NULL, known = NULL,
 
 evaluate_types <- function(data, types) {
   types <- lapply(types, function(x) {
-    colnames(dplyr::select(data, !!x))
+    colnames(dplyr::select(data, !!!unlist(x)))
   })
   # Non-specified variables are considered unknown.
   unknown <- names(data)[!names(data) %in% unlist(types)]
