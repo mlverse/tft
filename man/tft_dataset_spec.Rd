@@ -66,3 +66,24 @@ to be passed as its first argument.
 \item \code{spec_covariate_static}: Sets \code{static} covariates.
 }}
 
+\examples{
+if (torch::torch_is_installed()) {
+sales <- walmartdata::walmart_sales \%>\%
+  dplyr::filter(Store == 1, Dept \%in\% c(1,2))
+
+rec <- recipes::recipe(Weekly_Sales ~ ., sales)
+
+spec <- tft_dataset_spec(rec, sales) \%>\%
+  spec_time_splits(lookback = 52, horizon = 4) \%>\%
+  spec_covariate_index(Date) \%>\%
+  spec_covariate_keys(Store, Dept) \%>\%
+  spec_covariate_static(Type, Size) \%>\%
+  spec_covariate_known(starts_with("MarkDown"))
+
+print(spec)
+
+spec <- prep(spec)
+dataset <- transform(spec) # this is a torch dataset.
+str(dataset[1])
+}
+}
