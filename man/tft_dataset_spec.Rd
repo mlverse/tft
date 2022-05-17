@@ -2,10 +2,67 @@
 % Please edit documentation in R/time-series-dataset.R
 \name{tft_dataset_spec}
 \alias{tft_dataset_spec}
+\alias{spec_time_splits}
+\alias{spec_covariate_index}
+\alias{spec_covariate_keys}
+\alias{spec_covariate_known}
+\alias{spec_covariate_unknown}
+\alias{spec_covariate_static}
 \title{Creates a TFT data specification}
 \usage{
 tft_dataset_spec(x, ...)
+
+spec_time_splits(spec, lookback, horizon)
+
+spec_covariate_index(spec, index)
+
+spec_covariate_keys(spec, ...)
+
+spec_covariate_known(spec, ...)
+
+spec_covariate_unknown(spec, ...)
+
+spec_covariate_static(spec, ...)
+}
+\arguments{
+\item{x}{A recipe or data.frame that will be used to obtain statiscs for
+preparing the recipe and preparing the dataset.}
+
+\item{...}{Column names, selected using tidyselect. See <\code{\link[=dplyr_tidy_select]{tidy-select}}>
+for more information.}
+
+\item{spec}{A spec created with \code{tft_dataset_spec()}.}
+
+\item{lookback}{Number of timesteps that are used as historic data for
+prediction.}
+
+\item{horizon}{Number of timesteps ahead that will be predicted by the
+model.}
+
+\item{index}{A column name that indexes the data. Usually a date column.}
+}
+\value{
+A \code{tft_dataset_spec} that you can add \code{spec_} functions using the \verb{|>} (pipe)
+\code{\link[=prep]{prep()}} when done and \code{\link[=transform]{transform()}} to obtain \code{\link[torch:dataset]{torch::dataset()}}s.
 }
 \description{
-Creates a TFT data specification
+This is used to create \code{\link[torch:dataset]{torch::dataset()}}s for training the model,
+take care of target normalization and allow initializing the
+\code{\link[=temporal_fusion_transformer]{temporal_fusion_transformer()}} model, that requires a specification
+to be passed as its first argument.
 }
+\section{Functions}{
+\itemize{
+\item \code{spec_time_splits}: Sets \code{lookback} and \code{horizon} parameters.
+
+\item \code{spec_covariate_index}: Sets the \code{index} column.
+
+\item \code{spec_covariate_keys}: Sets the \code{keys} - variables that define each time series
+
+\item \code{spec_covariate_known}: Sets \code{known} time varying covariates.
+
+\item \code{spec_covariate_unknown}: Sets \code{unknown} time varying covariates.
+
+\item \code{spec_covariate_static}: Sets \code{static} covariates.
+}}
+

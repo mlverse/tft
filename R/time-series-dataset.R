@@ -18,7 +18,17 @@
 
 #' Creates a TFT data specification
 #'
+#' This is used to create [torch::dataset()]s for training the model,
+#' take care of target normalization and allow initializing the
+#' [temporal_fusion_transformer()] model, that requires a specification
+#' to be passed as its first argument.
 #'
+#' @param x A recipe or data.frame that will be used to obtain statiscs for
+#' preparing the recipe and preparing the dataset.
+#'
+#' @returns
+#' A `tft_dataset_spec` that you can add `spec_` functions using the `|>` (pipe)
+#' [prep()] when done and [transform()] to obtain [torch::dataset()]s.
 #' @export
 tft_dataset_spec <- function(x, ...) {
   UseMethod("tft_dataset_spec")
@@ -155,6 +165,9 @@ new_tft_dataset_spec <- function(inputs) {
 #'  prediction.
 #' @param horizon Number of timesteps ahead that will be predicted by the
 #'  model.
+#'
+#' @describeIn tft_dataset_spec Sets `lookback` and `horizon` parameters.
+#'
 #' @export
 spec_time_splits <- function(spec, lookback, horizon) {
   spec$lookback <- lookback
@@ -162,30 +175,39 @@ spec_time_splits <- function(spec, lookback, horizon) {
   spec
 }
 
+#' @param index A column name that indexes the data. Usually a date column.
+#' @param spec A spec created with `tft_dataset_spec()`.
+#' @describeIn tft_dataset_spec Sets the `index` column.
 #' @export
-spec_covariate_index <- function(spec, x) {
-  spec$input_types$index <- rlang::enexpr(x)
+spec_covariate_index <- function(spec, index) {
+  spec$input_types$index <- rlang::enexpr(index)
   spec
 }
 
+#' @param ... Column names, selected using tidyselect. See <[`tidy-select`][dplyr_tidy_select]>
+#'  for more information.
+#' @describeIn tft_dataset_spec Sets the `keys` - variables that define each time series
 #' @export
 spec_covariate_keys <- function(spec, ...) {
   spec$input_types$keys <- rlang::enexprs(...)
   spec
 }
 
+#' @describeIn tft_dataset_spec Sets `known` time varying covariates.
 #' @export
 spec_covariate_known <- function(spec, ...) {
   spec$input_types$known <- rlang::enexprs(...)
   spec
 }
 
+#' @describeIn tft_dataset_spec Sets `unknown` time varying covariates.
 #' @export
 spec_covariate_unknown <- function(spec, ...) {
   spec$input_types$unknown <- rlang::enexprs(...)
   spec
 }
 
+#' @describeIn tft_dataset_spec Sets `static` covariates.
 #' @export
 spec_covariate_static <- function(spec, ...) {
   spec$input_types$static <- rlang::enexprs(...)
