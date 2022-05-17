@@ -38,8 +38,8 @@ unnormalize_outcome <- function(x, constants, outcome) {
 
 model_to_raw <- function(model) {
   con <- rawConnection(raw(), open = "wr")
-  luz::luz_save(model, con)
   on.exit({close(con)}, add = TRUE)
+  luz::luz_save(model, con)
   r <- rawConnectionValue(con)
   r
 }

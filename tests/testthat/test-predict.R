@@ -38,29 +38,3 @@ test_that("future data correcty get's rid of obs that we can't make predictions"
 
   expect_equal(nrow(future_data(x, 3)), 3)
 })
-
-test_that("can serialize and reload a model", {
-
-  init <- max(walmart_data()$Date) -lubridate::weeks(4)
-  train <- walmart_data() %>%
-    dplyr::filter(Date <= init)
-  test <- walmart_data() %>%
-    dplyr::filter(Date > init) %>%
-    dplyr::filter(Store == 1, Dept == 1)
-
-  result <- tft(walmart_recipe(), train, lookback = 120, horizon = 4,
-                epochs = 1, input_types = walmart_input_types())
-
-  preds1 <- predict(result, new_data = test)
-  tmp <- tempfile(fileext = "rds")
-  saveRDS(result, tmp)
-  rm(result); gc();
-  result <- readRDS(tmp)
-  preds2 <- predict(result, new_data = test)
-
-  expect_equal(preds1, preds2)
-})
-
-
-
-

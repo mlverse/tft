@@ -166,3 +166,36 @@ test_that("forecast works", {
 
 })
 
+test_that("serialization works", {
+  init <- max(walmart_data()$Date) -lubridate::weeks(4)
+  train <- walmart_data() %>%
+    dplyr::filter(Date <= init)
+  test <- walmart_data() %>%
+    dplyr::filter(Date > init) %>%
+    dplyr::filter(Store == 1, Dept == 1)
+
+  spec <- walmart_spec(data = train)
+
+  train_ds <- transform(spec)
+  valid_ds <- transform(spec, new_data = test)
+
+  module <- temporal_fusion_transformer(spec)
+
+  result <- module %>% fit(train_ds, epochs = 1, verbose  = FALSE,
+                           valid_data = valid_ds)
+
+  pred1 <- predict(result, new_data = test)
+
+  tmp <- tempfile()
+  saveRDS(result, tmp)
+
+  rm(result); gc(); gc();
+
+  result <- readRDS(tmp)
+  pred2 <- predict(result, new_data = test)
+
+  expect_equal(pred1, pred2)
+  expect_equal(as.numeric(result$model$.check), 1)
+
+})
+

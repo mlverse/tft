@@ -61,6 +61,10 @@ fit.tft_module <- function(object, ...) {
   out <- NextMethod()
   class(out) <- c("tft_result", class(out))
   out$spec <- attr(object, "module")$spec #preserve the spec in the result.
+
+  # serialize the model, so saveRDS also works
+  out$.serialized <- model_to_raw(out)
+
   out
 }
 

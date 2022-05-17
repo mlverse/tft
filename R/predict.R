@@ -21,6 +21,11 @@ predict.tft_result <- function(object, new_data = NULL, ..., past_data = NULL) {
   if (!is.null(past_data))
     past_data <- tibble::as_tibble(past_data)
 
+  if (is_null_external_pointer(object$model$.check)) {
+    reloaded <- reload_model(object$.serialized)
+    object$model$load_state_dict(reloaded$model$state_dict())
+  }
+
   dataset <- transform(object$spec, past_data = past_data, new_data = new_data,
                        .verify = TRUE)
   preds <- NextMethod("predict", object, dataset, ...)
