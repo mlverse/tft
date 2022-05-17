@@ -22,7 +22,7 @@ tft_config(
 This is required because the model depends on some information that is
 created/defined in the dataset.}
 
-\item{...}{Additional parameters passed to \code{\link[=tft_config2]{tft_config2()}}.}
+\item{...}{Additional parameters passed to \code{\link[=tft_config]{tft_config()}}.}
 
 \item{hidden_state_size}{Hidden size of network which is its main hyperparameter
 and can range from 8 to 512. It's also known as \code{d_model} across the paper.}

@@ -3,7 +3,7 @@
 #' @param spec A spec created with [tft_dataset_spec()].
 #'  This is required because the model depends on some information that is
 #'  created/defined in the dataset.
-#' @param ... Additional parameters passed to [tft_config2()].
+#' @param ... Additional parameters passed to [tft_config()].
 #'
 #' @describeIn temporal_fusion_transformer Create the tft module
 #'
