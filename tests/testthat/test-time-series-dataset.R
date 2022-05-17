@@ -107,6 +107,9 @@ test_that("time_series_dataset with past_data and new data", {
 })
 
 test_that("can create a spec", {
+
+  skip_on_os(c("windows", "linux"))
+
   init <- max(walmart_data()$Date) -lubridate::weeks(8)
   train <- walmart_data() %>%
     dplyr::filter(Date <= init)
