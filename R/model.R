@@ -1,11 +1,11 @@
 #' Temporal Fusion transformer
 #'
-#' @param dataset A [torch::dataset()] created with [time_series_dataset()].
+#' @param spec A spec created with [tft_dataset_spec()].
 #'  This is required because the model depends on some information that is
 #'  created/defined in the dataset.
+#' @param ... Additional parameters passed to [tft_config2()].
 #'
-#' @describeIn tft Create the tft module
-#' @inheritParams tft
+#' @describeIn temporal_fusion_transformer Create the tft module
 #'
 #' @export
 temporal_fusion_transformer <- function(spec, ...) {
@@ -62,6 +62,24 @@ fit.tft_module <- function(object, ...) {
   out
 }
 
+#' Configuration for the tft model
+#'
+#' @param hidden_state_size Hidden size of network which is its main hyperparameter
+#'   and can range from 8 to 512. It's also known as `d_model` across the paper.
+#' @param num_attention_heads Number of attention heads in the Multi-head attention layer.
+#'   The paper refer to it as `m_H`. `4` is a good default.
+#' @param num_lstm_layers Number of LSTM layers used in the Locality Enhancement
+#'   Layer. Usually 2 is good enough.
+#' @param dropout Dropout rate used in many places in the architecture.
+#' @param optimizer Optimizer used for training. Can be a string with 'adam', 'sgd',
+#'   or 'adagrad'. Can also be a [torch::optimizer()].
+#' @param learn_rate Leaning rate used by the optimizer.
+#' @param quantiles A numeric vector with 3 quantiles for the quantile loss.
+#'   The first is treated as lower bound of the interval, the second as the
+#'   point prediction and the thir as the upper bound.
+#'
+#' @describeIn temporal_fusion_transformer Configuration for the Temporal Fusion Transformer
+#' @export
 tft_config2 <- function(hidden_state_size = 16,
                         num_attention_heads = 4,
                         num_lstm_layers = 2, dropout = 0.1,
