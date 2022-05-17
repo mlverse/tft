@@ -107,3 +107,32 @@ test_that("verification is working", {
 
 })
 
+test_that("rolling predict works", {
+
+  init <- max(walmart_data()$Date) - lubridate::weeks(8)
+  train <- walmart_data() %>%
+    dplyr::filter(Date <= init)
+  test <- walmart_data() %>%
+    dplyr::filter(Date > init) %>%
+    dplyr::filter(Store == 1, Dept == 1)
+
+  spec <- walmart_spec(data = train)
+
+  train_ds <- transform(spec)
+  valid_ds <- transform(spec, new_data = test)
+
+  module <- temporal_fusion_transformer(spec)
+  result <- module %>% fit(train_ds, epochs = 1, verbose  = FALSE,
+                           valid_data = valid_ds)
+
+  predictions <- rolling_predict(result, new_data = test, past_data = train)
+
+  expect_equal(nrow(predictions), 2)
+  expect_equal(ncol(predictions), 3)
+  for (p in predictions$.pred) {
+    expect_equal(nrow(p), 4)
+    expect_equal(ncol(p), 3)
+  }
+
+})
+

@@ -11,9 +11,10 @@
 #'  predictions. It should include at least `lookback` values - but can be more.
 #'  It's concatenated with `new_data` before passing forward. If `NULL`, the
 #'  data used to train the model is used.
+#' @param ... other arguments passed to the [predict.luz_module_fitted()()].
 #'
 #' @export
-predict.tft_result <- function(object, ..., past_data = NULL, new_data = NULL) {
+predict.tft_result <- function(object, new_data = NULL, ..., past_data = NULL) {
 
   if (!is.null(new_data))
     new_data <- tibble::as_tibble(new_data)
@@ -22,7 +23,7 @@ predict.tft_result <- function(object, ..., past_data = NULL, new_data = NULL) {
 
   dataset <- transform(object$spec, past_data = past_data, new_data = new_data,
                        .verify = TRUE)
-  preds <- NextMethod("predict", object, dataset)
+  preds <- NextMethod("predict", object, dataset, ...)
 
   predictions <- (preds$cpu()) %>%
     torch::torch_unbind(dim = 1) %>%
@@ -319,8 +320,16 @@ future_data <- function(past_data, horizon, input_types = NULL) {
 #'
 #' @export
 rolling_predict <- function(object, past_data, new_data, step = NULL) {
+
+  if (!inherits(object, "tft_result")) {
+    cli::cli_abort(c(
+      "{.var object} must be a {.cls tft_result}.",
+      x = "Got an object with class {.cls {class(object)}}"
+    ))
+  }
+
   if (is.null(step)) {
-    step <- object$config$horizon
+    step <- object$spec$config$horizon
   }
 
   # make sure past_data only includes groups that exist in `new_data`
@@ -328,25 +337,25 @@ rolling_predict <- function(object, past_data, new_data, step = NULL) {
     tibble::as_tibble() %>%
     dplyr::semi_join(
       tibble::as_tibble(new_data),
-      by = get_variables_with_role(object$config$input_types, "keys")
+      by = get_variables_with_role(object$spec$config$input_types, "keys")
     )
 
   past_data <- get_last_lookback_interval(
     tibble::as_tibble(past_data),
-    lookback = object$config$lookback,
-    input_types = object$config$input_types
+    lookback = object$spec$config$lookback,
+    input_types = object$spec$config$input_types
   )
 
   data <- dplyr::bind_rows(past_data, tibble::as_tibble(new_data))
-  index_col <- get_variables_with_role(object$config$input_types, "index")
+  index_col <- get_variables_with_role(object$spec$config$input_types, "index")
 
   slices <- rolling_slices(
     data[[index_col]],
-    lookback = object$config$lookback,
-    horizon = object$config$horizon,
+    lookback = object$spec$config$lookback,
+    horizon = object$spec$config$horizon,
     step = step,
     start_date = min(new_data[[index_col]]),
-    period = get_period(past_data, input_types = object$config$input_types)
+    period = get_period(past_data, input_types = object$spec$config$input_types)
   )
 
   predictions <- list()
@@ -355,7 +364,7 @@ rolling_predict <- function(object, past_data, new_data, step = NULL) {
     n_data <- data[s$decoder,]
 
     nm <- as.character(max(p_data[[index_col]]))
-    pred <- predict(object, n_data, past_data = p_data)
+    pred <- predict(object, new_data = n_data, past_data = p_data)
 
     predictions[[nm]] <- tibble::tibble(
       past_data = list(p_data),
