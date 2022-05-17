@@ -237,25 +237,22 @@ spec_covariate_static <- function(spec, ...) {
   spec
 }
 
-#' @export
 time_series_dataset <- function(x, ...) {
   UseMethod("time_series_dataset")
 }
 
-#' @export
+
 time_series_dataset.default <- function(x, ...) {
   cli::cli_abort(
     "{.var time_series_dataset} is not defined for objects with class {.cls {class(x)}}.")
 }
 
-#' @export
 time_series_dataset.data.frame <- function(x, y, ...) {
   processed <- hardhat::mold(x, y)
   config <- ts_dataset_config(...)
   ts_dataset_bridge(processed, config)
 }
 
-#' @export
 time_series_dataset.recipe <- function(x, data, ...) {
   config <- ts_dataset_config(...)
   data <- tibble::as_tibble(data)

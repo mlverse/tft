@@ -38,7 +38,8 @@ Imports:
     R6,
     dplyr,
     lubridate,
-    tsibble
+    tsibble,
+    scales
 Suggests:
     tidyr,
     testthat (>= 3.0.0),
