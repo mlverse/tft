@@ -40,3 +40,23 @@ test_that("Can pass validation data to the model", {
   expect_true(any("valid" %in% luz::get_metrics(result)$set))
 })
 
+test_that("can make predictions", {
+  init <- max(walmart_data()$Date) -lubridate::weeks(4)
+  train <- walmart_data() %>%
+    dplyr::filter(Date <= init)
+  test <- walmart_data() %>%
+    dplyr::filter(Date > init) %>%
+    dplyr::filter(Store == 1, Dept == 1)
+
+  spec <- walmart_spec(data = train)
+
+  train_ds <- transform(spec)
+  valid_ds <- transform(spec, new_data = test)
+
+  module <- temporal_fusion_transformer(spec)
+  result <- module %>% fit(train_ds, epochs = 1, verbose  = FALSE,
+                           valid_data = valid_ds)
+
+  predict(result, new_data = test)
+})
+

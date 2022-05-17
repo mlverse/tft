@@ -1,4 +1,49 @@
 
+#' @export
+predict.tft_result <- function(object, ..., past_data = NULL, new_data = NULL) {
+
+  if (!is.null(new_data))
+    new_data <- tibble::as_tibble(new_data)
+  if (!is.null(past_data))
+    past_data <- tibble::as_tibble(past_data)
+
+  dataset <- transform(object$spec, past_data = past_data, new_data = new_data)
+  preds <- NextMethod("predict", object, dataset)
+
+  predictions <- (preds$cpu()) %>%
+    torch::torch_unbind(dim = 1) %>%
+    torch::torch_cat(dim =  1) %>%
+    as.matrix() %>%
+    tibble::as_tibble(.name_repair = "minimal") %>%
+    rlang::set_names(c(".pred_lower", ".pred", ".pred_upper"))
+
+  input_types <- object$spec$config$input_types
+
+  obs <- dataset$slices %>%
+    purrr::map_dfr(function(.x) {
+      res <- tibble::as_tibble(dataset$df[.x$decoder,]) %>%
+        dplyr::select(dplyr::all_of(
+          get_variables_with_role(input_types, c("keys", "index"))
+        ))
+      res
+    })
+
+  out <- dplyr::bind_cols(predictions, tibble::as_tibble(obs))
+  out <- new_data %>%
+    dplyr::left_join(
+      out,
+      by = c(get_variables_with_role(input_types, c("keys", "index")))
+    )
+
+  for (var in names(predictions)) {
+    out <- unnormalize_outcome(out, object$spec$normalization, outcome = var)
+  }
+
+  dplyr::select(out, dplyr::starts_with(".pred"))
+}
+
+
+
 #' Create predictions for TFT models
 #'
 #' @importFrom stats predict

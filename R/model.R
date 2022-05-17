@@ -46,6 +46,7 @@ temporal_fusion_transformer <- function(spec, ...) {
       lr = config$learn_rate
     )
 
+  attr(module, "module")$spec <- spec
   class(module) <- c("tft_module", class(module))
   module
 }
@@ -59,6 +60,7 @@ temporal_fusion_transformer <- function(spec, ...) {
 fit.tft_module <- function(object, ...) {
   out <- NextMethod()
   class(out) <- c("tft_result", class(out))
+  out$spec <- attr(object, "module")$spec #preserve the spec in the result.
   out
 }
 
