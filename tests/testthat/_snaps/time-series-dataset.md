@@ -36,7 +36,7 @@
     A <prepared_tft_dataset_spec> with:
     
     v lookback = 52 and horizon = 4.
-    v The number of possible slices is 5
+    v The number of possible slices is 320
     
     -- Covariates: 
     v `index`: Date
