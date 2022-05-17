@@ -56,7 +56,8 @@ tft_dataset_spec <- function(x, ...) {
 }
 
 #' @export
-tft_dataset_spec.data.frame <- function(x, y) {
+tft_dataset_spec.data.frame <- function(x, y, ...) {
+  ellipsis::check_dots_empty()
   if (is.data.frame(x) && is.data.frame(y)) {
     cli::cli_abort(c(
       "{.var x} and {.var y} must be {.cls data.frame}s.",
@@ -68,7 +69,8 @@ tft_dataset_spec.data.frame <- function(x, y) {
 }
 
 #' @export
-tft_dataset_spec.recipe <- function(x, data) {
+tft_dataset_spec.recipe <- function(x, data, ...) {
+  ellipsis::check_dots_empty()
   if (!is.data.frame(data)) {
     cli::cli_abort(c(
       "{.var data} must be a {.cls data.frame}.",
