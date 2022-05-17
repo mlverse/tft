@@ -1,22 +1,14 @@
 test_that("can initialize and train a model", {
 
-  dataset <- time_series_dataset(
-    walmart_recipe(),
-    walmart_data(),
-    input_types = walmart_input_types(),
-    lookback = 120,
-    horizon = 4
-  )
+  spec <- walmart_spec()
 
-  module <- temporal_fusion_transformer(
-    transform(dataset)
-  )
+  module <- temporal_fusion_transformer(spec)
 
   expect_true(inherits(module, "luz_module_generator"))
   expect_true(inherits(module, "tft_module"))
 
   expect_error(regexp = NA, {
-    result <- module %>% fit(transform(dataset), epochs = 1, verbose  = FALSE)
+    result <- module %>% fit(transform(spec), epochs = 1, verbose  = FALSE)
   })
 
   expect_true(inherits(result, "luz_module_fitted"))
@@ -32,18 +24,12 @@ test_that("Can pass validation data to the model", {
     dplyr::filter(Date > init) %>%
     dplyr::filter(Store == 1, Dept == 1)
 
-  dataset <- time_series_dataset(
-    walmart_recipe(),
-    train,
-    input_types = walmart_input_types(),
-    lookback = 120,
-    horizon = 4
-  )
+  spec <- walmart_spec(data = train)
 
-  train_ds <- transform(dataset)
-  valid_ds <- transform(dataset, new_data = test)
+  train_ds <- transform(spec)
+  valid_ds <- transform(spec, new_data = test)
 
-  module <- temporal_fusion_transformer(train_ds)
+  module <- temporal_fusion_transformer(spec)
 
   expect_error(regexp = NA, {
     result <- module %>% fit(train_ds, epochs = 1, verbose  = FALSE,

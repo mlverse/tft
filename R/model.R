@@ -8,15 +8,16 @@
 #' @inheritParams tft
 #'
 #' @export
-temporal_fusion_transformer <- function(dataset, ...) {
+temporal_fusion_transformer <- function(spec, ...) {
 
-  if (!inherits(dataset, "time_series_dataset")) {
+  if (!inherits(spec, "prepared_tft_dataset_spec")) {
     cli::cli_abort(c(
-      "{.var dataset} must be an object created with {.var time_series_dataset()}",
+      "{.var spec} must be an object created with {.var tft_dataset_spec()}",
       x = "Got an object with {.cls {class(dataset)}}."
     ))
   }
 
+  dataset <- spec$dataset
   config <- tft_config2(...)
 
   n_features <- get_n_features(dataset[1][[1]])

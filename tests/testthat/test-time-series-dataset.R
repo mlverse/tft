@@ -123,7 +123,8 @@ test_that("can create a spec", {
     spec_covariate_index(Date) %>%
     spec_covariate_keys(Store, Dept) %>%
     spec_covariate_static(Type, Size) %>%
-    spec_covariate_known(starts_with("MarkDown"), starts_with("Date_"), starts_with("na_ind"))
+    spec_covariate_known(starts_with("MarkDown"), starts_with("Date_"),
+                         starts_with("na_ind"))
 
   expect_snapshot_output(print(spec))
 
