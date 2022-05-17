@@ -1,4 +1,17 @@
 
+#' Predict for TFT
+#'
+#' @importFrom stats predict
+#' @inheritParams stats::predict
+#'
+#' @param new_data A [data.frame()] containing a dataset to generate predictions
+#'   for. In general it's used to pass static and known information to generate
+#'   forecasts.
+#' @param past_data A [data.frame()] with past information for creating the
+#'  predictions. It should include at least `lookback` values - but can be more.
+#'  It's concatenated with `new_data` before passing forward. If `NULL`, the
+#'  data used to train the model is used.
+#'
 #' @export
 predict.tft_result <- function(object, ..., past_data = NULL, new_data = NULL) {
 
@@ -7,7 +20,8 @@ predict.tft_result <- function(object, ..., past_data = NULL, new_data = NULL) {
   if (!is.null(past_data))
     past_data <- tibble::as_tibble(past_data)
 
-  dataset <- transform(object$spec, past_data = past_data, new_data = new_data)
+  dataset <- transform(object$spec, past_data = past_data, new_data = new_data,
+                       .verify = TRUE)
   preds <- NextMethod("predict", object, dataset)
 
   predictions <- (preds$cpu()) %>%

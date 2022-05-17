@@ -243,7 +243,7 @@ ts_dataset_bridge <- function(processed, config) {
 
 #' @export
 transform.prepared_tft_dataset_spec <- function(`_data`, past_data = NULL, ...,
-                                                new_data = NULL) {
+                                                new_data = NULL, .verify = FALSE) {
   object <- `_data`
 
   if (is.null(past_data) && is.null(new_data))
@@ -297,6 +297,9 @@ transform.prepared_tft_dataset_spec <- function(`_data`, past_data = NULL, ...,
     outcome = get_variables_with_role(input_types, "outcome"),
     constants = object$normalization
   )$x
+
+  if (.verify)
+    verify_new_data(new_data = new_data, past_data = past_data, object = object)
 
   make_prediction_dataset(
     new_data = new_data,

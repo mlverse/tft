@@ -57,6 +57,53 @@ test_that("can make predictions", {
   result <- module %>% fit(train_ds, epochs = 1, verbose  = FALSE,
                            valid_data = valid_ds)
 
-  predict(result, new_data = test)
+  predictions <- predict(result, new_data = test)
+  expect_equal(nrow(predictions), 4)
+  expect_equal(ncol(predictions), 3)
+
+})
+
+test_that("verification is working", {
+
+  init <- max(walmart_data()$Date) - lubridate::weeks(8)
+  train <- walmart_data() %>%
+    dplyr::filter(Date <= init)
+  test <- walmart_data() %>%
+    dplyr::filter(Date > init) %>%
+    dplyr::filter(Store == 1, Dept == 1)
+
+  spec <- walmart_spec(data = train)
+
+  train_ds <- transform(spec)
+  valid_ds <- transform(spec, new_data = test)
+
+  module <- temporal_fusion_transformer(spec)
+  result <- module %>% fit(train_ds, epochs = 1, verbose  = FALSE,
+                           valid_data = valid_ds)
+
+  expect_error(
+    predict(result, new_data = test),
+    regexp = "includes obs that we can't generate predictions"
+  )
+
+  expect_error(
+    predict(result, new_data = test, past_data = test),
+    regexp = "includes obs that we can't"
+  )
+
+  test2 <- test
+  test2$Size[1] <- NA
+
+  expect_error(
+    predict(result, new_data = test2),
+    regexp = "Found missing values in at"
+  )
+
+  test2 <- test[1:3,]
+  expect_error(
+    predict(result, new_data = test2),
+    regexp = "At least one group"
+  )
+
 })
 
