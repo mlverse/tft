@@ -148,6 +148,13 @@ new_tft_dataset_spec <- function(inputs) {
   ), class = "tft_dataset_spec")
 }
 
+#' Time splits setting
+#'
+#'
+#' @param lookback Number of timesteps that are used as historic data for
+#'  prediction.
+#' @param horizon Number of timesteps ahead that will be predicted by the
+#'  model.
 #' @export
 spec_time_splits <- function(spec, lookback, horizon) {
   spec$lookback <- lookback
