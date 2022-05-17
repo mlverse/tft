@@ -136,3 +136,33 @@ test_that("rolling predict works", {
 
 })
 
+test_that("forecast works", {
+
+  init <- max(walmart_data()$Date) - lubridate::weeks(8)
+  train <- walmart_data() %>%
+    dplyr::filter(Date <= init)
+  test <- walmart_data() %>%
+    dplyr::filter(Date > init) %>%
+    dplyr::filter(Store == 1, Dept == 1)
+
+  spec <- tft_dataset_spec(walmart_recipe(), train) %>%
+    spec_time_splits(lookback = 52, horizon = 4) %>%
+    spec_covariate_index(Date) %>%
+    spec_covariate_keys(Store, Dept, Type) %>%
+    spec_covariate_known(intercept) %>%
+    prep()
+
+  train_ds <- transform(spec)
+
+  model <- temporal_fusion_transformer(spec)
+
+  result <- fit(model, train_ds, epochs = 1, verbose = FALSE)
+
+  preds <- forecast(result)
+
+  expect_s3_class(preds, "tft_forecast")
+  expect_equal(nrow(preds), 16)
+  expect_equal(ncol(preds), 7)
+
+})
+

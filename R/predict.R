@@ -104,6 +104,15 @@ adjust_new_data <- function(new_data, input_types, blueprint, outcomes = FALSE) 
     }
   }
 
+  # in this case we need to add the outcome variable if it's not present in the
+  # dataset
+  if (outcomes) {
+    outcome <- get_variables_with_role(input_types, "outcome")
+    if (is.null(new_data[[outcome]])) {
+      new_data[[outcome]] <- NA
+    }
+  }
+
   out <- hardhat::forge(new_data, blueprint, outcomes = outcomes)
   dplyr::bind_cols(out$predictors, out$outcomes)
 }
@@ -166,21 +175,21 @@ verify_new_data <- function(new_data, past_data, object) {
 
 #' @importFrom generics forecast
 #' @export
-forecast.tft <- function(object, horizon = NULL) {
+forecast.tft_result <- function(object, horizon = NULL) {
 
   if (is.null(horizon)) {
-    horizon <- object$config$horizon
+    horizon <- object$spec$config$horizon
   }
 
-  if (horizon > object$config$horizon) {
+  if (horizon > object$spec$config$horizon) {
     cli::cli_abort(c(
       "{.var horizon} is larger than the maximum allowed.",
       "x" = "Got {horizon}, max allowed is {object$horizon}."
     ))
   }
 
-  f_data <- future_data(object$past_data, horizon = object$config$horizon,
-                        input_types = object$config$input_types)
+  f_data <- future_data(object$spec$past_data, horizon = object$spec$config$horizon,
+                        input_types = object$spec$config$input_types)
   f_data <- tibble::as_tibble(f_data)
 
   pred <- dplyr::bind_cols(
@@ -188,9 +197,10 @@ forecast.tft <- function(object, horizon = NULL) {
     predict(object, new_data = f_data)
   )
 
-  future_data <- future_data(object$past_data, horizon = horizon,
-                             input_types = object$config$input_types) %>%
+  future_data <- future_data(object$spec$past_data, horizon = horizon,
+                             input_types = object$spec$config$input_types) %>%
     dplyr::left_join(pred, by = names(.)) %>%
+    tibble::as_tibble() %>%
     structure(class = c("tft_forecast", class(.)))
 }
 

@@ -97,7 +97,7 @@ print.prepared_tft_dataset_spec <- function(x, ...) {
       "lookback = {config$lookback} and horizon = {config$horizon}."
     )
     cli::cli_alert_success(
-      "The number of possible slices is {scales::comma(length(dataset))}"
+      "The number of possible slices is {scales::comma(length(x$dataset))}"
     )
 
     cli::cli_h3("Covariates:")
