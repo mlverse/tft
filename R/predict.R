@@ -178,6 +178,15 @@ verify_new_data <- function(new_data, past_data, object) {
 }
 
 
+#' Generate forecasts for TFT models
+#'
+#' `forecast` can only be used if the model object doesn't include `known`
+#' predictors that must exist in the data. It's fine if a `recipe` passed to
+#' [tft_dataset_spec()] computes `known` predictors though.
+#'
+#' @param object The `tft_result` object that will be used to create predictions.
+#' @param horizon Number of time steps ahead to generate predictions.
+#'
 #' @importFrom generics forecast
 #' @export
 forecast.tft_result <- function(object, horizon = NULL) {
