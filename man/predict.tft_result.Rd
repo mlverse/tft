@@ -13,7 +13,7 @@
 for. In general it's used to pass static and known information to generate
 forecasts.}
 
-\item{...}{other arguments passed to the \code{\link[=predict.luz_module_fitted()]{predict.luz_module_fitted()()}}.}
+\item{...}{other arguments passed to the \code{\link[=predict.luz_module_fitted]{predict.luz_module_fitted()}}.}
 
 \item{past_data}{A \code{\link[=data.frame]{data.frame()}} with past information for creating the
 predictions. It should include at least \code{lookback} values - but can be more.

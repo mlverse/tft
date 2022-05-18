@@ -11,7 +11,7 @@
 #'  predictions. It should include at least `lookback` values - but can be more.
 #'  It's concatenated with `new_data` before passing forward. If `NULL`, the
 #'  data used to train the model is used.
-#' @param ... other arguments passed to the [predict.luz_module_fitted()()].
+#' @param ... other arguments passed to the [predict.luz_module_fitted()].
 #'
 #' @export
 predict.tft_result <- function(object, new_data = NULL, ..., past_data = NULL) {
