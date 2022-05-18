@@ -13,5 +13,23 @@ NULL
 #' @importFrom zeallot %<-%
 NULL
 
+#' Fit a model
+#' See [generics::fit()] for more information.
+#' @keywords internal
+#' @rdname fit
+#' @name fit
+#' @importFrom generics fit
+#' @export
+NULL
+
+#' Prepare a specification
+#' See [recipes::prep()] for more information.
+#' @export
+#' @importFrom recipes prep
+#' @rdname prep
+#' @keywords internal
+#' @name prep
+NULL
+
 utils::globalVariables(c(".stats", ".", ".min_index", ":=", "..mean", "..sd",
                          "type", "variable", "object", "new_data"))

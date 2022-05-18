@@ -48,3 +48,15 @@ walmart_input_types_no_known <- function() {
     known = c(starts_with("Date_"), intercept)
   )
 }
+
+walmart_spec <- function(recipe = walmart_recipe(), data = walmart_data()) {
+  spec <- tft_dataset_spec(recipe, data) %>%
+    spec_time_splits(lookback = 52, horizon = 4) %>%
+    spec_covariate_index(Date) %>%
+    spec_covariate_keys(Store, Dept) %>%
+    spec_covariate_static(Type, Size) %>%
+    spec_covariate_known(starts_with("MarkDown"), starts_with("Date_"),
+                         starts_with("na_ind")) %>%
+    prep()
+  spec
+}

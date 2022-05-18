@@ -1,79 +1,49 @@
 
-#' Create predictions for TFT models
+#' Predict for TFT
 #'
 #' @importFrom stats predict
 #' @inheritParams stats::predict
+#'
 #' @param new_data A [data.frame()] containing a dataset to generate predictions
 #'   for. In general it's used to pass static and known information to generate
 #'   forecasts.
-#' @param type Currently only `'numeric'` is accepted but this might change in
-#'  the future if we end up supporting classification.
 #' @param past_data A [data.frame()] with past information for creating the
 #'  predictions. It should include at least `lookback` values - but can be more.
 #'  It's concatenated with `new_data` before passing forward. If `NULL`, the
 #'  data used to train the model is used.
+#' @param ... other arguments passed to the [predict.luz_module_fitted()].
+#'
 #' @export
-predict.tft <- function(object, new_data, type = "numeric", ...,
-                        past_data = NULL) {
+predict.tft_result <- function(object, new_data = NULL, ..., past_data = NULL) {
 
-  if (is_null_external_pointer(object$module$model$.check)) {
-    object$module <- reload_model(object$.serialized_model)
+  if (!is.null(new_data))
+    new_data <- tibble::as_tibble(new_data)
+  if (!is.null(past_data))
+    past_data <- tibble::as_tibble(past_data)
+
+  if (is_null_external_pointer(object$model$.check)) {
+    reloaded <- reload_model(object$.serialized)
+    object$model$load_state_dict(reloaded$model$state_dict())
   }
 
-  new_data <- adjust_new_data(
-    new_data,
-    object$config$input_types,
-    object$blueprint
-  )
+  dataset <- transform(object$spec, past_data = past_data, new_data = new_data,
+                       .verify = TRUE)
+  preds <- NextMethod("predict", object, dataset, ...)
 
-  # if past data includes a recipe, it means it has already been
-  # preprocessed, thus we don't need to reapply the preprocessing.
-  if (is.null(past_data)) {
-    past_data <- object$past_data
-  } else {
-    past_data <- adjust_past_data(past_data, object$blueprint)
-  }
-
-  past_data <- normalize_outcome(
-    x = past_data,
-    keys = get_variables_with_role(object$config$input_types, "keys"),
-    outcome = get_variables_with_role(object$config$input_types, "outcome"),
-    constants = object$normalization
-  )$x
-
-  verify_new_data(new_data, past_data, object)
-  out <- predict_impl(object, new_data, past_data)
-  out
-}
-
-predict_impl <- function(object, new_data, past_data) {
-
-  input_types <- object$config$input_types
-  key_cols <- get_variables_with_role(input_types, "keys")
-  index_col <- get_variables_with_role(input_types, "index")
-
-  dataset <- make_prediction_dataset(
-    new_data = new_data,
-    past_data = past_data,
-    config = object$config
-  )
-
-  res <- predict(object$module, dataset)
-
-  predictions <- (res$cpu()) %>%
+  predictions <- (preds$cpu()) %>%
     torch::torch_unbind(dim = 1) %>%
     torch::torch_cat(dim =  1) %>%
     as.matrix() %>%
     tibble::as_tibble(.name_repair = "minimal") %>%
     rlang::set_names(c(".pred_lower", ".pred", ".pred_upper"))
 
+  input_types <- object$spec$config$input_types
+
   obs <- dataset$slices %>%
     purrr::map_dfr(function(.x) {
       res <- tibble::as_tibble(dataset$df[.x$decoder,]) %>%
         dplyr::select(dplyr::all_of(
-          get_variables_with_role(
-            object$config$input_types, c("keys", "index")
-          )
+          get_variables_with_role(input_types, c("keys", "index"))
         ))
       res
     })
@@ -82,11 +52,11 @@ predict_impl <- function(object, new_data, past_data) {
   out <- new_data %>%
     dplyr::left_join(
       out,
-      by = c(get_variables_with_role(object$config$input_types, c("keys", "index")))
+      by = c(get_variables_with_role(input_types, c("keys", "index")))
     )
 
   for (var in names(predictions)) {
-    out <- unnormalize_outcome(out, object$normalization, outcome = var)
+    out <- unnormalize_outcome(out, object$spec$normalization, outcome = var)
   }
 
   dplyr::select(out, dplyr::starts_with(".pred"))
@@ -136,6 +106,15 @@ adjust_new_data <- function(new_data, input_types, blueprint, outcomes = FALSE) 
   for (var in predictors) {
     if (is.null(new_data[[var]])) {
       new_data[[var]] <- NA
+    }
+  }
+
+  # in this case we need to add the outcome variable if it's not present in the
+  # dataset
+  if (outcomes) {
+    outcome <- get_variables_with_role(input_types, "outcome")
+    if (is.null(new_data[[outcome]])) {
+      new_data[[outcome]] <- NA
     }
   }
 
@@ -199,23 +178,32 @@ verify_new_data <- function(new_data, past_data, object) {
 }
 
 
+#' Generate forecasts for TFT models
+#'
+#' `forecast` can only be used if the model object doesn't include `known`
+#' predictors that must exist in the data. It's fine if a `recipe` passed to
+#' [tft_dataset_spec()] computes `known` predictors though.
+#'
+#' @param object The `tft_result` object that will be used to create predictions.
+#' @param horizon Number of time steps ahead to generate predictions.
+#'
 #' @importFrom generics forecast
 #' @export
-forecast.tft <- function(object, horizon = NULL) {
+forecast.tft_result <- function(object, horizon = NULL) {
 
   if (is.null(horizon)) {
-    horizon <- object$config$horizon
+    horizon <- object$spec$config$horizon
   }
 
-  if (horizon > object$config$horizon) {
+  if (horizon > object$spec$config$horizon) {
     cli::cli_abort(c(
       "{.var horizon} is larger than the maximum allowed.",
       "x" = "Got {horizon}, max allowed is {object$horizon}."
     ))
   }
 
-  f_data <- future_data(object$past_data, horizon = object$config$horizon,
-                        input_types = object$config$input_types)
+  f_data <- future_data(object$spec$past_data, horizon = object$spec$config$horizon,
+                        input_types = object$spec$config$input_types)
   f_data <- tibble::as_tibble(f_data)
 
   pred <- dplyr::bind_cols(
@@ -223,9 +211,10 @@ forecast.tft <- function(object, horizon = NULL) {
     predict(object, new_data = f_data)
   )
 
-  future_data <- future_data(object$past_data, horizon = horizon,
-                             input_types = object$config$input_types) %>%
+  future_data <- future_data(object$spec$past_data, horizon = horizon,
+                             input_types = object$spec$config$input_types) %>%
     dplyr::left_join(pred, by = names(.)) %>%
+    tibble::as_tibble() %>%
     structure(class = c("tft_forecast", class(.)))
 }
 
@@ -254,14 +243,22 @@ future_data <- function(past_data, horizon, input_types = NULL) {
 #' This function will combine your `past_data` (that can also include your training data)
 #' and create slices so you create predictions for each value in `new_data`.
 #'
-#' @inheritParams predict.tft
+#' @inheritParams predict.tft_result
 #' @param step Default is the step to be the same as the horizon o the model,
 #'  that way we have one prediction per slice.
 #'
 #' @export
 rolling_predict <- function(object, past_data, new_data, step = NULL) {
+
+  if (!inherits(object, "tft_result")) {
+    cli::cli_abort(c(
+      "{.var object} must be a {.cls tft_result}.",
+      x = "Got an object with class {.cls {class(object)}}"
+    ))
+  }
+
   if (is.null(step)) {
-    step <- object$config$horizon
+    step <- object$spec$config$horizon
   }
 
   # make sure past_data only includes groups that exist in `new_data`
@@ -269,25 +266,25 @@ rolling_predict <- function(object, past_data, new_data, step = NULL) {
     tibble::as_tibble() %>%
     dplyr::semi_join(
       tibble::as_tibble(new_data),
-      by = get_variables_with_role(object$config$input_types, "keys")
+      by = get_variables_with_role(object$spec$config$input_types, "keys")
     )
 
   past_data <- get_last_lookback_interval(
     tibble::as_tibble(past_data),
-    lookback = object$config$lookback,
-    input_types = object$config$input_types
+    lookback = object$spec$config$lookback,
+    input_types = object$spec$config$input_types
   )
 
   data <- dplyr::bind_rows(past_data, tibble::as_tibble(new_data))
-  index_col <- get_variables_with_role(object$config$input_types, "index")
+  index_col <- get_variables_with_role(object$spec$config$input_types, "index")
 
   slices <- rolling_slices(
     data[[index_col]],
-    lookback = object$config$lookback,
-    horizon = object$config$horizon,
+    lookback = object$spec$config$lookback,
+    horizon = object$spec$config$horizon,
     step = step,
     start_date = min(new_data[[index_col]]),
-    period = get_period(past_data, input_types = object$config$input_types)
+    period = get_period(past_data, input_types = object$spec$config$input_types)
   )
 
   predictions <- list()
@@ -296,7 +293,7 @@ rolling_predict <- function(object, past_data, new_data, step = NULL) {
     n_data <- data[s$decoder,]
 
     nm <- as.character(max(p_data[[index_col]]))
-    pred <- predict(object, n_data, past_data = p_data)
+    pred <- predict(object, new_data = n_data, past_data = p_data)
 
     predictions[[nm]] <- tibble::tibble(
       past_data = list(p_data),
@@ -372,7 +369,7 @@ make_prediction_dataset <- function(new_data, past_data, config) {
     input_types = input_types
   )
 
-  time_series_dataset(
+  time_series_dataset_generator(
     dplyr::bind_rows(past_data, new_data),
     input_types,
     lookback = config$lookback,
