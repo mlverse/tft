@@ -45,7 +45,8 @@ Suggests:
     testthat (>= 3.0.0),
     rmarkdown,
     walmartdata,
-    feasts
+    feasts,
+    ggplot2
 Remotes:
     dfalbel/walmartdata,
     mlverse/luz
