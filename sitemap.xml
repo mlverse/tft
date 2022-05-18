@@ -28,7 +28,13 @@
     <loc>https://mlverse.github.io/tft/news/index.html</loc>
   </url>
   <url>
-    <loc>https://mlverse.github.io/tft/reference/dataprep_parameters.html</loc>
+    <loc>https://mlverse.github.io/tft/reference/fit.html</loc>
+  </url>
+  <url>
+    <loc>https://mlverse.github.io/tft/reference/fit.tft_module.html</loc>
+  </url>
+  <url>
+    <loc>https://mlverse.github.io/tft/reference/forecast.tft_result.html</loc>
   </url>
   <url>
     <loc>https://mlverse.github.io/tft/reference/index.html</loc>
@@ -37,18 +43,24 @@
     <loc>https://mlverse.github.io/tft/reference/pipe.html</loc>
   </url>
   <url>
-    <loc>https://mlverse.github.io/tft/reference/predict.tft.html</loc>
+    <loc>https://mlverse.github.io/tft/reference/predict.tft_result.html</loc>
+  </url>
+  <url>
+    <loc>https://mlverse.github.io/tft/reference/prep.html</loc>
+  </url>
+  <url>
+    <loc>https://mlverse.github.io/tft/reference/rolling_predict.html</loc>
   </url>
   <url>
     <loc>https://mlverse.github.io/tft/reference/step_group_normalize.html</loc>
   </url>
   <url>
-    <loc>https://mlverse.github.io/tft/reference/step_include_roles.html</loc>
+    <loc>https://mlverse.github.io/tft/reference/temporal_fusion_transformer.html</loc>
   </url>
   <url>
     <loc>https://mlverse.github.io/tft/reference/temporal_fusion_transformer_model.html</loc>
   </url>
   <url>
-    <loc>https://mlverse.github.io/tft/reference/tft.html</loc>
+    <loc>https://mlverse.github.io/tft/reference/tft_dataset_spec.html</loc>
   </url>
 </urlset>
