@@ -44,6 +44,9 @@ or 'adagrad'. Can also be a \code{\link[torch:optimizer]{torch::optimizer()}}.}
 The first is treated as lower bound of the interval, the second as the
 point prediction and the thir as the upper bound.}
 }
+\value{
+A \code{luz_module} that has been setup and is ready to be \code{fitted}.
+}
 \description{
 Temporal Fusion transformer
 
@@ -56,3 +59,8 @@ Configuration for the tft model
 \item \code{tft_config}: Configuration for the Temporal Fusion Transformer
 }}
 
+\seealso{
+\code{\link[=fit.luz_module_generator]{fit.luz_module_generator()}} for fit arguments. See
+\code{\link[=predict.tft_result]{predict.tft_result()}} for information on how to generate predictions and
+\code{\link[=forecast.tft_result]{forecast.tft_result()}} for forecasting.
+}

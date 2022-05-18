@@ -6,6 +6,12 @@
 #' @param ... Additional parameters passed to [tft_config()].
 #'
 #' @describeIn temporal_fusion_transformer Create the tft module
+#' @returns
+#' A `luz_module` that has been setup and is ready to be `fitted`.
+#'
+#' @seealso [fit.luz_module_generator()] for fit arguments. See
+#'   [predict.tft_result()] for information on how to generate predictions and
+#'   [forecast.tft_result()] for forecasting.
 #'
 #' @export
 temporal_fusion_transformer <- function(spec, ...) {
