@@ -4,7 +4,7 @@ pkgdown_sha: ~
 articles:
   Electricity-dataset: Electricity-dataset.html
   Getting-started: Getting-started.html
-last_built: 2022-05-18T16:37Z
+last_built: 2022-05-18T17:45Z
 urls:
   reference: https://mlverse.github.io/tft/reference
   article: https://mlverse.github.io/tft/articles
