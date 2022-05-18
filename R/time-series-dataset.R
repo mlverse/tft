@@ -119,6 +119,7 @@ print.tft_dataset_spec <- function(x, ...) {
   invisible(x)
 }
 
+#' @importFrom scales comma
 #' @export
 print.prepared_tft_dataset_spec <- function(x, ...) {
   config <- x$config
