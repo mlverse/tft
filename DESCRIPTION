@@ -44,7 +44,8 @@ Suggests:
     tidyr,
     testthat (>= 3.0.0),
     rmarkdown,
-    walmartdata
+    walmartdata,
+    feasts
 Remotes:
     dfalbel/walmartdata,
     mlverse/luz
