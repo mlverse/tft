@@ -1,5 +1,7 @@
 ---
 title: "Electricity dataset"
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r, include = FALSE}
@@ -31,23 +33,23 @@ rec <- recipe(consumption ~ ., data = electricity::electricity_hourly) %>%
       time1 = date_hour, 
       time2 = lubridate::ymd("2011-01-01"), 
       units = "hour"
-    ))
+    )),
+    doy = as.factor(lubridate::yday(date_hour))
   ) %>% 
   step_normalize(time_since_begining) %>% 
   step_include_roles()
 ```
 
 ```{r}
-rec %>% prep() %>% juice() %>% glimpse()
-```
-
-```{r}
-elec <- electricity::electricity_hourly %>% 
-    dplyr::filter(client %in% c("MT_001", "MT_002"))
+elec <- electricity::electricity_hourly
 
 elec_train <- elec %>% 
-  filter(date_hour <= (max(date_hour) - lubridate::days(7)))
+  filter(date_hour <= (max(date_hour) - lubridate::days(14)))
 
+elec_valid <- elec %>% 
+  filter(date_hour > (max(date_hour) - lubridate::days(14)),
+         date_hour <= (max(date_hour) - lubridate::days(7)))
+  
 elec_test <- elec %>% 
   filter(date_hour > (max(date_hour) - lubridate::days(7)))
 ```
@@ -59,30 +61,46 @@ model <- tft(
   elec_train, 
   lookback = 168, 
   horizon = 24, 
-  subsample = 0.5,
+  subsample = 45000,
   hidden_state_size = 160, 
   batch_size = 64, 
   learn_rate = 0.001, 
   gradient_clip_norm = 0.01,
-  num_workers = 4,
+  num_workers = 8,
+  learn_rate_decay = FALSE,
+  callbacks = list(
+    luz::luz_callback_keep_best_model(monitor = "train_loss"),
+    luz::luz_callback_early_stopping(monitor = "train_loss", patience = 5, 
+                                     min_delta = 0.001)
+  ),
+  epochs = 100,
   verbose = TRUE
 )
 ```
+
+
 ```{r}
-predictions <- predict(model, elec_test, mode = "full")
+predictions <- predict(
+  model2, 
+  elec_test, 
+  mode = "full"
+)
 
 preds <- predictions %>% 
-  filter(.pred_at %in% (min(predictions$.pred_at) + lubridate::days(0:6))) %>% 
+  filter(.pred_at %in% (min(predictions$.pred_at, na.rm=TRUE) + lubridate::days(0:6))) %>% 
   mutate(client = as.character(client))
 
 id <- 1
 
 bind_rows(
-  preds %>% filter(.pred_at == unique(preds$.pred_at)[id]), 
+  preds %>% 
+    filter(.pred_at == unique(preds$.pred_at)[id]) %>% 
+    filter(client %in% sprintf("MT_%03d", 1:3)), 
   elec %>% filter(
     date_hour >= (min(predictions$.pred_at) - lubridate::days(7)),
     date_hour < unique(preds$.pred_at)[id]
-    )
+    ) %>% 
+    filter(client %in% sprintf("MT_%03d", 1:3))
 ) %>% 
   ggplot(aes(x = date_hour)) +
   geom_line(aes(y = consumption)) +
