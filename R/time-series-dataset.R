@@ -86,7 +86,7 @@ tft_dataset_spec.recipe <- function(x, data, ...) {
 prep.tft_dataset_spec <- function(x, ...) {
   ellipsis::check_dots_empty()
   inputs <- append(x$inputs, x["input_types"])
-  inputs <- append(inputs, x[c("lookback", "horizon", "subsample")])
+  inputs <- append(inputs, x[c("lookback", "horizon", "step")])
   do.call(time_series_dataset, inputs)
 }
 
@@ -178,7 +178,7 @@ new_tft_dataset_spec <- function(inputs) {
     input_types = list(),
     lookback = NULL,
     horizon = NULL,
-    subsample = 1
+    step = NULL
   ), class = "tft_dataset_spec")
 }
 
@@ -193,9 +193,10 @@ new_tft_dataset_spec <- function(inputs) {
 #' @describeIn tft_dataset_spec Sets `lookback` and `horizon` parameters.
 #'
 #' @export
-spec_time_splits <- function(spec, lookback, horizon) {
+spec_time_splits <- function(spec, lookback, horizon, step = 1L) {
   spec$lookback <- lookback
   spec$horizon <- horizon
+  spec$step <- step
   spec
 }
 
@@ -278,7 +279,8 @@ ts_dataset_bridge <- function(processed, config) {
     config$input_types,
     lookback = config$lookback,
     assess_stop = config$horizon,
-    subsample = config$subsample
+    subsample = config$subsample,
+    step = config$step
   )
 
   hardhat::new_model(
@@ -298,8 +300,11 @@ transform.prepared_tft_dataset_spec <- function(`_data`, past_data = NULL, ...,
   object <- `_data`
   object$config$subsample <- subsample
 
-  if (is.null(past_data) && is.null(new_data))
+  if (is.null(past_data) && is.null(new_data)) {
+    object$dataset$perform_subsample(subsample)
     return(object$dataset)
+  }
+
 
   # here we apply the normalization and can create the dataset directly.
   if (is.null(new_data)) {
@@ -315,7 +320,8 @@ transform.prepared_tft_dataset_spec <- function(`_data`, past_data = NULL, ...,
       object$config$input_types,
       lookback = object$config$lookback,
       assess_stop = object$config$horizon,
-      subsample = object$config$subsample
+      subsample = object$config$subsample,
+      step = object$config$step
     )
     return(dataset)
   }
@@ -408,7 +414,7 @@ time_series_dataset_generator <- torch::dataset(
 
     # Slices are lists with 2 elements: encoder and decoder that are both indexes
     # for rows of `df` to be used for a data frame.
-    self$slices <- slice_df(
+    self$full_slices <- slice_df(
       df,
       lookback = lookback,
       horizon = assess_stop,
@@ -416,11 +422,7 @@ time_series_dataset_generator <- torch::dataset(
       keys = rlang::syms(keys)
     )
 
-    if (subsample < 1) {
-      self$slices <- self$slices[sample.int(length(self$slices), size = subsample*length(self$slices))]
-    } else if (subsample > 1) {
-      self$slices <- self$slices[sample.int(length(self$slices), size = subsample)]
-    }
+    self$perform_subsample(subsample)
 
     # figure out variables of each type
     terms <- self$roles
@@ -499,6 +501,18 @@ time_series_dataset_generator <- torch::dataset(
     df %>%
       as.matrix() %>%
       torch::torch_tensor()
+  },
+  perform_subsample = function(subsample) {
+    if (subsample == 1) {
+      self$slices <- self$full_slices
+      return(invisible(NULL))
+    }
+
+    if (subsample < 1) {
+      self$slices <- self$full_slices[sample.int(length(self$full_slices), size = subsample*length(self$full_slices))]
+    } else if (subsample > 1) {
+      self$slices <- self$slices[sample.int(length(self$full_slices), size = subsample)]
+    }
   }
 )
 
