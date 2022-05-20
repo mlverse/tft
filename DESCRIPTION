@@ -27,33 +27,26 @@ Imports:
     purrr,
     rlang,
     tibble,
-    slider,
     hardhat,
-    coro,
-    glue,
-    progress,
     methods,
-    assertthat,
     generics,
     zeallot,
-    parsnip,
     luz,
     stats,
     utils,
-    dials
-Suggests:
+    ellipsis, 
+    R6,
     dplyr,
-    padr,
-    tidyr,
     lubridate,
-    fs,
-    readr,
     tsibble,
-    tsibbledata,
+    scales
+Suggests:
+    tidyr,
     testthat (>= 3.0.0),
     rmarkdown,
     walmartdata,
-    tidymodels
+    feasts,
+    ggplot2
 Remotes:
     dfalbel/walmartdata,
     mlverse/luz

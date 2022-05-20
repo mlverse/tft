@@ -14,11 +14,21 @@ knitr::opts_chunk$set(
 ```{r setup}
 suppressPackageStartupMessages(library(tidymodels))
 library(tft)
+set.seed(1)
+torch::torch_manual_seed(1)
 ```
 
-tft is an R implementation of Temporal Fusion Transformers (TFT) using the torch package. The Temporal Fusion Transformer is a neural network architecture proposed by Bryan Lim et al. with the goal of making interpretable multi-horizon time-series forecasts.
+tft is an R implementation of Temporal Fusion Transformers (TFT) using the torch package. The Temporal Fusion Transformer is a neural network architecture proposed by Bryan Lim et al. with the goal of making multi-horizon time series forecasts for
+multiple time series in a single model.
 
-The R package tft abstracts away the details of the architecture and
+The main difference between TFT and conventional forecasting methodologies is the
+way its architecture allows encoding different types of input data that can exist
+in forecasting problems. For instance, the model allows handling static covariates
+and time varying (known and unknown) differently.
+
+TFT announcement shows [promising benchmarks](https://ai.googleblog.com/2021/12/interpretable-deep-learning-for-time.html) in forecasting performance for a variety of datasets.
+
+The R package **tft** abstracts away the details of the architecture and
 provides an API that allows easy experimenting with the TFT architecture.
 
 In this article we will create forecasts for the `?walmart_sales_weekly` dataset included in the [walmartdata](https://github.com/dfalbel/walmartdata) package. This dataset has weekly sales of a sample of
@@ -31,13 +41,13 @@ dplyr::glimpse(walmart_sales)
 ```
 
 To make the example faster to run, we are going to create models for the first 2
-stores.
+stores and first 2 departments.
 
 ```{r}
 walmart_sales <- walmart_sales %>% 
-  filter(Store %in% c(1, 2), Dept %in% c(1,2))
+  filter(Store %in% c(1, 2), Dept %in% c(92, 95)) %>% 
+  mutate(Store = as.factor(Store), Dept = as.factor(Dept))
 ```
-
 
 ## Preparing the data
 
@@ -49,7 +59,7 @@ use whatever tool you prefer for the task.
 ```{r}
 sales <- walmart_sales %>%
     tsibble::tsibble(
-      key = c(Store, Dept, Type, Size),
+      key = c(Store, Dept),
       index = Date
     ) %>%
     tsibble::group_by_key() %>%
@@ -60,15 +70,57 @@ sales <- walmart_sales %>%
     tidyr::fill(Size, Temperature, Fuel_Price, CPI, Unemployment, .direction = "down")
 ```
 
-tft can treat columns in the dataset differently depending on their types. There
-are mainly 5 types of columns:
+```{r}
+feasts::autoplot(sales, Weekly_Sales)
+```
+
+
+We will also split the full dataset in 3 parts - training, validation and testing.
+We use the last 24 weeks of data for validation/testing - using 16 for validation
+and 8 of them for testing.
+
+```{r}
+last_date <- max(sales$Date)
+sales_train <- sales %>% filter(Date <= (last_date - lubridate::weeks(24)))
+sales_valid <- sales %>% filter(Date > (last_date - lubridate::weeks(24)),
+                                Date <= (last_date - lubridate::weeks(8)))
+sales_test <- sales %>% filter(Date > (last_date - lubridate::weeks(8)))
+```
+
+Now that the data is prepared we will create a preprocessing pipeline using the
+recipes package. This recipe will allow handling missing values and normalization
+of covariates - which is very important in neural network models. It also adds a
+few covariates that are recommended by the paper authors like `time_since_begining` 
+and categoricals for month and week in the year.
+
+```{r}
+rec <- recipe(Weekly_Sales ~ ., data = sales_train) %>% 
+  step_mutate(
+    time_since_begining = as.numeric(difftime(
+      time1 = Date, 
+      time2 = lubridate::ymd(min(sales$Date)), 
+      units = "weeks"
+    )),
+    date_week = as.factor(lubridate::week(Date)),
+    date_month = as.factor(lubridate::month(Date)),
+    IsHoliday = as.factor(IsHoliday)
+  ) %>% 
+  step_impute_median(starts_with("MarkDown")) %>% 
+  step_normalize(all_numeric_predictors())
+```
+
+## Specifying the covariates
+
+Like we said earlier, TFT allows encoding covariates differently in the architecture. There are 5 possible ways tft can treat columns in the dataset that
+we summarise below:
 
 - **'index'**: is a single date column that specifies at which point in time 
   the observation refers to. This is not directly used by the model itself, but is
   used internally to create rolling windows and order observations.
 - **'key'**: are groups of columns that identify a single time series. Keys
   are necessary if you are creating predictions for multiple time series in a 
-  single model. By default, 'keys' are considered 'static' predictors by the model.
+  single model. By default, 'keys' are also considered 'static' predictors by 
+  the model.
 - **'static'**: predictors are considered 'static' when they don't vary over time,
   they are information from the time-series, like a region or a kind of product.
 - **'unknown'** are predictors that vary over time but we only know values observed
@@ -78,129 +130,183 @@ are mainly 5 types of columns:
   For example, the day of the week can be used as a predictor for a daily time series,
   and it's known for every time step, no matter if it's from past or future.
 
-The `recipes` package is used to specify how the model should treat each column
-of the dataset.
+To specify the role of each covariate in the model we use the `tft_dataset_spec()`
+function. This interface has a similar intent as recipes (in tidymodels), 
+ie. it allows you to reproduce the same preprocessing to a different dataset later
+- which is useful when you want to create forecasts.
+
+Also part of the dataset specification is the history size the model will use to 
+make predictions and the size of the horizon (ie how many time-steps ahead) we want
+to generate predictions. Consider the following diagram to represent the time series 
+
+![Time series](img/time-series.png)
+
+tft feeds data to the model in slices that have a fixed history size, that we call
+`lookback` and a fixed number of timesteps ahead that we are calling `horizon`.
+Those are represented in the diagram below:
+
+![Slices](img/slices.png)
+
+Now lets create the tft dataset specification. We don't need to manually specfy the
+`unknown` covariates as, unmentioned variables are automatically treated as such.
 
 ```{r}
-rec <- recipe(Weekly_Sales ~ ., data = sales) %>% 
-  update_role(Date, new_role = "index") %>% 
-  update_role(Store, Dept, Type, Size, new_role = "key") %>% 
-  update_role(IsHoliday, new_role = "known") %>% 
-  step_date(Date, role = "known", features = c("year", "month", "doy")) %>% 
-  step_normalize(all_numeric_predictors()) %>% 
-  step_indicate_na(starts_with("MarkDown")) %>% 
-  step_impute_mean(starts_with("Markdown")) %>% 
-  step_include_roles()
+spec <- tft_dataset_spec(rec, sales_train) %>% 
+  spec_covariate_index(Date) %>% 
+  spec_covariate_keys(Store, Dept) %>%
+  spec_covariate_static(Type, Size) %>% 
+  spec_covariate_known(starts_with("MarkDown"), time_since_begining, 
+                       starts_with("date_"), IsHoliday)
 ```
 
-It's recommended to include features that represent seasonality as known predictors
-in the TFT model, like mon, day of the week and etc.
-It's also recommended to normalize the predictors and treat missing values as
-the model don't treat them implicitly. 
-
-You can bake `prep` and `juice` the recipe to see how the transformations are working:
+The print method for `spec` shows useful information about the specification:
 
 ```{r}
-rec %>% prep() %>% juice() %>% glimpse()
+spec
 ```
 
-## Metrics and validation
-
-Now we should think about the size of the horizon we want to create forecasts to.
-It could be a single week ahead or ten, and this will influence how we split our
-data for training, validation and testing. This is not really a data analysis
-decision but more of a business decision, ie: how many weeks ahead we want know
-so we can plan the demand and etc. Let's say we want 4 weeks ahead, ie ~1 month.
-
-The [rsample](https://github.com/tidymodels/rsample) package provides `sliding_*`
-functions that are very useful for the task of creating time splits.
+Here we see that we didn't specify the `lookback` and `horizon`, so let's add it
+to the spec. The `lookback` usually works like any other hyperparameter and we in
+general choose values between 10 and 200 depending on the time series period. 
+Horizon is chosen to statisfy business needs, ie. if you want to have predictions 
+for 4 weeks ahead, you should choose that.
 
 ```{r}
-resamples <- sliding_period(
-  arrange(sales, Date),
-  index = Date,
-  period = "week",
-  lookback = Inf,
-  assess_stop = 4,
-  step = 4,
-  skip = 104
-)
+spec <- spec %>% 
+  spec_time_splits(lookback = 52, horizon = 4)
 ```
 
-Now we can separate the splits in, training and testing, ie: a few of them will
-be used for cross-validation and choosing the hyperparamerters, the others are 
-used for testing the model. We are going to use the last 4 splits for testing and 
-the first 5 to cross validate.
+We now execute `prep` to prepare the `spec`:
 
 ```{r}
-train_splits <- resamples %>% 
-  slice(1:5) %>% 
-  structure(class = "rset")
-test_splits <- resamples %>% 
-  slice(-c(1:5)) %>% 
-  structure(class = "rset")
+spec <- prep(spec)
+spec
 ```
 
-**Note**: we have selected 4 weeks as the horizon of our predictions. We need to
-use this same value when specifying the horizon for the tft model.
+The print method now shows the name of all variables that will be used in the model
+and their role. Also shows information about the number of slices that will be used.
 
 ## Fitting the model
 
-We can now tune the tft model and compute metrics using:
+We will now fit our model. To that we first initialize the a model with:
 
-```{r, eval = TRUE}
-tft_model <- temporal_fusion_transformer(
-  horizon = 4, 
-  lookback = 100, 
-  hidden_state_size = tune()
-) %>% 
-  set_engine("torch", verbose = FALSE) %>% 
-  set_mode("regression")
+```{r}
+model <- temporal_fusion_transformer(spec, hidden_state_size = 128)
+model
+```
 
+`model` is a luz module, thus you can use luz workflows to train the model.
+For an example, you can use the `lr_finder` function to find the best learning
+rate for your model.
 
-model <- workflow() %>% 
-  add_recipe(rec) %>% 
-  add_model(tft_model)
-
-grid <- tibble::tibble(
-  hidden_state_size = c(4, 16, 32)
+```{r}
+result <- luz::lr_finder(
+  model, 
+  transform(spec, sales_train), 
+  end_lr = 1,
+  dataloader_options = list(
+    batch_size = 64
+  ),
+  verbose = FALSE
 )
+plot(result) + ggplot2::coord_cartesian(ylim = c(0.15, 0.5))
+```
 
-results <- tune_grid(
-  model,
-  resamples = train_splits,
-  grid = grid,
-  control = control_grid(verbose = TRUE)
+This allows us to choose a learning rate. We will start with 1e-3.
+Let's redefine the model now fixing the learning rate:
+
+```{r}
+model <- temporal_fusion_transformer(spec, hidden_state_size = 128,
+                                     learn_rate = 1e-3)
+```
+
+We can then fit the model using `fit`. Since `model` is a luz module we
+are mainly calling `?fit.luz_module_generator` here, so all arguments 
+apply.
+
+```{r}
+fitted <- model %>% 
+  fit(
+    transform(spec, sales_train),
+    valid_data = transform(spec, new_data = sales_valid),
+    epochs = 100,
+    callbacks = list(
+      luz::luz_callback_keep_best_model(monitor = "valid_loss"),
+      luz::luz_callback_early_stopping(
+        monitor = "valid_loss", 
+        patience = 10, 
+        min_delta = 0.001
+      )
+    ),
+    verbose = FALSE
+  )
+plot(fitted)
+```
+
+Once we are happy with the results of our model we can make predictions. 
+The model we have trained can make predictions for 4 weeks ahead, but our test set has 8 weeks ahead. In order to validate the model, we are going to create 2 test sets and then combine the metrics. This is what the 
+`rolling_predict` function does, so we don't need to manually implement this:
+
+```{r}
+preds <- rolling_predict(
+  fitted, 
+  past_data = dplyr::bind_rows(sales_train, sales_valid),
+  new_data = sales_test
 )
-
-autoplot(results)
+preds
 ```
 
-Once you are happy with the tuning you can finalize the workflow and
-obtain the metrics for the test splits.
+The return value of `rolling_predict` is a tibble containing the `past_data`,
+`new_data` and `.pred` (predictions) for each slice that was made in the 
+test data. 
 
-```{r, eval = TRUE}
-final_params <- select_best(results, metric = "rmse")
-model <- finalize_workflow(model, final_params)
-results <- fit_resamples(model, test_splits)
-collect_metrics(results)
+We can make a plot of predictions along with the historical data
+used for creating the predictions and the observed values.
+
+```{r}
+preds %>% 
+  rowwise() %>% 
+  summarise(
+    past_data %>% 
+      bind_rows(bind_cols(new_data, .pred)) %>% 
+      mutate(.pred_at = max(past_data$Date))
+  ) %>% 
+  ggplot(aes(x = Date)) +
+  geom_point(aes(y = Weekly_Sales)) +
+  geom_line(aes(y = Weekly_Sales)) +
+  geom_point(aes(y = .pred), color = "red") +
+  geom_line(aes(y = .pred), color = "red") +
+  facet_grid(Store + Dept ~ .pred_at, scales = "free")
 ```
 
-To obtain predictions for future observations, first we need to load a 
-data.frame that includes known predictors like the `IsHoliday` variable
-for all time steps in the future data frame. Then we can call `forecast`
-or `predict` to obtain the predictions for the future data.
+To create predictions for future data, that we don't yet have the target, we can
+use `predict`. For example:
 
-Note that `forecast` or `predict` currently can only predict for 
-`horizon` time steps ahead. And don't provide a away for doing 
-rolling forecasts.
+```{r}
+future_data <- walmartdata::walmart_sales_test %>% 
+  filter(Store %in% c(1, 2), Dept %in% c(92, 95)) %>% 
+  mutate(Store = as.factor(Store), Dept = as.factor(Dept)) %>% 
+  filter(Date <= (max(sales$Date) + lubridate::weeks(4)))
 
-```{r, eval = TRUE}
-new_data <- walmartdata::walmart_sales_test %>% 
-  filter(Store %in% c(1, 2), Dept %in% c(1,2)) %>% 
-  filter(Date <= lubridate::ymd("2012-11-23"))
-
-final_model <- fit(model, sales)
-final_predictions <- predict(final_model, new_data = new_data)
-final_predictions
+pred <- predict(
+  fitted,
+  new_data = future_data,
+  past_data = sales
+)
 ```
+
+We can then show the predictions in a plot:
+
+```{r}
+sales %>% 
+  filter(Date >= lubridate::ymd("2012-01-01")) %>% 
+  bind_rows(bind_cols(future_data, pred)) %>% 
+  ggplot(aes(x = Date)) +
+  geom_point(aes(y = Weekly_Sales)) +
+  geom_line(aes(y = Weekly_Sales)) +
+  geom_point(aes(y = .pred), color = "red") +
+  geom_line(aes(y = .pred), color = "red") +
+  facet_grid(Store ~ Dept, scales = "free")
+```
+
+

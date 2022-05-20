@@ -1,58 +1,28 @@
-test_that("simple test for time series dataset", {
+test_that("can create a spec", {
 
-  sales <- walmartdata::walmart_sales %>%
-    dplyr::mutate(
-      Store = as.character(Store),
-      Dept = as.character(Dept),
-      Type = as.character(Type)
-    ) %>%
-    dplyr::filter(Store %in% c(1, 2), Dept %in% c(1,2)) %>%
-    tsibble::tsibble(
-      key = c(Store, Dept, Type, Size),
-      index = Date
-    ) %>%
-    tsibble::group_by_key() %>%
-    tsibble::fill_gaps(
-      Weekly_Sales = 0,
-      IsHoliday = FALSE
-    ) %>%
-    tidyr::fill(Size, Temperature, Fuel_Price, CPI, Unemployment, .direction = "down") %>%
-    dplyr::select(-starts_with("MarkDown"), -IsHoliday)
+  init <- max(walmart_data()$Date) -lubridate::weeks(8)
+  train <- walmart_data() %>%
+    dplyr::filter(Date <= init)
+  test <- walmart_data() %>%
+    dplyr::filter(Date > init) %>%
+    dplyr::filter(Store == 1, Dept == 1)
 
-  recipe <- recipes::recipe(Weekly_Sales ~ ., data = sales) %>%
-    recipes::update_role(Store, Dept, Type, Size, new_role = "key") %>%
-    recipes::update_role(Date, new_role = "index") %>%
-    step_include_roles() %>%
-    recipes::prep()
+  spec <- tft_dataset_spec(walmart_recipe(), train)
 
-  dataset <- time_series_dataset(recipes::juice(recipe), recipe$term_info,
-                                 lookback = 6, assess_stop = 4)
+  expect_snapshot(print(spec))
 
-  counts <- sales %>%
-    tibble::as_tibble() %>%
-    dplyr::ungroup() %>%
-    dplyr::group_by(Store, Dept, Type, Size) %>%
-    dplyr::count() %>%
-    dplyr::mutate(
-      n = n - (6 + 4 - 1),
-      n = ifelse(n > 0, n, 0)
-    )
+  spec <- tft_dataset_spec(walmart_recipe(), train) %>%
+    spec_time_splits(lookback = 52, horizon = 4) %>%
+    spec_covariate_index(Date) %>%
+    spec_covariate_keys(Store, Dept) %>%
+    spec_covariate_static(Type, Size) %>%
+    spec_covariate_known(starts_with("MarkDown"), starts_with("Date_"),
+                         starts_with("na_ind"))
 
-  expect_equal(length(dataset), sum(counts$n))
-  expect_error(obs <- dataset[1], regex = NA)
+  expect_snapshot_output(print(spec))
 
-})
+  spec <- prep(spec)
 
-test_that("Good error message when no group has enough lookback", {
-
-  recipe <- walmart_recipe() %>%
-    recipes::prep()
-
-  expect_error(regexp = "No group", {
-    dataset <- time_series_dataset(recipes::juice(recipe),
-                                   recipe$term_info,
-                                   lookback = 500, assess_stop = 4)
-  })
-
+  expect_snapshot_output(print(spec))
 })
 
