@@ -374,6 +374,7 @@ make_prediction_dataset <- function(new_data, past_data, config) {
     input_types,
     lookback = config$lookback,
     assess_stop = config$horizon,
-    step = 1L
+    step = 1L,
+    subsample = config$subsample
   )
 }

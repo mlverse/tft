@@ -293,8 +293,10 @@ ts_dataset_bridge <- function(processed, config) {
 
 #' @export
 transform.prepared_tft_dataset_spec <- function(`_data`, past_data = NULL, ...,
-                                                new_data = NULL, .verify = FALSE) {
+                                                new_data = NULL, subsample = 1,
+                                                .verify = FALSE) {
   object <- `_data`
+  object$config$subsample <- subsample
 
   if (is.null(past_data) && is.null(new_data))
     return(object$dataset)
