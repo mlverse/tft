@@ -189,6 +189,7 @@ new_tft_dataset_spec <- function(inputs) {
 #'  prediction.
 #' @param horizon Number of timesteps ahead that will be predicted by the
 #'  model.
+#' @param step Number of steps between slices.
 #'
 #' @describeIn tft_dataset_spec Sets `lookback` and `horizon` parameters.
 #'

@@ -39,6 +39,8 @@ prediction.}
 \item{horizon}{Number of timesteps ahead that will be predicted by the
 model.}
 
+\item{step}{Number of steps between slices.}
+
 \item{index}{A column name that indexes the data. Usually a date column.}
 }
 \value{
