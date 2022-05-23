@@ -63,7 +63,7 @@ to be passed as its first argument.</p>
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="fu">tft_dataset_spec</span><span class="op">(</span><span class="va">x</span>, <span class="va">...</span><span class="op">)</span>
 
-<span class="fu">spec_time_splits</span><span class="op">(</span><span class="va">spec</span>, <span class="va">lookback</span>, <span class="va">horizon</span><span class="op">)</span>
+<span class="fu">spec_time_splits</span><span class="op">(</span><span class="va">spec</span>, <span class="va">lookback</span>, <span class="va">horizon</span>, step <span class="op">=</span> <span class="fl">1L</span><span class="op">)</span>
 
 <span class="fu">spec_covariate_index</span><span class="op">(</span><span class="va">spec</span>, <span class="va">index</span><span class="op">)</span>
 
@@ -92,6 +92,8 @@ prediction.</p></dd>
 <dt>horizon</dt>
 <dd><p>Number of timesteps ahead that will be predicted by the
 model.</p></dd>
+<dt>step</dt>
+<dd><p>Number of steps between slices.</p></dd>
 <dt>index</dt>
 <dd><p>A column name that indexes the data. Usually a date column.</p></dd>
 </dl></div>
