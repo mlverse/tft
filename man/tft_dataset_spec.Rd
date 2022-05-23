@@ -12,7 +12,7 @@
 \usage{
 tft_dataset_spec(x, ...)
 
-spec_time_splits(spec, lookback, horizon)
+spec_time_splits(spec, lookback, horizon, step = 1L)
 
 spec_covariate_index(spec, index)
 
@@ -38,6 +38,8 @@ prediction.}
 
 \item{horizon}{Number of timesteps ahead that will be predicted by the
 model.}
+
+\item{step}{Number of steps between slices.}
 
 \item{index}{A column name that indexes the data. Usually a date column.}
 }
