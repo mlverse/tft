@@ -2,9 +2,12 @@
 % Please edit documentation in R/predict.R
 \name{rolling_predict}
 \alias{rolling_predict}
+\alias{rolling_slice}
 \title{Defines rolling slices}
 \usage{
 rolling_predict(object, past_data, new_data, step = NULL)
+
+rolling_slice(object, past_data, new_data, step = NULL)
 }
 \arguments{
 \item{object}{a model object for which prediction is desired.}
@@ -24,9 +27,15 @@ that way we have one prediction per slice.}
 \description{
 Sometimes your validation or testing data has more values than the \code{horizon}
 of your model but you still want to create predictions for each time step on
-them.
+them. \code{rolling_slice} only generates the slices and can be useful for debuging
+purposes.
 }
 \details{
 This function will combine your \code{past_data} (that can also include your training data)
 and create slices so you create predictions for each value in \code{new_data}.
 }
+\section{Functions}{
+\itemize{
+\item \code{rolling_slice}: Generate slices for predictions without adding the predictions.
+}}
+

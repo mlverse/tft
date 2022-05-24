@@ -118,7 +118,7 @@ test_that("rolling predict works", {
 
   spec <- walmart_spec(data = train)
 
-  train_ds <- transform(spec)
+  train_ds <- transform(spec, subsample = 0.1)
   valid_ds <- transform(spec, new_data = test)
 
   module <- temporal_fusion_transformer(spec)

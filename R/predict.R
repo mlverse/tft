@@ -238,7 +238,8 @@ future_data <- function(past_data, horizon, input_types = NULL) {
 #'
 #' Sometimes your validation or testing data has more values than the `horizon`
 #' of your model but you still want to create predictions for each time step on
-#' them.
+#' them. `rolling_slice` only generates the slices and can be useful for debuging
+#' purposes.
 #'
 #' This function will combine your `past_data` (that can also include your training data)
 #' and create slices so you create predictions for each value in `new_data`.
@@ -249,16 +250,35 @@ future_data <- function(past_data, horizon, input_types = NULL) {
 #'
 #' @export
 rolling_predict <- function(object, past_data, new_data, step = NULL) {
+  slices <- rolling_slice(object, past_data, new_data, step)
+  slices %>%
+    dplyr::mutate(
+      .pred = purrr::map2(
+        past_data, new_data,
+        ~predict(object, past_data = .x, new_data = .y)
+      )
+    )
+}
 
-  if (!inherits(object, "tft_result")) {
+#' @describeIn rolling_predict Generate slices for predictions without adding the predictions.
+#' @export
+rolling_slice <- function(object, past_data, new_data, step = NULL) {
+
+  if (inherits(object, "tft_result")) {
+    spec <- object$spec
+  } else {
+    spec <- object
+  }
+
+  if (!inherits(spec, "prepared_tft_dataset_spec")) {
     cli::cli_abort(c(
-      "{.var object} must be a {.cls tft_result}.",
+      "{.var object} must be a {.cls tft_result} ot {.cls prepared_tft_dataset_spec}.",
       x = "Got an object with class {.cls {class(object)}}"
     ))
   }
 
   if (is.null(step)) {
-    step <- object$spec$config$horizon
+    step <- spec$config$horizon
   }
 
   # make sure past_data only includes groups that exist in `new_data`
@@ -266,42 +286,40 @@ rolling_predict <- function(object, past_data, new_data, step = NULL) {
     tibble::as_tibble() %>%
     dplyr::semi_join(
       tibble::as_tibble(new_data),
-      by = get_variables_with_role(object$spec$config$input_types, "keys")
+      by = get_variables_with_role(spec$config$input_types, "keys")
     )
 
   past_data <- get_last_lookback_interval(
     tibble::as_tibble(past_data),
-    lookback = object$spec$config$lookback,
-    input_types = object$spec$config$input_types
+    lookback = spec$config$lookback,
+    input_types = spec$config$input_types
   )
 
   data <- dplyr::bind_rows(past_data, tibble::as_tibble(new_data))
-  index_col <- get_variables_with_role(object$spec$config$input_types, "index")
+  index_col <- get_variables_with_role(spec$config$input_types, "index")
 
   slices <- rolling_slices(
     data[[index_col]],
-    lookback = object$spec$config$lookback,
-    horizon = object$spec$config$horizon,
+    lookback = spec$config$lookback,
+    horizon = spec$config$horizon,
     step = step,
     start_date = min(new_data[[index_col]]),
-    period = get_period(past_data, input_types = object$spec$config$input_types)
+    period = get_period(past_data, input_types = spec$config$input_types)
   )
 
-  predictions <- list()
+  out <- list()
   for (s in slices) {
     p_data <- data[s$encoder,]
     n_data <- data[s$decoder,]
 
     nm <- as.character(max(p_data[[index_col]]))
-    pred <- predict(object, new_data = n_data, past_data = p_data)
-
-    predictions[[nm]] <- tibble::tibble(
+    out[[nm]] <- tibble::tibble(
       past_data = list(p_data),
-      new_data = list(n_data),
-      .pred = list(pred)
+      new_data = list(n_data)
     )
   }
-  dplyr::bind_rows(predictions)
+
+  dplyr::bind_rows(out)
 }
 
 get_last_lookback_interval <- function(past_data, lookback, input_types) {
@@ -315,6 +333,7 @@ get_last_lookback_interval <- function(past_data, lookback, input_types) {
   past_data <- past_data %>%
     dplyr::filter(.data[[index_col]] > last_index)
 }
+
 
 rolling_slices <- function(index, lookback, horizon, step, start_date,
                            period) {
