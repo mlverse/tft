@@ -31,81 +31,92 @@ TFT announcement shows [promising benchmarks](https://ai.googleblog.com/2021/12/
 The R package **tft** abstracts away the details of the architecture and
 provides an API that allows easy experimenting with the TFT architecture.
 
-In this article we will create forecasts for the `?walmart_sales_weekly` dataset included in the [walmartdata](https://github.com/dfalbel/walmartdata) package. This dataset has weekly sales of a sample of
-weekly sales by department of 45 retail stores. It also includes a few external predictors like the temperature,
-fuel price and the size of the store.
+In this article we will create forecasts for the ['mananciais' dataset](https://github.com/beatrizmilz/mananciais). This dataset includes daily level information for a set of 7 water reservoirs that supply
+the São Paulo metropolitan region in Brazil.
 
 ```{r}
-data(walmart_sales, package = "walmartdata")
-dplyr::glimpse(walmart_sales)
-```
+mananciais <- readr::read_csv2("https://github.com/beatrizmilz/mananciais/raw/a2d1d8b04cbd3a3a71836a4849d90a5e024e5180/inst/extdata/mananciais.csv")
 
-To make the example faster to run, we are going to create models for the first 2
-stores and first 2 departments.
-
-```{r}
-walmart_sales <- walmart_sales %>% 
-  filter(Store %in% c(1, 2), Dept %in% c(92, 95)) %>% 
-  mutate(Store = as.factor(Store), Dept = as.factor(Dept))
+# translate column names
+reservoirs <- mananciais %>% 
+  select(
+    date = data,
+    system = sistema,
+    volume_percentage = volume_porcentagem,   # volume in % of total capacity
+    volume_variation = volume_variacao,       # % variation from the day before
+    volume_operational = volume_operacional,  # operational volume in hm3
+    pluviometric_daily = pluviometria_dia,    # pluviometrics daily in mm
+    pluviometric_month = pluviometria_mensal, # accumulated pluviometrics monthly
+    pluviometric_hist = pluviometria_hist     # mean historical pluviometrics
+  )
+dplyr::glimpse(reservoirs)
 ```
 
 ## Preparing the data
 
-The first thing we need to make sure is that our dataset doesn't have [implicit missing observations](https://r4ds.hadley.nz/missing-values.html#missing-values). This happens when an observations is just not present in
-the data instead of being explicitly marked with a `NA`. We are going to use
-`tsibble` functionality to add the implicitly missing observations, but you could
-use whatever tool you prefer for the task.
+We first display the data for the 7 reservoirs:
 
 ```{r}
-sales <- walmart_sales %>%
-    tsibble::tsibble(
-      key = c(Store, Dept),
-      index = Date
-    ) %>%
-    tsibble::group_by_key() %>%
-    tsibble::fill_gaps(
-      Weekly_Sales = 0,
-      IsHoliday = FALSE
-    ) %>%
-    tidyr::fill(Size, Temperature, Fuel_Price, CPI, Unemployment, .direction = "down")
+reservoirs %>% 
+  ggplot(aes(x = date, y = volume_percentage, color = system)) +
+  geom_line()
 ```
 
+To reduce computation time and make the model more useful, we are going to aggregate
+the data into weekly intervals. This will leave us with a much smaller dataset, which
+should make the model much faster to train. It also allows us to choose a larger
+horizon.
+
 ```{r}
-feasts::autoplot(sales, Weekly_Sales)
+reservoirs <- reservoirs %>% 
+  mutate(date = lubridate::floor_date(date, unit = "week")) %>% 
+  group_by(date, system) %>% 
+  summarise(across(everything(), .fns = ~mean(.x, na.rm = TRUE)), .groups = "drop")
 ```
 
-
-We will also split the full dataset in 3 parts - training, validation and testing.
-We use the last 24 weeks of data for validation/testing - using 16 for validation
-and 8 of them for testing.
+We used the mean o aggregate all variables even though the `volume_variation` is
+now much harder to interpret. The new dataset looks like:
 
 ```{r}
-last_date <- max(sales$Date)
-sales_train <- sales %>% filter(Date <= (last_date - lubridate::weeks(24)))
-sales_valid <- sales %>% filter(Date > (last_date - lubridate::weeks(24)),
-                                Date <= (last_date - lubridate::weeks(8)))
-sales_test <- sales %>% filter(Date > (last_date - lubridate::weeks(8)))
+reservoirs %>% 
+  ggplot(aes(x = date, y = volume_percentage, color = system)) +
+  geom_line()
+```
+
+The level can go below the 0%, this means that water from a so called ['technical water reserve'](https://pt.wikipedia.org/wiki/Volume_morto), ie water from below the level of the usual water pipes has been used. This happened
+during the [severe drought](https://en.wikipedia.org/wiki/2014%E2%80%932017_Brazilian_drought) the hit the region between 2014 and 2017.
+
+Our goal is to predict the reservoir level for the 3 months (12 weeks to be more precise). We will split
+the dataset in 3 parts. The last 3 months for testing, the previous 3 for validation
+and the rest for training the model.
+
+
+```{r}
+last_date <- max(reservoirs$date)
+train <- reservoirs %>% filter(date <= (last_date - lubridate::weeks(48)))
+valid <- reservoirs %>% filter(date > (last_date - lubridate::weeks(48)),
+                                date <= (last_date - lubridate::weeks(12)))
+test <- reservoirs %>% filter(date > (last_date - lubridate::weeks(12)))
 ```
 
 Now that the data is prepared we will create a preprocessing pipeline using the
-recipes package. This recipe will allow handling missing values and normalization
-of covariates - which is very important in neural network models. It also adds a
-few covariates that are recommended by the paper authors like `time_since_begining` 
-and categoricals for month and week in the year.
+recipes package. This recipe will allow handling normalization of covariates - 
+which is very important in neural network models. It also adds a few covariates that are recommended by the paper authors like `time_since_begining`and categoricals for 
+month and week in the year.
 
 ```{r}
-rec <- recipe(Weekly_Sales ~ ., data = sales_train) %>% 
+rec <- recipe(volume_percentage ~ ., data = train) %>% 
   step_mutate(
     time_since_begining = as.numeric(difftime(
-      time1 = Date, 
-      time2 = lubridate::ymd(min(sales$Date)), 
+      time1 = date, 
+      time2 = lubridate::ymd(min(reservoirs$date)), 
       units = "weeks"
     )),
-    date_week = as.factor(lubridate::week(Date)),
-    date_month = as.factor(lubridate::month(Date)),
-    IsHoliday = as.factor(IsHoliday)
+    date_week = as.factor(lubridate::week(date)),
+    date_month = as.factor(lubridate::month(date)),
+    date_wday = as.factor(lubridate::wday(date))
   ) %>% 
-  step_impute_median(starts_with("MarkDown")) %>% 
+  step_impute_mean(pluviometric_hist) %>% 
   step_normalize(all_numeric_predictors())
 ```
 
@@ -151,12 +162,10 @@ Now lets create the tft dataset specification. We don't need to manually specfy 
 `unknown` covariates as, unmentioned variables are automatically treated as such.
 
 ```{r}
-spec <- tft_dataset_spec(rec, sales_train) %>% 
-  spec_covariate_index(Date) %>% 
-  spec_covariate_keys(Store, Dept) %>%
-  spec_covariate_static(Type, Size) %>% 
-  spec_covariate_known(starts_with("MarkDown"), time_since_begining, 
-                       starts_with("date_"), IsHoliday)
+spec <- tft_dataset_spec(rec, train) %>% 
+  spec_covariate_index(date) %>% 
+  spec_covariate_keys(system) %>%
+  spec_covariate_known(time_since_begining, starts_with("date_"))
 ```
 
 The print method for `spec` shows useful information about the specification:
@@ -167,13 +176,13 @@ spec
 
 Here we see that we didn't specify the `lookback` and `horizon`, so let's add it
 to the spec. The `lookback` usually works like any other hyperparameter and we in
-general choose values between 10 and 200 depending on the time series period. 
+general choose values between 10 and 1000 depending on the time series period. 
 Horizon is chosen to statisfy business needs, ie. if you want to have predictions 
-for 4 weeks ahead, you should choose that.
+for 30 days ahead, you should choose that.
 
 ```{r}
 spec <- spec %>% 
-  spec_time_splits(lookback = 52, horizon = 4)
+  spec_time_splits(lookback = 5*12, horizon = 12)
 ```
 
 We now execute `prep` to prepare the `spec`:
@@ -191,7 +200,14 @@ and their role. Also shows information about the number of slices that will be u
 We will now fit our model. To that we first initialize the a model with:
 
 ```{r}
-model <- temporal_fusion_transformer(spec, hidden_state_size = 128)
+model <- temporal_fusion_transformer(
+  spec, 
+  hidden_state_size = 50,
+  learn_rate = 1e-3, 
+  dropout = 0.5, 
+  num_attention_heads = 1, 
+  num_lstm_layers = 1
+)
 model
 ```
 
@@ -202,12 +218,12 @@ rate for your model.
 ```{r}
 result <- luz::lr_finder(
   model, 
-  transform(spec, sales_train), 
+  transform(spec, train), 
   end_lr = 1,
   dataloader_options = list(
     batch_size = 64
   ),
-  verbose = FALSE
+  verbose = TRUE
 )
 plot(result) + ggplot2::coord_cartesian(ylim = c(0.15, 0.5))
 ```
@@ -216,8 +232,14 @@ This allows us to choose a learning rate. We will start with 1e-3.
 Let's redefine the model now fixing the learning rate:
 
 ```{r}
-model <- temporal_fusion_transformer(spec, hidden_state_size = 128,
-                                     learn_rate = 1e-3)
+model <- temporal_fusion_transformer(
+  spec, 
+  hidden_state_size = 50,
+  learn_rate = 1e-3, 
+  dropout = 0.5, 
+  num_attention_heads = 1, 
+  num_lstm_layers = 1
+)
 ```
 
 We can then fit the model using `fit`. Since `model` is a luz module we
@@ -227,86 +249,59 @@ apply.
 ```{r}
 fitted <- model %>% 
   fit(
-    transform(spec, sales_train),
-    valid_data = transform(spec, new_data = sales_valid),
+    transform(spec),
+    valid_data = transform(spec, new_data = valid),
     epochs = 100,
     callbacks = list(
       luz::luz_callback_keep_best_model(monitor = "valid_loss"),
       luz::luz_callback_early_stopping(
         monitor = "valid_loss", 
-        patience = 10, 
+        patience = 5, 
         min_delta = 0.001
       )
     ),
-    verbose = FALSE
+    verbose = FALSE,
+    dataloader_options = list(batch_size = 64, num_workers = 4)
   )
 plot(fitted)
 ```
 
-Once we are happy with the results of our model we can make predictions. 
-The model we have trained can make predictions for 4 weeks ahead, but our test set has 8 weeks ahead. In order to validate the model, we are going to create 2 test sets and then combine the metrics. This is what the 
-`rolling_predict` function does, so we don't need to manually implement this:
+We can evaluate the model in the test set using the `luz::evaluate` function:
 
 ```{r}
-preds <- rolling_predict(
-  fitted, 
-  past_data = dplyr::bind_rows(sales_train, sales_valid),
-  new_data = sales_test
-)
-preds
+fitted %>% 
+  luz::evaluate(
+    transform(spec, new_data = test, past_data = bind_rows(train, valid))
+  )
 ```
 
-The return value of `rolling_predict` is a tibble containing the `past_data`,
-`new_data` and `.pred` (predictions) for each slice that was made in the 
-test data. 
+Once we are happy with the results of our model we can make forecasts using the
+`forecast` function. The model we have trained can make predictions for at most 12 
+weeks ahead.
 
-We can make a plot of predictions along with the historical data
-used for creating the predictions and the observed values.
+By default `forecast` generates predictions for the period right after the data
+the model has been trained. You can pass the `past_data` argument to make predictions
+for a more recent period.
 
 ```{r}
-preds %>% 
-  rowwise() %>% 
-  summarise(
-    past_data %>% 
-      bind_rows(bind_cols(new_data, .pred)) %>% 
-      mutate(.pred_at = max(past_data$Date))
-  ) %>% 
-  ggplot(aes(x = Date)) +
-  geom_point(aes(y = Weekly_Sales)) +
-  geom_line(aes(y = Weekly_Sales)) +
-  geom_point(aes(y = .pred), color = "red") +
-  geom_line(aes(y = .pred), color = "red") +
-  facet_grid(Store + Dept ~ .pred_at, scales = "free")
+forecasts <- generics::forecast(fitted, past_data = reservoirs)
+glimpse(forecasts)
 ```
 
-To create predictions for future data, that we don't yet have the target, we can
-use `predict`. For example:
-
-```{r}
-future_data <- walmartdata::walmart_sales_test %>% 
-  filter(Store %in% c(1, 2), Dept %in% c(92, 95)) %>% 
-  mutate(Store = as.factor(Store), Dept = as.factor(Dept)) %>% 
-  filter(Date <= (max(sales$Date) + lubridate::weeks(4)))
-
-pred <- predict(
-  fitted,
-  new_data = future_data,
-  past_data = sales
-)
-```
+The return value of `forecast` is a tibble containing predictions for each time
+serie in the 12 weeks ahead. 
 
 We can then show the predictions in a plot:
 
-```{r}
-sales %>% 
-  filter(Date >= lubridate::ymd("2012-01-01")) %>% 
-  bind_rows(bind_cols(future_data, pred)) %>% 
-  ggplot(aes(x = Date)) +
-  geom_point(aes(y = Weekly_Sales)) +
-  geom_line(aes(y = Weekly_Sales)) +
-  geom_point(aes(y = .pred), color = "red") +
-  geom_line(aes(y = .pred), color = "red") +
-  facet_grid(Store ~ Dept, scales = "free")
+```{r, warning=FALSE, message=FALSE}
+reservoirs %>% 
+  filter(date > lubridate::ymd("2019-01-01")) %>% 
+  full_join(forecasts) %>% 
+  ggplot(aes(x = date, y = volume_percentage)) +
+  geom_line() +
+  geom_line(aes(y = .pred), color = "blue") +
+  geom_ribbon(aes(ymin = .pred_lower, ymax = .pred_upper), alpha = 0.3) +
+  facet_wrap(~system)
 ```
 
 
