@@ -44,11 +44,10 @@ Suggests:
     tidyr,
     testthat (>= 3.0.0),
     rmarkdown,
-    walmartdata,
     feasts,
-    ggplot2
+    ggplot2,
+    timetk
 Remotes:
-    dfalbel/walmartdata,
     mlverse/luz
 Config/testthat/edition: 3
 URL: https://mlverse.github.io/tft/

@@ -70,7 +70,8 @@ to be passed as its first argument.
 
 \examples{
 if (torch::torch_is_installed()) {
-sales <- walmartdata::walmart_sales \%>\%
+sales <- timetk::walmart_sales_weekly \%>\%
+  dplyr::select(-id) \%>\%
   dplyr::filter(Store == 1, Dept \%in\% c(1,2))
 
 rec <- recipes::recipe(Weekly_Sales ~ ., sales)

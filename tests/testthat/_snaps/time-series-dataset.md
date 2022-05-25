@@ -43,7 +43,7 @@
     v `keys`: Store and Dept
     v `static`: Type and Size
     v `known`: MarkDown1, MarkDown2, MarkDown3, MarkDown4, MarkDown5, na_ind_MarkDown1, na_ind_MarkDown2, na_ind_MarkDown3, na_ind_MarkDown4, and na_ind_MarkDown5
-    v `unknown`: Temperature, Fuel_Price, CPI, Unemployment, IsHoliday, and intercept
+    v `unknown`: IsHoliday, Temperature, Fuel_Price, CPI, Unemployment, and intercept
     i Variables that are not specified in other types are considered `unknown`.
     
     i Call `transform()` to apply this spec to a different dataset.

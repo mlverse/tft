@@ -1,6 +1,7 @@
 
 walmart_data <- function() {
-  df <- walmartdata::walmart_sales %>%
+  df <- timetk::walmart_sales_weekly %>%
+    dplyr::select(-id) %>%
     dplyr::mutate(
       Store = as.character(Store),
       Dept = as.character(Dept)
@@ -16,6 +17,11 @@ walmart_data <- function() {
       IsHoliday = FALSE
     ) %>%
     tidyr::fill(Size, Temperature, Fuel_Price, CPI, Unemployment, .direction = "down")
+
+  df <- dplyr::bind_rows(df, df %>% dplyr::mutate(Store = "2"))
+  df <- dplyr::bind_rows(df, df %>% dplyr::mutate(Dept = "2"))
+  df$Size <- df$Size + as.numeric(df$Store)
+
   df
 }
 
