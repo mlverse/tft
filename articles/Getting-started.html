@@ -194,7 +194,7 @@
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="va">spec</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/tft_dataset_spec.html">tft_dataset_spec</a></span><span class="op">(</span><span class="va">rec</span>, <span class="va">train</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
   <span class="fu"><a href="../reference/tft_dataset_spec.html">spec_covariate_index</a></span><span class="op">(</span><span class="va">date</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
-  <span class="fu"><a href="../reference/tft_dataset_spec.html">spec_covariate_keys</a></span><span class="op">(</span><span class="va">system</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span>
+  <span class="fu"><a href="../reference/tft_dataset_spec.html">spec_covariate_key</a></span><span class="op">(</span><span class="va">system</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span>
   <span class="fu"><a href="../reference/tft_dataset_spec.html">spec_covariate_known</a></span><span class="op">(</span><span class="va">time_since_begining</span>, <span class="fu"><a href="https://tidyselect.r-lib.org/reference/starts_with.html" class="external-link">starts_with</a></span><span class="op">(</span><span class="st">"date_"</span><span class="op">)</span><span class="op">)</span></code></pre></div>
 <p>The print method for <code>spec</code> shows useful information about the specification:</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
@@ -242,7 +242,7 @@
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/temporal_fusion_transformer.html">temporal_fusion_transformer</a></span><span class="op">(</span>
   <span class="va">spec</span>, 
-  hidden_state_size <span class="op">=</span> <span class="fl">50</span>,
+  hidden_state_size <span class="op">=</span> <span class="fl">8</span>,
   learn_rate <span class="op">=</span> <span class="fl">1e-3</span>, 
   dropout <span class="op">=</span> <span class="fl">0.5</span>, 
   num_attention_heads <span class="op">=</span> <span class="fl">1</span>, 
@@ -267,7 +267,7 @@
 <div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/temporal_fusion_transformer.html">temporal_fusion_transformer</a></span><span class="op">(</span>
   <span class="va">spec</span>, 
-  hidden_state_size <span class="op">=</span> <span class="fl">50</span>,
+  hidden_state_size <span class="op">=</span> <span class="fl">8</span>,
   learn_rate <span class="op">=</span> <span class="fl">1e-3</span>, 
   dropout <span class="op">=</span> <span class="fl">0.5</span>, 
   num_attention_heads <span class="op">=</span> <span class="fl">1</span>, 
@@ -301,10 +301,10 @@
   <span class="op">)</span>
 <span class="co">#&gt; A `luz_module_evaluation`</span>
 <span class="co">#&gt; ── Results ─────────────────────────────────────────────────────────────────────</span>
-<span class="co">#&gt; loss: 0.1433</span>
-<span class="co">#&gt; q10: 0.0747</span>
-<span class="co">#&gt; q50: 0.2282</span>
-<span class="co">#&gt; q90: 0.1269</span></code></pre></div>
+<span class="co">#&gt; loss: 0.1295</span>
+<span class="co">#&gt; q10: 0.0741</span>
+<span class="co">#&gt; q50: 0.2058</span>
+<span class="co">#&gt; q90: 0.1085</span></code></pre></div>
 <p>Once we are happy with the results of our model we can make forecasts using the <code>forecast</code> function. The model we have trained can make predictions for at most 12 weeks ahead.</p>
 <p>By default <code>forecast</code> generates predictions for the period right after the data the model has been trained. You can pass the <code>past_data</code> argument to make predictions for a more recent period.</p>
 <div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
@@ -314,9 +314,9 @@
 <span class="co">#&gt; Columns: 5</span>
 <span class="co">#&gt; $ date        <span style="color: #949494; font-style: italic;">&lt;date&gt;</span> 2022-05-29, 2022-06-05, 2022-06-12, 2022-06-19, 2022-06-2…</span>
 <span class="co">#&gt; $ system      <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span> "Alto Tietê", "Alto Tietê", "Alto Tietê", "Alto Tietê", "A…</span>
-<span class="co">#&gt; $ .pred_lower <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 55.06366, 54.53058, 54.86599, 52.85326, 52.19434, 50.61832…</span>
-<span class="co">#&gt; $ .pred       <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 59.26833, 58.52310, 57.72558, 57.14611, 57.28476, 55.95859…</span>
-<span class="co">#&gt; $ .pred_upper <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 63.95515, 64.07766, 63.59456, 64.05590, 63.60314, 63.37445…</span></code></pre></div>
+<span class="co">#&gt; $ .pred_lower <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 61.95778, 60.75354, 60.89434, 59.27634, 59.00440, 57.38530…</span>
+<span class="co">#&gt; $ .pred       <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 62.32862, 62.19817, 62.49972, 61.37944, 61.24623, 60.67795…</span>
+<span class="co">#&gt; $ .pred_upper <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 62.90150, 63.57217, 64.33552, 63.28034, 63.31107, 63.94496…</span></code></pre></div>
 <p>The return value of <code>forecast</code> is a tibble containing predictions for each time serie in the 12 weeks ahead.</p>
 <p>We can then show the predictions in a plot:</p>
 <div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
