@@ -223,7 +223,7 @@ result <- luz::lr_finder(
   dataloader_options = list(
     batch_size = 64
   ),
-  verbose = TRUE
+  verbose = FALSE
 )
 plot(result) + ggplot2::coord_cartesian(ylim = c(0.15, 0.5))
 ```
