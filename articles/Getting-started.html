@@ -83,75 +83,86 @@
 <p>The main difference between TFT and conventional forecasting methodologies is the way its architecture allows encoding different types of input data that can exist in forecasting problems. For instance, the model allows handling static covariates and time varying (known and unknown) differently.</p>
 <p>TFT announcement shows <a href="https://ai.googleblog.com/2021/12/interpretable-deep-learning-for-time.html" class="external-link">promising benchmarks</a> in forecasting performance for a variety of datasets.</p>
 <p>The R package <strong>tft</strong> abstracts away the details of the architecture and provides an API that allows easy experimenting with the TFT architecture.</p>
-<p>In this article we will create forecasts for the <code>?walmart_sales_weekly</code> dataset included in the <a href="https://github.com/dfalbel/walmartdata" class="external-link">walmartdata</a> package. This dataset has weekly sales of a sample of weekly sales by department of 45 retail stores. It also includes a few external predictors like the temperature, fuel price and the size of the store.</p>
+<p>In this article we will create forecasts for the <a href="https://github.com/beatrizmilz/mananciais" class="external-link">‘mananciais’ dataset</a>. This dataset includes daily level information for a set of 7 water reservoirs that supply the São Paulo metropolitan region in Brazil.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">walmart_sales</span>, package <span class="op">=</span> <span class="st">"walmartdata"</span><span class="op">)</span>
-<span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/glimpse.html" class="external-link">glimpse</a></span><span class="op">(</span><span class="va">walmart_sales</span><span class="op">)</span>
-<span class="co">#&gt; Rows: 421,570</span>
-<span class="co">#&gt; Columns: 16</span>
-<span class="co">#&gt; $ Store        <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, …</span>
-<span class="co">#&gt; $ Dept         <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, …</span>
-<span class="co">#&gt; $ Date         <span style="color: #949494; font-style: italic;">&lt;date&gt;</span> 2010-02-05, 2010-02-12, 2010-02-19, 2010-02-26, 2010-03-…</span>
-<span class="co">#&gt; $ Weekly_Sales <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 24924.50, 46039.49, 41595.55, 19403.54, 21827.90, 21043.3…</span>
-<span class="co">#&gt; $ Type         <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span> "A", "A", "A", "A", "A", "A", "A", "A", "A", "A", "A", "A…</span>
-<span class="co">#&gt; $ Size         <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 151315, 151315, 151315, 151315, 151315, 151315, 151315, 1…</span>
-<span class="co">#&gt; $ Temperature  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 42.31, 38.51, 39.93, 46.63, 46.50, 57.79, 54.58, 51.45, 6…</span>
-<span class="co">#&gt; $ Fuel_Price   <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 2.572, 2.548, 2.514, 2.561, 2.625, 2.667, 2.720, 2.732, 2…</span>
-<span class="co">#&gt; $ MarkDown1    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, N…</span>
-<span class="co">#&gt; $ MarkDown2    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, N…</span>
-<span class="co">#&gt; $ MarkDown3    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, N…</span>
-<span class="co">#&gt; $ MarkDown4    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, N…</span>
-<span class="co">#&gt; $ MarkDown5    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, N…</span>
-<span class="co">#&gt; $ CPI          <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 211.0964, 211.2422, 211.2891, 211.3196, 211.3501, 211.380…</span>
-<span class="co">#&gt; $ Unemployment <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 8.106, 8.106, 8.106, 8.106, 8.106, 8.106, 8.106, 8.106, 7…</span>
-<span class="co">#&gt; $ IsHoliday    <span style="color: #949494; font-style: italic;">&lt;lgl&gt;</span> FALSE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FA…</span></code></pre></div>
-<p>To make the example faster to run, we are going to create models for the first 2 stores and first 2 departments.</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span class="va">walmart_sales</span> <span class="op">&lt;-</span> <span class="va">walmart_sales</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
-  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter</a></span><span class="op">(</span><span class="va">Store</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span><span class="op">)</span>, <span class="va">Dept</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">92</span>, <span class="fl">95</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
-  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span><span class="op">(</span>Store <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">as.factor</a></span><span class="op">(</span><span class="va">Store</span><span class="op">)</span>, Dept <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">as.factor</a></span><span class="op">(</span><span class="va">Dept</span><span class="op">)</span><span class="op">)</span></code></pre></div>
+<code class="sourceCode R"><span class="va">mananciais</span> <span class="op">&lt;-</span> <span class="fu">readr</span><span class="fu">::</span><span class="fu"><a href="https://readr.tidyverse.org/reference/read_delim.html" class="external-link">read_csv2</a></span><span class="op">(</span><span class="st">"https://github.com/beatrizmilz/mananciais/raw/a2d1d8b04cbd3a3a71836a4849d90a5e024e5180/inst/extdata/mananciais.csv"</span><span class="op">)</span>
+<span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Using <span style="color: #0000BB;">"','"</span> as decimal and <span style="color: #0000BB;">"'.'"</span> as grouping mark. Use `read_delim()` for more control.</span>
+<span class="co">#&gt; <span style="font-weight: bold;">Rows: </span><span style="color: #0000BB;">50654</span> <span style="font-weight: bold;">Columns: </span><span style="color: #0000BB;">8</span></span>
+<span class="co">#&gt; <span style="color: #00BBBB;">──</span> <span style="font-weight: bold;">Column specification</span> <span style="color: #00BBBB;">────────────────────────────────────────────────────────</span></span>
+<span class="co">#&gt; <span style="font-weight: bold;">Delimiter:</span> ";"</span>
+<span class="co">#&gt; <span style="color: #BB0000;">chr</span>  (1): sistema</span>
+<span class="co">#&gt; <span style="color: #00BB00;">dbl</span>  (6): volume_porcentagem, volume_variacao, volume_operacional, pluviomet...</span>
+<span class="co">#&gt; <span style="color: #0000BB;">date</span> (1): data</span>
+<span class="co">#&gt; </span>
+<span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Use `spec()` to retrieve the full column specification for this data.</span>
+<span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Specify the column types or set `show_col_types = FALSE` to quiet this message.</span>
+
+<span class="co"># translate column names</span>
+<span class="va">reservoirs</span> <span class="op">&lt;-</span> <span class="va">mananciais</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
+  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span>
+    date <span class="op">=</span> <span class="va">data</span>,
+    system <span class="op">=</span> <span class="va">sistema</span>,
+    volume_percentage <span class="op">=</span> <span class="va">volume_porcentagem</span>,   <span class="co"># volume in % of total capacity</span>
+    volume_variation <span class="op">=</span> <span class="va">volume_variacao</span>,       <span class="co"># % variation from the day before</span>
+    volume_operational <span class="op">=</span> <span class="va">volume_operacional</span>,  <span class="co"># operational volume in hm3</span>
+    pluviometric_daily <span class="op">=</span> <span class="va">pluviometria_dia</span>,    <span class="co"># pluviometrics daily in mm</span>
+    pluviometric_month <span class="op">=</span> <span class="va">pluviometria_mensal</span>, <span class="co"># accumulated pluviometrics monthly</span>
+    pluviometric_hist <span class="op">=</span> <span class="va">pluviometria_hist</span>     <span class="co"># mean historical pluviometrics</span>
+  <span class="op">)</span>
+<span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/glimpse.html" class="external-link">glimpse</a></span><span class="op">(</span><span class="va">reservoirs</span><span class="op">)</span>
+<span class="co">#&gt; Rows: 50,654</span>
+<span class="co">#&gt; Columns: 8</span>
+<span class="co">#&gt; $ date               <span style="color: #949494; font-style: italic;">&lt;date&gt;</span> 2022-05-24, 2022-05-24, 2022-05-24, 2022-05-24, 20…</span>
+<span class="co">#&gt; $ system             <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span> "Cantareira", "Alto Tietê", "Guarapiranga", "Cotia"…</span>
+<span class="co">#&gt; $ volume_percentage  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 42.2, 62.8, 80.9, 85.7, 99.7, 43.8, 93.3, 42.3, 63.…</span>
+<span class="co">#&gt; $ volume_variation   <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> -0.1, -0.2, -0.3, -0.2, -0.2, -0.1, -0.3, -0.1, -0.…</span>
+<span class="co">#&gt; $ volume_operational <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 414.31772, 351.98456, 138.51027, 14.13465, 111.8011…</span>
+<span class="co">#&gt; $ pluviometric_daily <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 0.0, 0.1, 0.2, 0.2, 0.2, 1.0, 0.0, 0.1, 0.2, 0.0, 0…</span>
+<span class="co">#&gt; $ pluviometric_month <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 31.6, 31.3, 9.0, 6.0, 12.4, 55.0, 34.8, 31.6, 31.2,…</span>
+<span class="co">#&gt; $ pluviometric_hist  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 74.8, 69.4, 59.6, 64.6, 79.9, 132.6, 88.9, 74.8, 69…</span></code></pre></div>
 <div class="section level2">
 <h2 id="preparing-the-data">Preparing the data<a class="anchor" aria-label="anchor" href="#preparing-the-data"></a>
 </h2>
-<p>The first thing we need to make sure is that our dataset doesn’t have <a href="https://r4ds.hadley.nz/missing-values.html#missing-values" class="external-link">implicit missing observations</a>. This happens when an observations is just not present in the data instead of being explicitly marked with a <code>NA</code>. We are going to use <code>tsibble</code> functionality to add the implicitly missing observations, but you could use whatever tool you prefer for the task.</p>
+<p>We first display the data for the 7 reservoirs:</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span class="va">reservoirs</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
+  <span class="fu">ggplot</span><span class="op">(</span><span class="fu">aes</span><span class="op">(</span>x <span class="op">=</span> <span class="va">date</span>, y <span class="op">=</span> <span class="va">volume_percentage</span>, color <span class="op">=</span> <span class="va">system</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span>
+  <span class="fu">geom_line</span><span class="op">(</span><span class="op">)</span></code></pre></div>
+<p><img src="Getting-started_files/figure-html/unnamed-chunk-3-1.png" width="700"></p>
+<p>To reduce computation time and make the model more useful, we are going to aggregate the data into weekly intervals. This will leave us with a much smaller dataset, which should make the model much faster to train. It also allows us to choose a larger horizon.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span class="va">sales</span> <span class="op">&lt;-</span> <span class="va">walmart_sales</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span>
-    <span class="fu">tsibble</span><span class="fu">::</span><span class="fu"><a href="https://tsibble.tidyverts.org/reference/tsibble.html" class="external-link">tsibble</a></span><span class="op">(</span>
-      key <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">Store</span>, <span class="va">Dept</span><span class="op">)</span>,
-      index <span class="op">=</span> <span class="va">Date</span>
-    <span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span>
-    <span class="fu">tsibble</span><span class="fu">::</span><span class="fu"><a href="https://tsibble.tidyverts.org/reference/group_by_key.html" class="external-link">group_by_key</a></span><span class="op">(</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span>
-    <span class="fu">tsibble</span><span class="fu">::</span><span class="fu"><a href="https://tsibble.tidyverts.org/reference/fill_gaps.html" class="external-link">fill_gaps</a></span><span class="op">(</span>
-      Weekly_Sales <span class="op">=</span> <span class="fl">0</span>,
-      IsHoliday <span class="op">=</span> <span class="cn">FALSE</span>
-    <span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span>
-    <span class="fu">tidyr</span><span class="fu">::</span><span class="fu"><a href="https://tidyr.tidyverse.org/reference/fill.html" class="external-link">fill</a></span><span class="op">(</span><span class="va">Size</span>, <span class="va">Temperature</span>, <span class="va">Fuel_Price</span>, <span class="va">CPI</span>, <span class="va">Unemployment</span>, .direction <span class="op">=</span> <span class="st">"down"</span><span class="op">)</span></code></pre></div>
+<code class="sourceCode R"><span class="va">reservoirs</span> <span class="op">&lt;-</span> <span class="va">reservoirs</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
+  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span><span class="op">(</span>date <span class="op">=</span> <span class="fu">lubridate</span><span class="fu">::</span><span class="fu"><a href="https://lubridate.tidyverse.org/reference/round_date.html" class="external-link">floor_date</a></span><span class="op">(</span><span class="va">date</span>, unit <span class="op">=</span> <span class="st">"week"</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
+  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/group_by.html" class="external-link">group_by</a></span><span class="op">(</span><span class="va">date</span>, <span class="va">system</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
+  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/summarise.html" class="external-link">summarise</a></span><span class="op">(</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/across.html" class="external-link">across</a></span><span class="op">(</span><span class="fu"><a href="https://tidyselect.r-lib.org/reference/everything.html" class="external-link">everything</a></span><span class="op">(</span><span class="op">)</span>, .fns <span class="op">=</span> <span class="op">~</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">.x</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span>, .groups <span class="op">=</span> <span class="st">"drop"</span><span class="op">)</span></code></pre></div>
+<p>We used the mean o aggregate all variables even though the <code>volume_variation</code> is now much harder to interpret. The new dataset looks like:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span class="fu">feasts</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/autoplot.html" class="external-link">autoplot</a></span><span class="op">(</span><span class="va">sales</span>, <span class="va">Weekly_Sales</span><span class="op">)</span>
-<span class="co">#&gt; `mutate_if()` ignored the following grouping variables:</span>
-<span class="co">#&gt; <span style="color: #00BBBB;">•</span> Columns `Store`, `Dept`</span></code></pre></div>
+<code class="sourceCode R"><span class="va">reservoirs</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
+  <span class="fu">ggplot</span><span class="op">(</span><span class="fu">aes</span><span class="op">(</span>x <span class="op">=</span> <span class="va">date</span>, y <span class="op">=</span> <span class="va">volume_percentage</span>, color <span class="op">=</span> <span class="va">system</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span>
+  <span class="fu">geom_line</span><span class="op">(</span><span class="op">)</span></code></pre></div>
 <p><img src="Getting-started_files/figure-html/unnamed-chunk-5-1.png" width="700"></p>
-<p>We will also split the full dataset in 3 parts - training, validation and testing. We use the last 24 weeks of data for validation/testing - using 16 for validation and 8 of them for testing.</p>
+<p>The level can go below the 0%, this means that water from a so called <a href="https://pt.wikipedia.org/wiki/Volume_morto" class="external-link">‘technical water reserve’</a>, ie water from below the level of the usual water pipes has been used. This happened during the <a href="https://en.wikipedia.org/wiki/2014%E2%80%932017_Brazilian_drought" class="external-link">severe drought</a> the hit the region between 2014 and 2017.</p>
+<p>Our goal is to predict the reservoir level for the 3 months (12 weeks to be more precise). We will split the dataset in 3 parts. The last 3 months for testing, the previous 3 for validation and the rest for training the model.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span class="va">last_date</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="va">sales</span><span class="op">$</span><span class="va">Date</span><span class="op">)</span>
-<span class="va">sales_train</span> <span class="op">&lt;-</span> <span class="va">sales</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter</a></span><span class="op">(</span><span class="va">Date</span> <span class="op">&lt;=</span> <span class="op">(</span><span class="va">last_date</span> <span class="op">-</span> <span class="fu">lubridate</span><span class="fu">::</span><span class="fu"><a href="https://lubridate.tidyverse.org/reference/period.html" class="external-link">weeks</a></span><span class="op">(</span><span class="fl">24</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>
-<span class="va">sales_valid</span> <span class="op">&lt;-</span> <span class="va">sales</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter</a></span><span class="op">(</span><span class="va">Date</span> <span class="op">&gt;</span> <span class="op">(</span><span class="va">last_date</span> <span class="op">-</span> <span class="fu">lubridate</span><span class="fu">::</span><span class="fu"><a href="https://lubridate.tidyverse.org/reference/period.html" class="external-link">weeks</a></span><span class="op">(</span><span class="fl">24</span><span class="op">)</span><span class="op">)</span>,
-                                <span class="va">Date</span> <span class="op">&lt;=</span> <span class="op">(</span><span class="va">last_date</span> <span class="op">-</span> <span class="fu">lubridate</span><span class="fu">::</span><span class="fu"><a href="https://lubridate.tidyverse.org/reference/period.html" class="external-link">weeks</a></span><span class="op">(</span><span class="fl">8</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>
-<span class="va">sales_test</span> <span class="op">&lt;-</span> <span class="va">sales</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter</a></span><span class="op">(</span><span class="va">Date</span> <span class="op">&gt;</span> <span class="op">(</span><span class="va">last_date</span> <span class="op">-</span> <span class="fu">lubridate</span><span class="fu">::</span><span class="fu"><a href="https://lubridate.tidyverse.org/reference/period.html" class="external-link">weeks</a></span><span class="op">(</span><span class="fl">8</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></code></pre></div>
-<p>Now that the data is prepared we will create a preprocessing pipeline using the recipes package. This recipe will allow handling missing values and normalization of covariates - which is very important in neural network models. It also adds a few covariates that are recommended by the paper authors like <code>time_since_begining</code> and categoricals for month and week in the year.</p>
+<code class="sourceCode R"><span class="va">last_date</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="va">reservoirs</span><span class="op">$</span><span class="va">date</span><span class="op">)</span>
+<span class="va">train</span> <span class="op">&lt;-</span> <span class="va">reservoirs</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter</a></span><span class="op">(</span><span class="va">date</span> <span class="op">&lt;=</span> <span class="op">(</span><span class="va">last_date</span> <span class="op">-</span> <span class="fu">lubridate</span><span class="fu">::</span><span class="fu"><a href="https://lubridate.tidyverse.org/reference/period.html" class="external-link">weeks</a></span><span class="op">(</span><span class="fl">48</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>
+<span class="va">valid</span> <span class="op">&lt;-</span> <span class="va">reservoirs</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter</a></span><span class="op">(</span><span class="va">date</span> <span class="op">&gt;</span> <span class="op">(</span><span class="va">last_date</span> <span class="op">-</span> <span class="fu">lubridate</span><span class="fu">::</span><span class="fu"><a href="https://lubridate.tidyverse.org/reference/period.html" class="external-link">weeks</a></span><span class="op">(</span><span class="fl">48</span><span class="op">)</span><span class="op">)</span>,
+                                <span class="va">date</span> <span class="op">&lt;=</span> <span class="op">(</span><span class="va">last_date</span> <span class="op">-</span> <span class="fu">lubridate</span><span class="fu">::</span><span class="fu"><a href="https://lubridate.tidyverse.org/reference/period.html" class="external-link">weeks</a></span><span class="op">(</span><span class="fl">12</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>
+<span class="va">test</span> <span class="op">&lt;-</span> <span class="va">reservoirs</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter</a></span><span class="op">(</span><span class="va">date</span> <span class="op">&gt;</span> <span class="op">(</span><span class="va">last_date</span> <span class="op">-</span> <span class="fu">lubridate</span><span class="fu">::</span><span class="fu"><a href="https://lubridate.tidyverse.org/reference/period.html" class="external-link">weeks</a></span><span class="op">(</span><span class="fl">12</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></code></pre></div>
+<p>Now that the data is prepared we will create a preprocessing pipeline using the recipes package. This recipe will allow handling normalization of covariates - which is very important in neural network models. It also adds a few covariates that are recommended by the paper authors like <code>time_since_begining</code>and categoricals for month and week in the year.</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span class="va">rec</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://recipes.tidymodels.org/reference/recipe.html" class="external-link">recipe</a></span><span class="op">(</span><span class="va">Weekly_Sales</span> <span class="op">~</span> <span class="va">.</span>, data <span class="op">=</span> <span class="va">sales_train</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
+<code class="sourceCode R"><span class="va">rec</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://recipes.tidymodels.org/reference/recipe.html" class="external-link">recipe</a></span><span class="op">(</span><span class="va">volume_percentage</span> <span class="op">~</span> <span class="va">.</span>, data <span class="op">=</span> <span class="va">train</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
   <span class="fu"><a href="https://recipes.tidymodels.org/reference/step_mutate.html" class="external-link">step_mutate</a></span><span class="op">(</span>
     time_since_begining <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/difftime.html" class="external-link">difftime</a></span><span class="op">(</span>
-      time1 <span class="op">=</span> <span class="va">Date</span>, 
-      time2 <span class="op">=</span> <span class="fu">lubridate</span><span class="fu">::</span><span class="fu"><a href="https://lubridate.tidyverse.org/reference/ymd.html" class="external-link">ymd</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">min</a></span><span class="op">(</span><span class="va">sales</span><span class="op">$</span><span class="va">Date</span><span class="op">)</span><span class="op">)</span>, 
+      time1 <span class="op">=</span> <span class="va">date</span>, 
+      time2 <span class="op">=</span> <span class="fu">lubridate</span><span class="fu">::</span><span class="fu"><a href="https://lubridate.tidyverse.org/reference/ymd.html" class="external-link">ymd</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">min</a></span><span class="op">(</span><span class="va">reservoirs</span><span class="op">$</span><span class="va">date</span><span class="op">)</span><span class="op">)</span>, 
       units <span class="op">=</span> <span class="st">"weeks"</span>
     <span class="op">)</span><span class="op">)</span>,
-    date_week <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">as.factor</a></span><span class="op">(</span><span class="fu">lubridate</span><span class="fu">::</span><span class="fu"><a href="https://lubridate.tidyverse.org/reference/week.html" class="external-link">week</a></span><span class="op">(</span><span class="va">Date</span><span class="op">)</span><span class="op">)</span>,
-    date_month <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">as.factor</a></span><span class="op">(</span><span class="fu">lubridate</span><span class="fu">::</span><span class="fu"><a href="https://lubridate.tidyverse.org/reference/month.html" class="external-link">month</a></span><span class="op">(</span><span class="va">Date</span><span class="op">)</span><span class="op">)</span>,
-    IsHoliday <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">as.factor</a></span><span class="op">(</span><span class="va">IsHoliday</span><span class="op">)</span>
+    date_week <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">as.factor</a></span><span class="op">(</span><span class="fu">lubridate</span><span class="fu">::</span><span class="fu"><a href="https://lubridate.tidyverse.org/reference/week.html" class="external-link">week</a></span><span class="op">(</span><span class="va">date</span><span class="op">)</span><span class="op">)</span>,
+    date_month <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">as.factor</a></span><span class="op">(</span><span class="fu">lubridate</span><span class="fu">::</span><span class="fu"><a href="https://lubridate.tidyverse.org/reference/month.html" class="external-link">month</a></span><span class="op">(</span><span class="va">date</span><span class="op">)</span><span class="op">)</span>,
+    date_wday <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">as.factor</a></span><span class="op">(</span><span class="fu">lubridate</span><span class="fu">::</span><span class="fu"><a href="https://lubridate.tidyverse.org/reference/day.html" class="external-link">wday</a></span><span class="op">(</span><span class="va">date</span><span class="op">)</span><span class="op">)</span>
   <span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
-  <span class="fu"><a href="https://recipes.tidymodels.org/reference/step_impute_median.html" class="external-link">step_impute_median</a></span><span class="op">(</span><span class="fu"><a href="https://tidyselect.r-lib.org/reference/starts_with.html" class="external-link">starts_with</a></span><span class="op">(</span><span class="st">"MarkDown"</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
+  <span class="fu"><a href="https://recipes.tidymodels.org/reference/step_impute_mean.html" class="external-link">step_impute_mean</a></span><span class="op">(</span><span class="va">pluviometric_hist</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
   <span class="fu"><a href="https://recipes.tidymodels.org/reference/step_normalize.html" class="external-link">step_normalize</a></span><span class="op">(</span><span class="fu"><a href="https://recipes.tidymodels.org/reference/has_role.html" class="external-link">all_numeric_predictors</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></code></pre></div>
 </div>
 <div class="section level2">
@@ -181,12 +192,10 @@
 </div>
 <p>Now lets create the tft dataset specification. We don’t need to manually specfy the <code>unknown</code> covariates as, unmentioned variables are automatically treated as such.</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span class="va">spec</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/tft_dataset_spec.html">tft_dataset_spec</a></span><span class="op">(</span><span class="va">rec</span>, <span class="va">sales_train</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
-  <span class="fu"><a href="../reference/tft_dataset_spec.html">spec_covariate_index</a></span><span class="op">(</span><span class="va">Date</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
-  <span class="fu"><a href="../reference/tft_dataset_spec.html">spec_covariate_keys</a></span><span class="op">(</span><span class="va">Store</span>, <span class="va">Dept</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span>
-  <span class="fu"><a href="../reference/tft_dataset_spec.html">spec_covariate_static</a></span><span class="op">(</span><span class="va">Type</span>, <span class="va">Size</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
-  <span class="fu"><a href="../reference/tft_dataset_spec.html">spec_covariate_known</a></span><span class="op">(</span><span class="fu"><a href="https://tidyselect.r-lib.org/reference/starts_with.html" class="external-link">starts_with</a></span><span class="op">(</span><span class="st">"MarkDown"</span><span class="op">)</span>, <span class="va">time_since_begining</span>, 
-                       <span class="fu"><a href="https://tidyselect.r-lib.org/reference/starts_with.html" class="external-link">starts_with</a></span><span class="op">(</span><span class="st">"date_"</span><span class="op">)</span>, <span class="va">IsHoliday</span><span class="op">)</span></code></pre></div>
+<code class="sourceCode R"><span class="va">spec</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/tft_dataset_spec.html">tft_dataset_spec</a></span><span class="op">(</span><span class="va">rec</span>, <span class="va">train</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
+  <span class="fu"><a href="../reference/tft_dataset_spec.html">spec_covariate_index</a></span><span class="op">(</span><span class="va">date</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
+  <span class="fu"><a href="../reference/tft_dataset_spec.html">spec_covariate_keys</a></span><span class="op">(</span><span class="va">system</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span>
+  <span class="fu"><a href="../reference/tft_dataset_spec.html">spec_covariate_known</a></span><span class="op">(</span><span class="va">time_since_begining</span>, <span class="fu"><a href="https://tidyselect.r-lib.org/reference/starts_with.html" class="external-link">starts_with</a></span><span class="op">(</span><span class="st">"date_"</span><span class="op">)</span><span class="op">)</span></code></pre></div>
 <p>The print method for <code>spec</code> shows useful information about the specification:</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="va">spec</span>
@@ -195,32 +204,32 @@
 <span class="co">#&gt; <span style="color: #BB0000;">✖</span> `lookback` and `horizon` are not set. Use `spec_time_splits()` </span>
 <span class="co">#&gt; </span>
 <span class="co">#&gt; ── Covariates: </span>
-<span class="co">#&gt; <span style="color: #00BB00;">✔</span> `index`: Date</span>
-<span class="co">#&gt; <span style="color: #00BB00;">✔</span> `keys`: &lt;list: Store, Dept&gt;</span>
-<span class="co">#&gt; <span style="color: #00BB00;">✔</span> `static`: &lt;list: Type, Size&gt;</span>
-<span class="co">#&gt; <span style="color: #00BB00;">✔</span> `known`: &lt;list: starts_with("MarkDown"), time_since_begining, starts_with("date_"), and IsHoliday&gt;</span>
+<span class="co">#&gt; <span style="color: #00BB00;">✔</span> `index`: date</span>
+<span class="co">#&gt; <span style="color: #00BB00;">✔</span> `keys`: &lt;list: system&gt;</span>
+<span class="co">#&gt; <span style="color: #BBBB00;">!</span> `static` is not set. Use `spec_covariate_static()` to set it.</span>
+<span class="co">#&gt; <span style="color: #00BB00;">✔</span> `known`: &lt;list: time_since_begining, starts_with("date_")&gt;</span>
 <span class="co">#&gt; <span style="color: #BBBB00;">!</span> `unknown` is not set. Covariates that are not listed as other types are considered `unknown`.</span>
 <span class="co">#&gt; </span>
 <span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Call `prep()` to prepare the specification.</span></code></pre></div>
-<p>Here we see that we didn’t specify the <code>lookback</code> and <code>horizon</code>, so let’s add it to the spec. The <code>lookback</code> usually works like any other hyperparameter and we in general choose values between 10 and 200 depending on the time series period. Horizon is chosen to statisfy business needs, ie. if you want to have predictions for 4 weeks ahead, you should choose that.</p>
+<p>Here we see that we didn’t specify the <code>lookback</code> and <code>horizon</code>, so let’s add it to the spec. The <code>lookback</code> usually works like any other hyperparameter and we in general choose values between 10 and 1000 depending on the time series period. Horizon is chosen to statisfy business needs, ie. if you want to have predictions for 30 days ahead, you should choose that.</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="va">spec</span> <span class="op">&lt;-</span> <span class="va">spec</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
-  <span class="fu"><a href="../reference/tft_dataset_spec.html">spec_time_splits</a></span><span class="op">(</span>lookback <span class="op">=</span> <span class="fl">52</span>, horizon <span class="op">=</span> <span class="fl">4</span><span class="op">)</span></code></pre></div>
+  <span class="fu"><a href="../reference/tft_dataset_spec.html">spec_time_splits</a></span><span class="op">(</span>lookback <span class="op">=</span> <span class="fl">5</span><span class="op">*</span><span class="fl">12</span>, horizon <span class="op">=</span> <span class="fl">12</span><span class="op">)</span></code></pre></div>
 <p>We now execute <code>prep</code> to prepare the <code>spec</code>:</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="va">spec</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep.html">prep</a></span><span class="op">(</span><span class="va">spec</span><span class="op">)</span>
 <span class="va">spec</span>
 <span class="co">#&gt; A <span style="color: #0000BB;">&lt;prepared_tft_dataset_spec&gt;</span> with:</span>
 <span class="co">#&gt; </span>
-<span class="co">#&gt; <span style="color: #00BB00;">✔</span> lookback = 52 and horizon = 4.</span>
-<span class="co">#&gt; <span style="color: #00BB00;">✔</span> The number of possible slices is 256</span>
+<span class="co">#&gt; <span style="color: #00BB00;">✔</span> lookback = 60 and horizon = 12.</span>
+<span class="co">#&gt; <span style="color: #00BB00;">✔</span> The number of possible slices is 6,413</span>
 <span class="co">#&gt; </span>
 <span class="co">#&gt; ── Covariates: </span>
-<span class="co">#&gt; <span style="color: #00BB00;">✔</span> `index`: Date</span>
-<span class="co">#&gt; <span style="color: #00BB00;">✔</span> `keys`: Store and Dept</span>
-<span class="co">#&gt; <span style="color: #00BB00;">✔</span> `static`: Type and Size</span>
-<span class="co">#&gt; <span style="color: #00BB00;">✔</span> `known`: MarkDown1, MarkDown2, MarkDown3, MarkDown4, MarkDown5, time_since_begining, date_week, date_month, and IsHoliday</span>
-<span class="co">#&gt; <span style="color: #00BB00;">✔</span> `unknown`: Temperature, Fuel_Price, CPI, and Unemployment</span>
+<span class="co">#&gt; <span style="color: #00BB00;">✔</span> `index`: date</span>
+<span class="co">#&gt; <span style="color: #00BB00;">✔</span> `keys`: system</span>
+<span class="co">#&gt; <span style="color: #00BB00;">✔</span> `static`: </span>
+<span class="co">#&gt; <span style="color: #00BB00;">✔</span> `known`: time_since_begining, date_week, date_month, and date_wday</span>
+<span class="co">#&gt; <span style="color: #00BB00;">✔</span> `unknown`: volume_variation, volume_operational, pluviometric_daily, pluviometric_month, and pluviometric_hist</span>
 <span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Variables that are not specified in other types are considered `unknown`.</span>
 <span class="co">#&gt; </span>
 <span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Call `transform()` to apply this spec to a different dataset.</span></code></pre></div>
@@ -231,105 +240,96 @@
 </h2>
 <p>We will now fit our model. To that we first initialize the a model with:</p>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/temporal_fusion_transformer.html">temporal_fusion_transformer</a></span><span class="op">(</span><span class="va">spec</span>, hidden_state_size <span class="op">=</span> <span class="fl">128</span><span class="op">)</span>
+<code class="sourceCode R"><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/temporal_fusion_transformer.html">temporal_fusion_transformer</a></span><span class="op">(</span>
+  <span class="va">spec</span>, 
+  hidden_state_size <span class="op">=</span> <span class="fl">50</span>,
+  learn_rate <span class="op">=</span> <span class="fl">1e-3</span>, 
+  dropout <span class="op">=</span> <span class="fl">0.5</span>, 
+  num_attention_heads <span class="op">=</span> <span class="fl">1</span>, 
+  num_lstm_layers <span class="op">=</span> <span class="fl">1</span>
+<span class="op">)</span>
 <span class="va">model</span>
 <span class="co">#&gt; &lt;luz_module_generator&gt;</span></code></pre></div>
 <p><code>model</code> is a luz module, thus you can use luz workflows to train the model. For an example, you can use the <code>lr_finder</code> function to find the best learning rate for your model.</p>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu">luz</span><span class="fu">::</span><span class="fu"><a href="https://mlverse.github.io/luz/reference/lr_finder.html" class="external-link">lr_finder</a></span><span class="op">(</span>
   <span class="va">model</span>, 
-  <span class="fu"><a href="https://rdrr.io/r/base/transform.html" class="external-link">transform</a></span><span class="op">(</span><span class="va">spec</span>, <span class="va">sales_train</span><span class="op">)</span>, 
+  <span class="fu"><a href="https://rdrr.io/r/base/transform.html" class="external-link">transform</a></span><span class="op">(</span><span class="va">spec</span>, <span class="va">train</span><span class="op">)</span>, 
   end_lr <span class="op">=</span> <span class="fl">1</span>,
   dataloader_options <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>
     batch_size <span class="op">=</span> <span class="fl">64</span>
   <span class="op">)</span>,
-  verbose <span class="op">=</span> <span class="cn">FALSE</span>
+  verbose <span class="op">=</span> <span class="cn">TRUE</span>
 <span class="op">)</span>
+<span class="co">#&gt; Epoch 1/999999</span>
 <span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">result</span><span class="op">)</span> <span class="op">+</span> <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/coord_cartesian.html" class="external-link">coord_cartesian</a></span><span class="op">(</span>ylim <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.15</span>, <span class="fl">0.5</span><span class="op">)</span><span class="op">)</span></code></pre></div>
 <p><img src="Getting-started_files/figure-html/unnamed-chunk-13-1.png" width="700"></p>
 <p>This allows us to choose a learning rate. We will start with 1e-3. Let’s redefine the model now fixing the learning rate:</p>
 <div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/temporal_fusion_transformer.html">temporal_fusion_transformer</a></span><span class="op">(</span><span class="va">spec</span>, hidden_state_size <span class="op">=</span> <span class="fl">128</span>,
-                                     learn_rate <span class="op">=</span> <span class="fl">1e-3</span><span class="op">)</span></code></pre></div>
+<code class="sourceCode R"><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/temporal_fusion_transformer.html">temporal_fusion_transformer</a></span><span class="op">(</span>
+  <span class="va">spec</span>, 
+  hidden_state_size <span class="op">=</span> <span class="fl">50</span>,
+  learn_rate <span class="op">=</span> <span class="fl">1e-3</span>, 
+  dropout <span class="op">=</span> <span class="fl">0.5</span>, 
+  num_attention_heads <span class="op">=</span> <span class="fl">1</span>, 
+  num_lstm_layers <span class="op">=</span> <span class="fl">1</span>
+<span class="op">)</span></code></pre></div>
 <p>We can then fit the model using <code>fit</code>. Since <code>model</code> is a luz module we are mainly calling <code>?fit.luz_module_generator</code> here, so all arguments apply.</p>
 <div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="va">fitted</span> <span class="op">&lt;-</span> <span class="va">model</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
   <span class="fu"><a href="../reference/fit.html">fit</a></span><span class="op">(</span>
-    <span class="fu"><a href="https://rdrr.io/r/base/transform.html" class="external-link">transform</a></span><span class="op">(</span><span class="va">spec</span>, <span class="va">sales_train</span><span class="op">)</span>,
-    valid_data <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/transform.html" class="external-link">transform</a></span><span class="op">(</span><span class="va">spec</span>, new_data <span class="op">=</span> <span class="va">sales_valid</span><span class="op">)</span>,
+    <span class="fu"><a href="https://rdrr.io/r/base/transform.html" class="external-link">transform</a></span><span class="op">(</span><span class="va">spec</span><span class="op">)</span>,
+    valid_data <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/transform.html" class="external-link">transform</a></span><span class="op">(</span><span class="va">spec</span>, new_data <span class="op">=</span> <span class="va">valid</span><span class="op">)</span>,
     epochs <span class="op">=</span> <span class="fl">100</span>,
     callbacks <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>
       <span class="fu">luz</span><span class="fu">::</span><span class="fu"><a href="https://mlverse.github.io/luz/reference/luz_callback_keep_best_model.html" class="external-link">luz_callback_keep_best_model</a></span><span class="op">(</span>monitor <span class="op">=</span> <span class="st">"valid_loss"</span><span class="op">)</span>,
       <span class="fu">luz</span><span class="fu">::</span><span class="fu"><a href="https://mlverse.github.io/luz/reference/luz_callback_early_stopping.html" class="external-link">luz_callback_early_stopping</a></span><span class="op">(</span>
         monitor <span class="op">=</span> <span class="st">"valid_loss"</span>, 
-        patience <span class="op">=</span> <span class="fl">10</span>, 
+        patience <span class="op">=</span> <span class="fl">5</span>, 
         min_delta <span class="op">=</span> <span class="fl">0.001</span>
       <span class="op">)</span>
     <span class="op">)</span>,
-    verbose <span class="op">=</span> <span class="cn">FALSE</span>
+    verbose <span class="op">=</span> <span class="cn">FALSE</span>,
+    dataloader_options <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>batch_size <span class="op">=</span> <span class="fl">64</span>, num_workers <span class="op">=</span> <span class="fl">4</span><span class="op">)</span>
   <span class="op">)</span>
 <span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">fitted</span><span class="op">)</span></code></pre></div>
 <p><img src="Getting-started_files/figure-html/unnamed-chunk-15-1.png" width="700"></p>
-<p>Once we are happy with the results of our model we can make predictions. The model we have trained can make predictions for 4 weeks ahead, but our test set has 8 weeks ahead. In order to validate the model, we are going to create 2 test sets and then combine the metrics. This is what the <code>rolling_predict</code> function does, so we don’t need to manually implement this:</p>
+<p>We can evaluate the model in the test set using the <code><a href="https://mlverse.github.io/luz/reference/evaluate.html" class="external-link">luz::evaluate</a></code> function:</p>
 <div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span class="va">preds</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/rolling_predict.html">rolling_predict</a></span><span class="op">(</span>
-  <span class="va">fitted</span>, 
-  past_data <span class="op">=</span> <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/bind.html" class="external-link">bind_rows</a></span><span class="op">(</span><span class="va">sales_train</span>, <span class="va">sales_valid</span><span class="op">)</span>,
-  new_data <span class="op">=</span> <span class="va">sales_test</span>
-<span class="op">)</span>
-<span class="va">preds</span>
-<span class="co">#&gt; <span style="color: #949494;"># A tibble: 2 × 3</span></span>
-<span class="co">#&gt;   past_data           new_data           .pred            </span>
-<span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;list&gt;</span>              <span style="color: #949494; font-style: italic;">&lt;list&gt;</span>             <span style="color: #949494; font-style: italic;">&lt;list&gt;</span>           </span>
-<span class="co">#&gt; <span style="color: #BCBCBC;">1</span> <span style="color: #949494;">&lt;tibble [208 × 16]&gt;</span> <span style="color: #949494;">&lt;tibble [16 × 16]&gt;</span> <span style="color: #949494;">&lt;tibble [16 × 3]&gt;</span></span>
-<span class="co">#&gt; <span style="color: #BCBCBC;">2</span> <span style="color: #949494;">&lt;tibble [208 × 16]&gt;</span> <span style="color: #949494;">&lt;tibble [16 × 16]&gt;</span> <span style="color: #949494;">&lt;tibble [16 × 3]&gt;</span></span></code></pre></div>
-<p>The return value of <code>rolling_predict</code> is a tibble containing the <code>past_data</code>, <code>new_data</code> and <code>.pred</code> (predictions) for each slice that was made in the test data.</p>
-<p>We can make a plot of predictions along with the historical data used for creating the predictions and the observed values.</p>
+<code class="sourceCode R"><span class="va">fitted</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
+  <span class="fu">luz</span><span class="fu">::</span><span class="fu"><a href="https://mlverse.github.io/luz/reference/evaluate.html" class="external-link">evaluate</a></span><span class="op">(</span>
+    <span class="fu"><a href="https://rdrr.io/r/base/transform.html" class="external-link">transform</a></span><span class="op">(</span><span class="va">spec</span>, new_data <span class="op">=</span> <span class="va">test</span>, past_data <span class="op">=</span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/bind.html" class="external-link">bind_rows</a></span><span class="op">(</span><span class="va">train</span>, <span class="va">valid</span><span class="op">)</span><span class="op">)</span>
+  <span class="op">)</span>
+<span class="co">#&gt; A `luz_module_evaluation`</span>
+<span class="co">#&gt; ── Results ─────────────────────────────────────────────────────────────────────</span>
+<span class="co">#&gt; loss: 0.1433</span>
+<span class="co">#&gt; q10: 0.0747</span>
+<span class="co">#&gt; q50: 0.2282</span>
+<span class="co">#&gt; q90: 0.1269</span></code></pre></div>
+<p>Once we are happy with the results of our model we can make forecasts using the <code>forecast</code> function. The model we have trained can make predictions for at most 12 weeks ahead.</p>
+<p>By default <code>forecast</code> generates predictions for the period right after the data the model has been trained. You can pass the <code>past_data</code> argument to make predictions for a more recent period.</p>
 <div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span class="va">preds</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
-  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/rowwise.html" class="external-link">rowwise</a></span><span class="op">(</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
-  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/summarise.html" class="external-link">summarise</a></span><span class="op">(</span>
-    <span class="va">past_data</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
-      <span class="fu"><a href="https://dplyr.tidyverse.org/reference/bind.html" class="external-link">bind_rows</a></span><span class="op">(</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/bind.html" class="external-link">bind_cols</a></span><span class="op">(</span><span class="va">new_data</span>, <span class="va">.pred</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
-      <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span><span class="op">(</span>.pred_at <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="va">past_data</span><span class="op">$</span><span class="va">Date</span><span class="op">)</span><span class="op">)</span>
-  <span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
-  <span class="fu">ggplot</span><span class="op">(</span><span class="fu">aes</span><span class="op">(</span>x <span class="op">=</span> <span class="va">Date</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span>
-  <span class="fu">geom_point</span><span class="op">(</span><span class="fu">aes</span><span class="op">(</span>y <span class="op">=</span> <span class="va">Weekly_Sales</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span>
-  <span class="fu">geom_line</span><span class="op">(</span><span class="fu">aes</span><span class="op">(</span>y <span class="op">=</span> <span class="va">Weekly_Sales</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span>
-  <span class="fu">geom_point</span><span class="op">(</span><span class="fu">aes</span><span class="op">(</span>y <span class="op">=</span> <span class="va">.pred</span><span class="op">)</span>, color <span class="op">=</span> <span class="st">"red"</span><span class="op">)</span> <span class="op">+</span>
-  <span class="fu">geom_line</span><span class="op">(</span><span class="fu">aes</span><span class="op">(</span>y <span class="op">=</span> <span class="va">.pred</span><span class="op">)</span>, color <span class="op">=</span> <span class="st">"red"</span><span class="op">)</span> <span class="op">+</span>
-  <span class="fu">facet_grid</span><span class="op">(</span><span class="va">Store</span> <span class="op">+</span> <span class="va">Dept</span> <span class="op">~</span> <span class="va">.pred_at</span>, scales <span class="op">=</span> <span class="st">"free"</span><span class="op">)</span>
-<span class="co">#&gt; Warning: Removed 416 rows containing missing values (geom_point).</span>
-<span class="co">#&gt; Warning: Removed 52 row(s) containing missing values (geom_path).</span></code></pre></div>
-<p><img src="Getting-started_files/figure-html/unnamed-chunk-17-1.png" width="700"></p>
-<p>To create predictions for future data, that we don’t yet have the target, we can use <code>predict</code>. For example:</p>
-<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span class="va">future_data</span> <span class="op">&lt;-</span> <span class="fu">walmartdata</span><span class="fu">::</span><span class="va"><a href="https://rdrr.io/pkg/walmartdata/man/walmart_sales.html" class="external-link">walmart_sales_test</a></span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
-  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter</a></span><span class="op">(</span><span class="va">Store</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span><span class="op">)</span>, <span class="va">Dept</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">92</span>, <span class="fl">95</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
-  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span><span class="op">(</span>Store <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">as.factor</a></span><span class="op">(</span><span class="va">Store</span><span class="op">)</span>, Dept <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">as.factor</a></span><span class="op">(</span><span class="va">Dept</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
-  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter</a></span><span class="op">(</span><span class="va">Date</span> <span class="op">&lt;=</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="va">sales</span><span class="op">$</span><span class="va">Date</span><span class="op">)</span> <span class="op">+</span> <span class="fu">lubridate</span><span class="fu">::</span><span class="fu"><a href="https://lubridate.tidyverse.org/reference/period.html" class="external-link">weeks</a></span><span class="op">(</span><span class="fl">4</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>
-
-<span class="va">pred</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span>
-  <span class="va">fitted</span>,
-  new_data <span class="op">=</span> <span class="va">future_data</span>,
-  past_data <span class="op">=</span> <span class="va">sales</span>
-<span class="op">)</span></code></pre></div>
+<code class="sourceCode R"><span class="va">forecasts</span> <span class="op">&lt;-</span> <span class="fu">generics</span><span class="fu">::</span><span class="fu"><a href="https://generics.r-lib.org/reference/forecast.html" class="external-link">forecast</a></span><span class="op">(</span><span class="va">fitted</span>, past_data <span class="op">=</span> <span class="va">reservoirs</span><span class="op">)</span>
+<span class="fu"><a href="https://dplyr.tidyverse.org/reference/glimpse.html" class="external-link">glimpse</a></span><span class="op">(</span><span class="va">forecasts</span><span class="op">)</span>
+<span class="co">#&gt; Rows: 84</span>
+<span class="co">#&gt; Columns: 5</span>
+<span class="co">#&gt; $ date        <span style="color: #949494; font-style: italic;">&lt;date&gt;</span> 2022-05-29, 2022-06-05, 2022-06-12, 2022-06-19, 2022-06-2…</span>
+<span class="co">#&gt; $ system      <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span> "Alto Tietê", "Alto Tietê", "Alto Tietê", "Alto Tietê", "A…</span>
+<span class="co">#&gt; $ .pred_lower <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 55.06366, 54.53058, 54.86599, 52.85326, 52.19434, 50.61832…</span>
+<span class="co">#&gt; $ .pred       <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 59.26833, 58.52310, 57.72558, 57.14611, 57.28476, 55.95859…</span>
+<span class="co">#&gt; $ .pred_upper <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 63.95515, 64.07766, 63.59456, 64.05590, 63.60314, 63.37445…</span></code></pre></div>
+<p>The return value of <code>forecast</code> is a tibble containing predictions for each time serie in the 12 weeks ahead.</p>
 <p>We can then show the predictions in a plot:</p>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span class="va">sales</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
-  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter</a></span><span class="op">(</span><span class="va">Date</span> <span class="op">&gt;=</span> <span class="fu">lubridate</span><span class="fu">::</span><span class="fu"><a href="https://lubridate.tidyverse.org/reference/ymd.html" class="external-link">ymd</a></span><span class="op">(</span><span class="st">"2012-01-01"</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
-  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/bind.html" class="external-link">bind_rows</a></span><span class="op">(</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/bind.html" class="external-link">bind_cols</a></span><span class="op">(</span><span class="va">future_data</span>, <span class="va">pred</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
-  <span class="fu">ggplot</span><span class="op">(</span><span class="fu">aes</span><span class="op">(</span>x <span class="op">=</span> <span class="va">Date</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span>
-  <span class="fu">geom_point</span><span class="op">(</span><span class="fu">aes</span><span class="op">(</span>y <span class="op">=</span> <span class="va">Weekly_Sales</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span>
-  <span class="fu">geom_line</span><span class="op">(</span><span class="fu">aes</span><span class="op">(</span>y <span class="op">=</span> <span class="va">Weekly_Sales</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span>
-  <span class="fu">geom_point</span><span class="op">(</span><span class="fu">aes</span><span class="op">(</span>y <span class="op">=</span> <span class="va">.pred</span><span class="op">)</span>, color <span class="op">=</span> <span class="st">"red"</span><span class="op">)</span> <span class="op">+</span>
-  <span class="fu">geom_line</span><span class="op">(</span><span class="fu">aes</span><span class="op">(</span>y <span class="op">=</span> <span class="va">.pred</span><span class="op">)</span>, color <span class="op">=</span> <span class="st">"red"</span><span class="op">)</span> <span class="op">+</span>
-  <span class="fu">facet_grid</span><span class="op">(</span><span class="va">Store</span> <span class="op">~</span> <span class="va">Dept</span>, scales <span class="op">=</span> <span class="st">"free"</span><span class="op">)</span>
-<span class="co">#&gt; Warning: Removed 16 rows containing missing values (geom_point).</span>
-<span class="co">#&gt; Warning: Removed 4 row(s) containing missing values (geom_path).</span>
-<span class="co">#&gt; Warning: Removed 172 rows containing missing values (geom_point).</span>
-<span class="co">#&gt; Warning: Removed 43 row(s) containing missing values (geom_path).</span></code></pre></div>
-<p><img src="Getting-started_files/figure-html/unnamed-chunk-19-1.png" width="700"></p>
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span class="va">reservoirs</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
+  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter</a></span><span class="op">(</span><span class="va">date</span> <span class="op">&gt;</span> <span class="fu">lubridate</span><span class="fu">::</span><span class="fu"><a href="https://lubridate.tidyverse.org/reference/ymd.html" class="external-link">ymd</a></span><span class="op">(</span><span class="st">"2019-01-01"</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
+  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate-joins.html" class="external-link">full_join</a></span><span class="op">(</span><span class="va">forecasts</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span> 
+  <span class="fu">ggplot</span><span class="op">(</span><span class="fu">aes</span><span class="op">(</span>x <span class="op">=</span> <span class="va">date</span>, y <span class="op">=</span> <span class="va">volume_percentage</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span>
+  <span class="fu">geom_line</span><span class="op">(</span><span class="op">)</span> <span class="op">+</span>
+  <span class="fu">geom_line</span><span class="op">(</span><span class="fu">aes</span><span class="op">(</span>y <span class="op">=</span> <span class="va">.pred</span><span class="op">)</span>, color <span class="op">=</span> <span class="st">"blue"</span><span class="op">)</span> <span class="op">+</span>
+  <span class="fu">geom_ribbon</span><span class="op">(</span><span class="fu">aes</span><span class="op">(</span>ymin <span class="op">=</span> <span class="va">.pred_lower</span>, ymax <span class="op">=</span> <span class="va">.pred_upper</span><span class="op">)</span>, alpha <span class="op">=</span> <span class="fl">0.3</span><span class="op">)</span> <span class="op">+</span>
+  <span class="fu">facet_wrap</span><span class="op">(</span><span class="op">~</span><span class="va">system</span><span class="op">)</span></code></pre></div>
+<p><img src="Getting-started_files/figure-html/unnamed-chunk-18-1.png" width="700"></p>
 </div>
   </main><aside class="col-md-3"><nav id="toc"><h2>On this page</h2>
     </nav></aside>
