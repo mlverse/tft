@@ -31,5 +31,13 @@ NULL
 #' @name prep
 NULL
 
+#' Creates forecasts
+#' See [generics::forecast()] for more information.
+#' @export
+#' @importFrom generics forecast
+#' @name forecast
+#' @keywords internal
+NULL
+
 utils::globalVariables(c(".stats", ".", ".min_index", ":=", "..mean", "..sd",
                          "type", "variable", "object", "new_data"))

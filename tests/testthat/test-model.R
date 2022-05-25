@@ -148,7 +148,7 @@ test_that("forecast works", {
   spec <- tft_dataset_spec(walmart_recipe(), train) %>%
     spec_time_splits(lookback = 52, horizon = 4) %>%
     spec_covariate_index(Date) %>%
-    spec_covariate_keys(Store, Dept, Type) %>%
+    spec_covariate_key(Store, Dept, Type) %>%
     spec_covariate_known(intercept) %>%
     prep()
 

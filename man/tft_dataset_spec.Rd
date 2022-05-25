@@ -4,7 +4,7 @@
 \alias{tft_dataset_spec}
 \alias{spec_time_splits}
 \alias{spec_covariate_index}
-\alias{spec_covariate_keys}
+\alias{spec_covariate_key}
 \alias{spec_covariate_known}
 \alias{spec_covariate_unknown}
 \alias{spec_covariate_static}
@@ -16,7 +16,7 @@ spec_time_splits(spec, lookback, horizon, step = 1L)
 
 spec_covariate_index(spec, index)
 
-spec_covariate_keys(spec, ...)
+spec_covariate_key(spec, ...)
 
 spec_covariate_known(spec, ...)
 
@@ -59,7 +59,7 @@ to be passed as its first argument.
 
 \item \code{spec_covariate_index}: Sets the \code{index} column.
 
-\item \code{spec_covariate_keys}: Sets the \code{keys} - variables that define each time series
+\item \code{spec_covariate_key}: Sets the \code{keys} - variables that define each time series
 
 \item \code{spec_covariate_known}: Sets \code{known} time varying covariates.
 
@@ -79,7 +79,7 @@ rec <- recipes::recipe(Weekly_Sales ~ ., sales)
 spec <- tft_dataset_spec(rec, sales) \%>\%
   spec_time_splits(lookback = 52, horizon = 4) \%>\%
   spec_covariate_index(Date) \%>\%
-  spec_covariate_keys(Store, Dept) \%>\%
+  spec_covariate_key(Store, Dept) \%>\%
   spec_covariate_static(Type, Size) \%>\%
   spec_covariate_known(starts_with("MarkDown"))
 

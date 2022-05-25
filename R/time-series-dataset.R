@@ -41,7 +41,7 @@
 #' spec <- tft_dataset_spec(rec, sales) %>%
 #'   spec_time_splits(lookback = 52, horizon = 4) %>%
 #'   spec_covariate_index(Date) %>%
-#'   spec_covariate_keys(Store, Dept) %>%
+#'   spec_covariate_key(Store, Dept) %>%
 #'   spec_covariate_static(Type, Size) %>%
 #'   spec_covariate_known(starts_with("MarkDown"))
 #'
@@ -215,7 +215,7 @@ spec_covariate_index <- function(spec, index) {
 #'  for more information.
 #' @describeIn tft_dataset_spec Sets the `keys` - variables that define each time series
 #' @export
-spec_covariate_keys <- function(spec, ...) {
+spec_covariate_key <- function(spec, ...) {
   spec$input_types$keys <- rlang::enexprs(...)
   spec
 }

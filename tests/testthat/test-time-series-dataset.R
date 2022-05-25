@@ -14,7 +14,7 @@ test_that("can create a spec", {
   spec <- tft_dataset_spec(walmart_recipe(), train) %>%
     spec_time_splits(lookback = 52, horizon = 4) %>%
     spec_covariate_index(Date) %>%
-    spec_covariate_keys(Store, Dept) %>%
+    spec_covariate_key(Store, Dept) %>%
     spec_covariate_static(Type, Size) %>%
     spec_covariate_known(starts_with("MarkDown"), starts_with("Date_"),
                          starts_with("na_ind"))
@@ -37,7 +37,7 @@ test_that("step  and subsample works", {
 
   spec <- tft_dataset_spec(walmart_recipe(), train) %>%
     spec_covariate_index(Date) %>%
-    spec_covariate_keys(Store, Dept) %>%
+    spec_covariate_key(Store, Dept) %>%
     spec_covariate_static(Type, Size) %>%
     spec_covariate_known(starts_with("MarkDown"), starts_with("Date_"),
                          starts_with("na_ind"))
