@@ -4,12 +4,15 @@
 \alias{forecast.tft_result}
 \title{Generate forecasts for TFT models}
 \usage{
-\method{forecast}{tft_result}(object, horizon = NULL)
+\method{forecast}{tft_result}(object, horizon = NULL, past_data = NULL)
 }
 \arguments{
 \item{object}{The \code{tft_result} object that will be used to create predictions.}
 
 \item{horizon}{Number of time steps ahead to generate predictions.}
+
+\item{past_data}{If \code{NULL} then the data the model was trained on is used. Predictions
+are made for the period right after \code{past_data}.}
 }
 \description{
 \code{forecast} can only be used if the model object doesn't include \code{known}

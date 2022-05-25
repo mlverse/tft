@@ -186,10 +186,12 @@ verify_new_data <- function(new_data, past_data, object) {
 #'
 #' @param object The `tft_result` object that will be used to create predictions.
 #' @param horizon Number of time steps ahead to generate predictions.
+#' @param past_data If `NULL` then the data the model was trained on is used. Predictions
+#'   are made for the period right after `past_data`.
 #'
 #' @importFrom generics forecast
 #' @export
-forecast.tft_result <- function(object, horizon = NULL) {
+forecast.tft_result <- function(object, horizon = NULL, past_data = NULL) {
 
   if (is.null(horizon)) {
     horizon <- object$spec$config$horizon
@@ -202,16 +204,20 @@ forecast.tft_result <- function(object, horizon = NULL) {
     ))
   }
 
-  f_data <- future_data(object$spec$past_data, horizon = object$spec$config$horizon,
+  if (is.null(past_data)) {
+    past_data <- object$spec$past_data
+  }
+
+  f_data <- future_data(past_data, horizon = object$spec$config$horizon,
                         input_types = object$spec$config$input_types)
   f_data <- tibble::as_tibble(f_data)
 
   pred <- dplyr::bind_cols(
     f_data,
-    predict(object, new_data = f_data)
+    predict(object, new_data = f_data, past_data = past_data)
   )
 
-  future_data <- future_data(object$spec$past_data, horizon = horizon,
+  future_data <- future_data(past_data, horizon = horizon,
                              input_types = object$spec$config$input_types) %>%
     dplyr::left_join(pred, by = names(.)) %>%
     tibble::as_tibble() %>%
