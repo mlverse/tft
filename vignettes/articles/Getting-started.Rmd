@@ -164,7 +164,7 @@ Now lets create the tft dataset specification. We don't need to manually specfy 
 ```{r}
 spec <- tft_dataset_spec(rec, train) %>% 
   spec_covariate_index(date) %>% 
-  spec_covariate_keys(system) %>%
+  spec_covariate_key(system) %>%
   spec_covariate_known(time_since_begining, starts_with("date_"))
 ```
 
@@ -202,7 +202,7 @@ We will now fit our model. To that we first initialize the a model with:
 ```{r}
 model <- temporal_fusion_transformer(
   spec, 
-  hidden_state_size = 50,
+  hidden_state_size = 8,
   learn_rate = 1e-3, 
   dropout = 0.5, 
   num_attention_heads = 1, 
@@ -234,7 +234,7 @@ Let's redefine the model now fixing the learning rate:
 ```{r}
 model <- temporal_fusion_transformer(
   spec, 
-  hidden_state_size = 50,
+  hidden_state_size = 8,
   learn_rate = 1e-3, 
   dropout = 0.5, 
   num_attention_heads = 1, 
