@@ -17,72 +17,35 @@ coverage](https://codecov.io/gh/mlverse/tft/branch/master/graph/badge.svg)](http
 
 <!-- badges: end -->
 
-An R implementation of: [tft: Temporal Fusion
-Transformer](https://arxiv.org/pdf/1912.09363.pdf). The code in this
-repository is an R port of
-[akeskiner/Temporal\_Fusion\_Transform](https://github.com/akeskiner/Temporal_Fusion_Transform)
-PyTorch’s implementation using the
-[torch](https://github.com/mlverse/torch) package.
+> An R implementation of [tft: Temporal Fusion
+> Transformer](https://arxiv.org/pdf/1912.09363.pdf).
+
+The Temporal Fusion Transformer is a neural network architecture
+proposed by Bryan Lim et al. with the goal of making multi-horizon time
+series forecasts for multiple time series in a single model.
+
+The main difference between TFT and conventional forecasting
+methodologies is the way its architecture allows encoding different
+types of input data that can exist in forecasting problems. For
+instance, the model allows handling static covariates and time varying
+(known and unknown) differently. tft also showed [promising
+benchmarks](https://ai.googleblog.com/2021/12/interpretable-deep-learning-for-time.html).
+
+The code in this repository is heavily inspired in code from
+[akeskiner/Temporal_Fusion_Transform](https://github.com/akeskiner/Temporal_Fusion_Transform),
+[jdb78/pytorch-forecasting](https://github.com/jdb78/pytorch-forecasting)
+and the original implementation
+[here](https://github.com/google-research/google-research/tree/master/tft).
 
 ## Installation
 
-You can install the development version of {tft} from
-[GitHub](https://github.com/) with:
+You can install the development version [GitHub](https://github.com/)
+with:
 
 ``` r
 # install.packages("remotes")
 remotes::install_github("mlverse/tft")
 ```
 
-## Example
-
-``` r
-library(tft)
-library(rsample)
-suppressMessages(library(recipes))
-suppressMessages(library(yardstick))
-suppressMessages(library(tsibble))
-set.seed(1)
-
-data("vic_elec", package = "tsibbledata")
-vic_elec <- vic_elec %>% 
-  mutate(Location = as.factor("Victoria"))
-
-str(vic_elec)
-#> tbl_ts [52,608 × 6] (S3: tbl_ts/tbl_df/tbl/data.frame)
-#>  $ Time       : POSIXct[1:52608], format: "2012-01-01 00:00:00" "2012-01-01 00:30:00" ...
-#>  $ Demand     : num [1:52608] 4383 4263 4049 3878 4036 ...
-#>  $ Temperature: num [1:52608] 21.4 21.1 20.7 20.6 20.4 ...
-#>  $ Date       : Date[1:52608], format: "2012-01-01" "2012-01-01" ...
-#>  $ Holiday    : logi [1:52608] TRUE TRUE TRUE TRUE TRUE TRUE ...
-#>  $ Location   : Factor w/ 1 level "Victoria": 1 1 1 1 1 1 1 1 1 1 ...
-#>  - attr(*, "key")= tibble [1 × 1] (S3: tbl_df/tbl/data.frame)
-#>   ..$ .rows: list<int> [1:1] 
-#>   .. ..$ : int [1:52608] 1 2 3 4 5 6 7 8 9 10 ...
-#>   .. ..@ ptype: int(0) 
-#>  - attr(*, "index")= chr "Time"
-#>   ..- attr(*, "ordered")= logi TRUE
-#>  - attr(*, "index2")= chr "Time"
-#>  - attr(*, "interval")= interval [1:1] 30m
-#>   ..@ .regular: logi TRUE
-```
-
-``` r
-vic_elec_split <- initial_time_split(vic_elec, prop=3/4, lag=96)
-  
-vic_elec_train <- training(vic_elec_split)
-vic_elec_test <- testing(vic_elec_split)
-
-rec <- recipe(Demand ~ ., data = vic_elec_train) %>%
-  update_role(Date, new_role="id") %>%
-  update_role(Time, new_role="time") %>%
-  update_role(Temperature, new_role="observed_input") %>%
-  update_role(Holiday, new_role="known_input") %>%
-  update_role(Location, new_role="static_input") %>%
-  step_normalize(all_numeric(), -all_outcomes())
-
-
-fit <- tft_fit(rec, vic_elec_train, epochs = 100, batch_size=100, total_time_steps=12, num_encoder_steps=10, verbose=TRUE)
-
-yhat <- predict(fit, rec, vic_elec_test)
-```
+Read the [Getting Started](https://mlverse.github.io/tft/) guide to fit
+your first model with tft.
