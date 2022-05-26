@@ -68,65 +68,18 @@
 <div class="page-header"><h1 id="tft">tft<a class="anchor" aria-label="anchor" href="#tft"></a>
 </h1></div>
 <!-- badges: start -->
-<!-- badges: end --><p>An R implementation of: <a href="https://arxiv.org/pdf/1912.09363.pdf" class="external-link">tft: Temporal Fusion Transformer</a>. The code in this repository is an R port of <a href="https://github.com/akeskiner/Temporal_Fusion_Transform" class="external-link">akeskiner/Temporal_Fusion_Transform</a> PyTorch’s implementation using the <a href="https://github.com/mlverse/torch" class="external-link">torch</a> package.</p>
+<!-- badges: end --><blockquote><p>An R implementation of <a href="https://arxiv.org/pdf/1912.09363.pdf" class="external-link">tft: Temporal Fusion Transformer</a>.</p></blockquote>
+<p>The Temporal Fusion Transformer is a neural network architecture proposed by Bryan Lim et al. with the goal of making multi-horizon time series forecasts for multiple time series in a single model.</p>
+<p>The main difference between TFT and conventional forecasting methodologies is the way its architecture allows encoding different types of input data that can exist in forecasting problems. For instance, the model allows handling static covariates and time varying (known and unknown) differently. tft also showed <a href="https://ai.googleblog.com/2021/12/interpretable-deep-learning-for-time.html" class="external-link">promising benchmarks</a>.</p>
+<p>The code in this repository is heavily inspired in code from <a href="https://github.com/akeskiner/Temporal_Fusion_Transform" class="external-link">akeskiner/Temporal_Fusion_Transform</a>, <a href="https://github.com/jdb78/pytorch-forecasting" class="external-link">jdb78/pytorch-forecasting</a> and the original implementation <a href="https://github.com/google-research/google-research/tree/master/tft" class="external-link">here</a>.</p>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
-<p>You can install the development version of {tft} from <a href="https://github.com/" class="external-link">GitHub</a> with:</p>
+<p>You can install the development version <a href="https://github.com/" class="external-link">GitHub</a> with:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="co"># install.packages("remotes")</span>
 <span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"mlverse/tft"</span><span class="op">)</span></code></pre></div>
-</div>
-<div class="section level2">
-<h2 id="example">Example<a class="anchor" aria-label="anchor" href="#example"></a>
-</h2>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://mlverse.github.io/tft/">tft</a></span><span class="op">)</span>
-<span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://rsample.tidymodels.org" class="external-link">rsample</a></span><span class="op">)</span>
-<span class="fu"><a href="https://rdrr.io/r/base/message.html" class="external-link">suppressMessages</a></span><span class="op">(</span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/tidymodels/recipes" class="external-link">recipes</a></span><span class="op">)</span><span class="op">)</span>
-<span class="fu"><a href="https://rdrr.io/r/base/message.html" class="external-link">suppressMessages</a></span><span class="op">(</span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/tidymodels/yardstick" class="external-link">yardstick</a></span><span class="op">)</span><span class="op">)</span>
-<span class="fu"><a href="https://rdrr.io/r/base/message.html" class="external-link">suppressMessages</a></span><span class="op">(</span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://tsibble.tidyverts.org" class="external-link">tsibble</a></span><span class="op">)</span><span class="op">)</span>
-<span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span>
-
-<span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"vic_elec"</span>, package <span class="op">=</span> <span class="st">"tsibbledata"</span><span class="op">)</span>
-<span class="va">vic_elec</span> <span class="op">&lt;-</span> <span class="va">vic_elec</span> <span class="op"><a href="reference/pipe.html">%&gt;%</a></span> 
-  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span><span class="op">(</span>Location <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">as.factor</a></span><span class="op">(</span><span class="st">"Victoria"</span><span class="op">)</span><span class="op">)</span>
-
-<span class="fu"><a href="https://rdrr.io/r/utils/str.html" class="external-link">str</a></span><span class="op">(</span><span class="va">vic_elec</span><span class="op">)</span>
-<span class="co">#&gt; tbl_ts [52,608 × 6] (S3: tbl_ts/tbl_df/tbl/data.frame)</span>
-<span class="co">#&gt;  $ Time       : POSIXct[1:52608], format: "2012-01-01 00:00:00" "2012-01-01 00:30:00" ...</span>
-<span class="co">#&gt;  $ Demand     : num [1:52608] 4383 4263 4049 3878 4036 ...</span>
-<span class="co">#&gt;  $ Temperature: num [1:52608] 21.4 21.1 20.7 20.6 20.4 ...</span>
-<span class="co">#&gt;  $ Date       : Date[1:52608], format: "2012-01-01" "2012-01-01" ...</span>
-<span class="co">#&gt;  $ Holiday    : logi [1:52608] TRUE TRUE TRUE TRUE TRUE TRUE ...</span>
-<span class="co">#&gt;  $ Location   : Factor w/ 1 level "Victoria": 1 1 1 1 1 1 1 1 1 1 ...</span>
-<span class="co">#&gt;  - attr(*, "key")= tibble [1 × 1] (S3: tbl_df/tbl/data.frame)</span>
-<span class="co">#&gt;   ..$ .rows: list&lt;int&gt; [1:1] </span>
-<span class="co">#&gt;   .. ..$ : int [1:52608] 1 2 3 4 5 6 7 8 9 10 ...</span>
-<span class="co">#&gt;   .. ..@ ptype: int(0) </span>
-<span class="co">#&gt;  - attr(*, "index")= chr "Time"</span>
-<span class="co">#&gt;   ..- attr(*, "ordered")= logi TRUE</span>
-<span class="co">#&gt;  - attr(*, "index2")= chr "Time"</span>
-<span class="co">#&gt;  - attr(*, "interval")= interval [1:1] 30m</span>
-<span class="co">#&gt;   ..@ .regular: logi TRUE</span></code></pre></div>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span class="va">vic_elec_split</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rsample.tidymodels.org/reference/initial_split.html" class="external-link">initial_time_split</a></span><span class="op">(</span><span class="va">vic_elec</span>, prop<span class="op">=</span><span class="fl">3</span><span class="op">/</span><span class="fl">4</span>, lag<span class="op">=</span><span class="fl">96</span><span class="op">)</span>
-  
-<span class="va">vic_elec_train</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rsample.tidymodels.org/reference/initial_split.html" class="external-link">training</a></span><span class="op">(</span><span class="va">vic_elec_split</span><span class="op">)</span>
-<span class="va">vic_elec_test</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rsample.tidymodels.org/reference/initial_split.html" class="external-link">testing</a></span><span class="op">(</span><span class="va">vic_elec_split</span><span class="op">)</span>
-
-<span class="va">rec</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://recipes.tidymodels.org/reference/recipe.html" class="external-link">recipe</a></span><span class="op">(</span><span class="va">Demand</span> <span class="op">~</span> <span class="va">.</span>, data <span class="op">=</span> <span class="va">vic_elec_train</span><span class="op">)</span> <span class="op"><a href="reference/pipe.html">%&gt;%</a></span>
-  <span class="fu"><a href="https://recipes.tidymodels.org/reference/roles.html" class="external-link">update_role</a></span><span class="op">(</span><span class="va">Date</span>, new_role<span class="op">=</span><span class="st">"id"</span><span class="op">)</span> <span class="op"><a href="reference/pipe.html">%&gt;%</a></span>
-  <span class="fu"><a href="https://recipes.tidymodels.org/reference/roles.html" class="external-link">update_role</a></span><span class="op">(</span><span class="va">Time</span>, new_role<span class="op">=</span><span class="st">"time"</span><span class="op">)</span> <span class="op"><a href="reference/pipe.html">%&gt;%</a></span>
-  <span class="fu"><a href="https://recipes.tidymodels.org/reference/roles.html" class="external-link">update_role</a></span><span class="op">(</span><span class="va">Temperature</span>, new_role<span class="op">=</span><span class="st">"observed_input"</span><span class="op">)</span> <span class="op"><a href="reference/pipe.html">%&gt;%</a></span>
-  <span class="fu"><a href="https://recipes.tidymodels.org/reference/roles.html" class="external-link">update_role</a></span><span class="op">(</span><span class="va">Holiday</span>, new_role<span class="op">=</span><span class="st">"known_input"</span><span class="op">)</span> <span class="op"><a href="reference/pipe.html">%&gt;%</a></span>
-  <span class="fu"><a href="https://recipes.tidymodels.org/reference/roles.html" class="external-link">update_role</a></span><span class="op">(</span><span class="va">Location</span>, new_role<span class="op">=</span><span class="st">"static_input"</span><span class="op">)</span> <span class="op"><a href="reference/pipe.html">%&gt;%</a></span>
-  <span class="fu"><a href="https://recipes.tidymodels.org/reference/step_normalize.html" class="external-link">step_normalize</a></span><span class="op">(</span><span class="fu"><a href="https://recipes.tidymodels.org/reference/has_role.html" class="external-link">all_numeric</a></span><span class="op">(</span><span class="op">)</span>, <span class="op">-</span><span class="fu"><a href="https://recipes.tidymodels.org/reference/has_role.html" class="external-link">all_outcomes</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span>
-
-
-<span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu">tft_fit</span><span class="op">(</span><span class="va">rec</span>, <span class="va">vic_elec_train</span>, epochs <span class="op">=</span> <span class="fl">100</span>, batch_size<span class="op">=</span><span class="fl">100</span>, total_time_steps<span class="op">=</span><span class="fl">12</span>, num_encoder_steps<span class="op">=</span><span class="fl">10</span>, verbose<span class="op">=</span><span class="cn">TRUE</span><span class="op">)</span>
-
-<span class="va">yhat</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit</span>, <span class="va">rec</span>, <span class="va">vic_elec_test</span><span class="op">)</span></code></pre></div>
+<p>Read the <a href="https://mlverse.github.io/tft/">Getting Started</a> guide to fit your first model with tft.</p>
 </div>
 </div>
   </main><aside class="col-md-3"><div class="license">
