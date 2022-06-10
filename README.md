@@ -47,5 +47,6 @@ with:
 remotes::install_github("mlverse/tft")
 ```
 
-Read the [Getting Started](https://mlverse.github.io/tft/) guide to fit
-your first model with tft.
+Read the [Getting
+Started](https://mlverse.github.io/tft/articles/Getting-started.html)
+guide to fit your first model with tft.
