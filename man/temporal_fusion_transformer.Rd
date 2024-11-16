@@ -54,11 +54,11 @@ Configuration for the tft model
 }
 \section{Functions}{
 \itemize{
-\item \code{temporal_fusion_transformer}: Create the tft module
+\item \code{temporal_fusion_transformer()}: Create the tft module
 
-\item \code{tft_config}: Configuration for the Temporal Fusion Transformer
+\item \code{tft_config()}: Configuration for the Temporal Fusion Transformer
+
 }}
-
 \seealso{
 \code{\link[=fit.luz_module_generator]{fit.luz_module_generator()}} for fit arguments. See
 \code{\link[=predict.tft_result]{predict.tft_result()}} for information on how to generate predictions and

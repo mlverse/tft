@@ -55,19 +55,19 @@ to be passed as its first argument.
 }
 \section{Functions}{
 \itemize{
-\item \code{spec_time_splits}: Sets \code{lookback} and \code{horizon} parameters.
+\item \code{spec_time_splits()}: Sets \code{lookback} and \code{horizon} parameters.
 
-\item \code{spec_covariate_index}: Sets the \code{index} column.
+\item \code{spec_covariate_index()}: Sets the \code{index} column.
 
-\item \code{spec_covariate_key}: Sets the \code{keys} - variables that define each time series
+\item \code{spec_covariate_key()}: Sets the \code{keys} - variables that define each time series
 
-\item \code{spec_covariate_known}: Sets \code{known} time varying covariates.
+\item \code{spec_covariate_known()}: Sets \code{known} time varying covariates.
 
-\item \code{spec_covariate_unknown}: Sets \code{unknown} time varying covariates.
+\item \code{spec_covariate_unknown()}: Sets \code{unknown} time varying covariates.
 
-\item \code{spec_covariate_static}: Sets \code{static} covariates.
+\item \code{spec_covariate_static()}: Sets \code{static} covariates.
+
 }}
-
 \examples{
 if (torch::torch_is_installed()) {
 sales <- timetk::walmart_sales_weekly \%>\%

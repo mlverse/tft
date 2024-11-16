@@ -36,6 +36,6 @@ and create slices so you create predictions for each value in \code{new_data}.
 }
 \section{Functions}{
 \itemize{
-\item \code{rolling_slice}: Generate slices for predictions without adding the predictions.
-}}
+\item \code{rolling_slice()}: Generate slices for predictions without adding the predictions.
 
+}}

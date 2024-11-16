@@ -590,7 +590,7 @@ slice_df <- function(df, lookback, horizon, step, keys) {
     ))
   }
 
-  rlang::flatten_if(slices, function(.x) {!rlang::is_named(.x)})
+  purrr::list_flatten(slices)[!rlang::have_name(slices)]
 }
 
 make_tsibble <- function(df, roles) {

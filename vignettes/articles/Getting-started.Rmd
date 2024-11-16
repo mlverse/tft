@@ -74,7 +74,7 @@ reservoirs <- reservoirs %>%
   summarise(across(everything(), .fns = ~mean(.x, na.rm = TRUE)), .groups = "drop")
 ```
 
-We used the mean o aggregate all variables even though the `volume_variation` is
+We used the mean to aggregate all variables even though the `volume_variation` is
 now much harder to interpret. The new dataset looks like:
 
 ```{r}
@@ -83,7 +83,7 @@ reservoirs %>%
   geom_line()
 ```
 
-The level can go below the 0%, this means that water from a so called ['technical water reserve'](https://pt.wikipedia.org/wiki/Volume_morto), ie water from below the level of the usual water pipes has been used. This happened
+The level can go below the 0%, this means that water from a so called ['technical water reserve'](https://pt.wikipedia.org/wiki/Volume_morto), i.e. water from below the level of the usual water pipes has been used. This happened
 during the [severe drought](https://en.wikipedia.org/wiki/2014%E2%80%932017_Brazilian_drought) the hit the region between 2014 and 2017.
 
 Our goal is to predict the reservoir level for the 3 months (12 weeks to be more precise). We will split

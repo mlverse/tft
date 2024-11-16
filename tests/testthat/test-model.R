@@ -17,7 +17,7 @@ test_that("can initialize and train a model", {
 
 test_that("Can pass validation data to the model", {
 
-  init <- max(walmart_data()$Date) -lubridate::weeks(8)
+  init <- max(walmart_data()$Date) - lubridate::weeks(8)
   train <- walmart_data() %>%
     dplyr::filter(Date <= init)
   test <- walmart_data() %>%
@@ -41,7 +41,7 @@ test_that("Can pass validation data to the model", {
 })
 
 test_that("can make predictions", {
-  init <- max(walmart_data()$Date) -lubridate::weeks(4)
+  init <- max(walmart_data()$Date) - lubridate::weeks(4)
   train <- walmart_data() %>%
     dplyr::filter(Date <= init)
   test <- walmart_data() %>%
@@ -59,7 +59,7 @@ test_that("can make predictions", {
 
   predictions <- predict(result, new_data = test)
   expect_equal(nrow(predictions), 4)
-  expect_equal(ncol(predictions), 3)
+  expect_equal(ncol(predictions), 7)
 
 })
 
@@ -131,7 +131,7 @@ test_that("rolling predict works", {
   expect_equal(ncol(predictions), 3)
   for (p in predictions$.pred) {
     expect_equal(nrow(p), 4)
-    expect_equal(ncol(p), 3)
+    expect_equal(ncol(p), 7)
   }
 
 })
